@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>명희의 수면 베트남어</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background-color: #1a1a2e; color: white; padding: 20px; }
+        .card { background: #16213e; border-radius: 20px; padding: 30px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); max-width: 500px; margin: auto; }
+        .vn { font-size: 45px; font-weight: bold; color: #4ecca3; margin-bottom: 5px; }
+        .pron { font-size: 25px; color: #f2a365; margin-bottom: 5px; }
+        .kr { font-size: 22px; color: #eee; margin-bottom: 20px; }
+        .ex-vn { font-size: 25px; color: #4ecca3; margin-top: 20px; }
+        .ex-pron { font-size: 20px; color: #f2a365; }
+        .ex-kr { font-size: 18px; color: #ccc; margin-bottom: 20px; }
+        
+        .controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .controls button { font-size: 25px; width: 45px; height: 45px; border: none; border-radius: 8px; background: #0f3460; color: white; cursor: pointer; }
+        .count-display { font-size: 22px; font-weight: bold; color: #e94560; min-width: 90px; }
+        
+        .settings-box { background: #0f3460; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: left; }
+        .settings-box label { display: block; font-size: 16px; margin-bottom: 10px; color: #ccc; }
+        .settings-box select { width: 100%; padding: 8px; font-size: 16px; border-radius: 5px; border: none; background: #1a1a2e; color: white; margin-top: 5px; outline: none; }
+
+        .play-btn { font-size: 22px; padding: 15px; border: none; border-radius: 10px; cursor: pointer; background: #e94560; color: white; font-weight: bold; width: 100%; }
+        .status { margin-top: 15px; font-size: 16px; color: #888; }
+        .error { color: #ff4d4d; font-weight: bold; font-size: 18px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <div id="app" class="card">
+        <p>단어장 데이터를 불러오는 중입니다... 잠시만 기다려주세요!</p>
+    </div>
+
+    <script>
+        const sheetId = '1AiQwqgLg_XBHTiHWZXY0n2qN2Mz4NfIVcR2MxRfqkOc';
+        // 시트 이름 상관없이 무조건 첫 번째 시트를 가져오도록 안전하게 수정
+        const url = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:csv';
+
+        let words = [];
+        let currentIndex = 0;
+        let isPlaying = false;
+
+        fetch(url)
+            .then(res => {
+                if (!res.ok) throw new Error('구글 시트를 불러올 수 없습니다. 공유 설정을 다시 확인해주세요.');
+                return res.text();
+            })
+            .then(data => {
+                const rows = data.split('\n').slice(1);
+                words = rows.map(row => {
+                    const cols = row.split('","').map(c => c.replace(/(^"|"$)/g, ''));
+                    return {
+                        A: cols[0] || '',
+                        B: cols[1] || '',
+                        C: cols[2] || '',
+                        D: cols[3] || '',
+                        E: cols[4] || '',
+                        F: cols[5] || '',
+                        count: 5 
+                    };
+                }).filter(w => w.A.trim() !== ''); 
+                
+                if (words.length === 0) {
+                    document.getElementById('app').innerHTML = '<p class="error">시트에 단어가 없거나 데이터를 읽어올 수 없습니다.</p>';
+                    return;
+                }
+                renderWord();
+            })
+            .catch(error => {
+                document.getElementById('app').innerHTML = '<p class="error">오류 발생: ' + error.message + '</p>';
+            });
+
+        function renderWord() {
+            if (currentIndex >= words.length) {
+                document.getElementById('app').innerHTML = '<h2>오늘의 수면 학습 완료! 🌙</h2>';
+                isPlaying = false;
+                return;
+            }
+            const w = words[currentIndex];
+
+            let html = '<div class="vn">' + w.A + '</div>';
+            if (w.B) html += '<div class="pron">[ ' + w.B + ' ]</div>';
+            html += '<div class="kr">' + w.C + '</div>';
+            
+            html += '<hr style="border:1px solid #333;">';
+            
+            html += '<div class="ex-vn">' + w.D + '</div>';
+            if (w.E) html += '<div class="ex-pron">[ ' + w.E + ' ]</div>';
+            html += '<div class="ex-kr">' + w.F + '</div>';
+
+            html += '<div class="controls">';
+            html += '<button onclick="changeCount(-1)">-</button>';
+            html += '<span class="count-display" id="countDisplay">' + w.count + '번</span>';
+            html += '<button onclick="changeCount(1)">+</button>';
+            html += '</div>';
+
+            html += '<div class="settings-box" id="settingsBox">';
+            html += '<label>🗣️ 목소리 속도:';
+            html += '<select id="voiceRate">';
+            html += '<option value="0.6">저속 (천천히)</option>';
+            html += '<option value="0.9" selected>일반 (보통)</option>';
+            html += '<option value="1.3">고속 (빠르게)</option>';
+            html += '</select></label>';
+            html += '<label>⏳ 단어 사이 공백:';
+            html += '<select id="gapTime">';
+            html += '<option value="0">공백 없음 (바로 읽기)</option>';
+            html += '<option value="600">짧게 (0.6초 대기)</option>';
+            html += '<option value="1500" selected>보통 (1.5초 대기)</option>';
+            html += '<option value="3000">여유 있게 (3초 대기)</option>';
+            html += '</select></label>';
+            html += '</div>';
+
+            html += '<button id="playBtn" class="play-btn" onclick="startSleepMode()">🌙 수면 학습 시작</button>';
+            html += '<div class="status" id="statusMsg">대기 중...</div>';
+
+            document.getElementById('app').innerHTML = html;
+        }
+
+        function changeCount(n) {
+            if (isPlaying) return;
+            let newCount = words[currentIndex].count + n;
+            if (newCount < 0) newCount = 0;
+            if (newCount > 100) newCount = 100;
+            words[currentIndex].count = newCount;
+            document.getElementById('countDisplay').innerText = newCount + '번';
+        }
+
+        function speakText(text, lang) {
+            return new Promise(resolve => {
+                if (!text || text.trim() === '') {
+                    setTimeout(resolve, 300); 
+                    return;
+                }
+                const msg = new SpeechSynthesisUtterance(text);
+                msg.lang = lang;
+                
+                const rateSelect = document.getElementById('voiceRate').value;
+                msg.rate = parseFloat(rateSelect);
+                
+                msg.onend = resolve;
+                msg.onerror = resolve; 
+                setTimeout(resolve, 8000);
+
+                window.speechSynthesis.speak(msg);
+            });
+        }
+
+        async function startSleepMode() {
+            if (isPlaying) return;
+            isPlaying = true;
+
+            document.getElementById('playBtn').style.display = 'none';
+            document.getElementById('settingsBox').style.display = 'none';
+
+            while (currentIndex < words.length && isPlaying) {
+                const w = words[currentIndex];
+                document.getElementById('statusMsg').innerText = (currentIndex + 1) + '번째 단어 재생 중...';
+
+                const gapSelect = parseInt(document.getElementById('gapTime').value);
+
+                if (w.count === 0) {
+                    currentIndex++;
+                    if(currentIndex < words.length) renderWord();
+                    continue;
+                }
+
+                for (let i = 0; i < w.count; i++) {
+                    if (!isPlaying) break;
+                    await speakText(w.A, 'vi-VN'); 
+                    await speakText(w.C, 'ko-KR'); 
+                    await new Promise(r => setTimeout(r, gapSelect)); 
+                }
+
+                await new Promise(r => setTimeout(r, gapSelect + 500)); 
+
+                for (let i = 0; i < w.count; i++) {
+                    if (!isPlaying) break;
+                    await speakText(w.D, 'vi-VN'); 
+                    await speakText(w.F, 'ko-KR'); 
+                    await new Promise(r => setTimeout(r, gapSelect)); 
+                }
+
+                await new Promise(r => setTimeout(r, gapSelect + 1000)); 
+                
+                currentIndex++;
+                if(currentIndex < words.length) {
+                    renderWord();
+                    document.getElementById('playBtn').style.display = 'none';
+                    document.getElementById('settingsBox').style.display = 'none';
+                }
+            }
+            
+            if (currentIndex >= words.length) {
+                renderWord(); 
+            }
+        }
+    </script>
+</body>
+</html>
