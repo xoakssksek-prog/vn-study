@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>명희의 수면 베트남어</title>
+    <title>명희의 수면 베트남어 프로</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background-color: #1a1a2e; color: white; padding: 20px; }
-        .card { background: #16213e; border-radius: 20px; padding: 30px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); max-width: 500px; margin: auto; }
+        body { font-family: sans-serif; text-align: center; background-color: #1a1a2e; color: white; padding: 20px; transition: 0.3s; margin: 0; }
+        .card { background: #16213e; border-radius: 20px; padding: 25px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); max-width: 500px; margin: auto; transition: 0.3s; }
         .vn { font-size: 45px; font-weight: bold; color: #4ecca3; margin-bottom: 5px; }
         .pron { font-size: 25px; color: #f2a365; margin-bottom: 5px; }
         .kr { font-size: 22px; color: #eee; margin-bottom: 20px; }
@@ -14,186 +14,265 @@
         .ex-pron { font-size: 20px; color: #f2a365; }
         .ex-kr { font-size: 18px; color: #ccc; margin-bottom: 20px; }
         
-        .controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; }
-        .controls button { font-size: 25px; width: 45px; height: 45px; border: none; border-radius: 8px; background: #0f3460; color: white; cursor: pointer; }
-        .count-display { font-size: 22px; font-weight: bold; color: #e94560; min-width: 90px; }
+        .active-controls { display: flex; justify-content: space-between; align-items: center; background: #0f3460; padding: 15px; border-radius: 15px; margin-top: 20px; flex-wrap: wrap; gap: 10px;}
+        .count-controls { display: flex; align-items: center; gap: 10px; }
+        .count-controls button { font-size: 22px; width: 40px; height: 40px; border: none; border-radius: 8px; background: #4ecca3; color: #1a1a2e; font-weight: bold; cursor: pointer; }
+        .count-display { font-size: 20px; font-weight: bold; color: white; min-width: 50px; }
+        
+        .action-btn { padding: 10px 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; }
+        .btn-pass { background: #e94560; color: white; }
+        .btn-complete { background: #ffbc00; color: #1a1a2e; }
+        .completed-text { color: #ffbc00; font-size: 18px; font-weight: bold; margin-bottom: 10px; display: none; }
         
         .settings-box { background: #0f3460; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: left; }
-        .settings-box label { display: block; font-size: 16px; margin-bottom: 10px; color: #ccc; }
-        .settings-box select { width: 100%; padding: 8px; font-size: 16px; border-radius: 5px; border: none; background: #1a1a2e; color: white; margin-top: 5px; outline: none; }
+        .settings-box label { display: block; font-size: 14px; margin-bottom: 10px; color: #ccc; }
+        .settings-box select { width: 100%; padding: 8px; font-size: 16px; border-radius: 5px; border: none; background: #1a1a2e; color: white; margin-top: 5px; }
 
-        .play-btn { font-size: 22px; padding: 15px; border: none; border-radius: 10px; cursor: pointer; background: #e94560; color: white; font-weight: bold; width: 100%; }
+        .play-btn { font-size: 22px; padding: 15px; border: none; border-radius: 10px; cursor: pointer; background: #e94560; color: white; font-weight: bold; width: 100%; margin-bottom: 10px;}
+        .reset-btn { font-size: 16px; padding: 10px; border: 1px solid #e94560; border-radius: 10px; cursor: pointer; background: transparent; color: #e94560; width: 100%; margin-bottom: 20px;}
         .status { margin-top: 15px; font-size: 16px; color: #888; }
-        .error { color: #ff4d4d; font-weight: bold; font-size: 18px; margin-top: 20px; }
+        
+        /* 절전 모드 (검은 화면) 스타일 */
+        body.sleep-mode-active { background-color: black; }
+        body.sleep-mode-active .card { background-color: black; box-shadow: none; opacity: 0.3; }
+        .sleep-toggle-btn { margin-top: 15px; width: 100%; padding: 15px; background: #333; color: white; border: none; border-radius: 10px; font-size: 18px; cursor: pointer; display: none; }
     </style>
 </head>
 <body>
 
     <div id="app" class="card">
-        <p>단어장 데이터를 불러오는 중입니다... 잠시만 기다려주세요!</p>
+        <p>명희님, 단어장을 불러오는 중입니다...</p>
     </div>
 
     <script>
         const sheetId = '1AiQwqgLg_XBHTiHWZXY0n2qN2Mz4NfIVcR2MxRfqkOc';
-        // 시트 이름 상관없이 무조건 첫 번째 시트를 가져오도록 안전하게 수정
         const url = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:csv';
 
         let words = [];
-        let currentIndex = 0;
         let isPlaying = false;
+        let isSkipping = false;
+        let wakeLock = null;
+
+        // 명희님의 스마트폰에 저장된 기록 불러오기 (이어보기, 완료, 횟수)
+        let savedIndex = parseInt(localStorage.getItem('vn_index') || '0');
+        let completedWords = JSON.parse(localStorage.getItem('vn_completed') || '{}');
+        let customCounts = JSON.parse(localStorage.getItem('vn_counts') || '{}');
 
         fetch(url)
             .then(res => {
-                if (!res.ok) throw new Error('구글 시트를 불러올 수 없습니다. 공유 설정을 다시 확인해주세요.');
+                if (!res.ok) throw new Error('데이터를 불러올 수 없습니다.');
                 return res.text();
             })
             .then(data => {
                 const rows = data.split('\n').slice(1);
-                words = rows.map(row => {
+                words = rows.map((row, index) => {
                     const cols = row.split('","').map(c => c.replace(/(^"|"$)/g, ''));
+                    const wordA = cols[0] || '';
                     return {
-                        A: cols[0] || '',
-                        B: cols[1] || '',
-                        C: cols[2] || '',
-                        D: cols[3] || '',
-                        E: cols[4] || '',
-                        F: cols[5] || '',
-                        count: 5 
+                        id: 'word_' + index + '_' + wordA, // 고유 ID
+                        A: wordA, B: cols[1] || '', C: cols[2] || '',
+                        D: cols[3] || '', E: cols[4] || '', F: cols[5] || '',
+                        count: customCounts[wordA] !== undefined ? customCounts[wordA] : 5
                     };
                 }).filter(w => w.A.trim() !== ''); 
                 
-                if (words.length === 0) {
-                    document.getElementById('app').innerHTML = '<p class="error">시트에 단어가 없거나 데이터를 읽어올 수 없습니다.</p>';
-                    return;
-                }
+                if (words.length === 0) return;
+
+                // 저장된 위치가 전체 단어보다 크면 처음으로
+                if (savedIndex >= words.length) savedIndex = 0;
+                
                 renderWord();
-            })
-            .catch(error => {
-                document.getElementById('app').innerHTML = '<p class="error">오류 발생: ' + error.message + '</p>';
             });
 
-        function renderWord() {
-            if (currentIndex >= words.length) {
-                document.getElementById('app').innerHTML = '<h2>오늘의 수면 학습 완료! 🌙</h2>';
-                isPlaying = false;
-                return;
-            }
-            const w = words[currentIndex];
+        // 절전 모드 (화면 꺼짐 방지)
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) { console.log('Wake Lock 에러:', err); }
+        }
 
-            let html = '<div class="vn">' + w.A + '</div>';
+        // 절전 화면 켜기/끄기
+        function toggleSleepScreen() {
+            document.body.classList.toggle('sleep-mode-active');
+        }
+
+        function resetProgress() {
+            if(confirm('진도를 처음(1번 단어)으로 되돌리시겠습니까?')) {
+                savedIndex = 0;
+                localStorage.setItem('vn_index', 0);
+                renderWord();
+            }
+        }
+
+        function renderWord() {
+            const w = words[savedIndex];
+            const isCompleted = completedWords[w.A];
+
+            let html = '<div class="status" id="statusMsg">' + (savedIndex + 1) + ' / ' + words.length + ' 번째 단어</div>';
+            
+            html += '<div class="completed-text" id="compText" style="display:' + (isCompleted ? 'block' : 'none') + '">✅ 완료된 단어 (3초 후 넘어감)</div>';
+            html += '<div class="vn">' + w.A + '</div>';
             if (w.B) html += '<div class="pron">[ ' + w.B + ' ]</div>';
             html += '<div class="kr">' + w.C + '</div>';
-            
             html += '<hr style="border:1px solid #333;">';
-            
             html += '<div class="ex-vn">' + w.D + '</div>';
             if (w.E) html += '<div class="ex-pron">[ ' + w.E + ' ]</div>';
             html += '<div class="ex-kr">' + w.F + '</div>';
 
-            html += '<div class="controls">';
+            // 항상 보이는 컨트롤 패널 (완료, 횟수, PASS)
+            html += '<div class="active-controls" id="activeControls">';
+            html += '<button class="action-btn btn-complete" onclick="toggleComplete()">'+ (isCompleted ? '완료 취소' : '✅ 완료') +'</button>';
+            html += '<div class="count-controls">';
             html += '<button onclick="changeCount(-1)">-</button>';
             html += '<span class="count-display" id="countDisplay">' + w.count + '번</span>';
             html += '<button onclick="changeCount(1)">+</button>';
             html += '</div>';
-
-            html += '<div class="settings-box" id="settingsBox">';
-            html += '<label>🗣️ 목소리 속도:';
-            html += '<select id="voiceRate">';
-            html += '<option value="0.6">저속 (천천히)</option>';
-            html += '<option value="0.9" selected>일반 (보통)</option>';
-            html += '<option value="1.3">고속 (빠르게)</option>';
-            html += '</select></label>';
-            html += '<label>⏳ 단어 사이 공백:';
-            html += '<select id="gapTime">';
-            html += '<option value="0">공백 없음 (바로 읽기)</option>';
-            html += '<option value="600">짧게 (0.6초 대기)</option>';
-            html += '<option value="1500" selected>보통 (1.5초 대기)</option>';
-            html += '<option value="3000">여유 있게 (3초 대기)</option>';
-            html += '</select></label>';
+            html += '<button class="action-btn btn-pass" onclick="passWord()">PASS ⏭</button>';
             html += '</div>';
 
-            html += '<button id="playBtn" class="play-btn" onclick="startSleepMode()">🌙 수면 학습 시작</button>';
-            html += '<div class="status" id="statusMsg">대기 중...</div>';
+            html += '<div class="settings-box" id="settingsBox">';
+            html += '<label>🗣️ 목소리 속도: <select id="voiceRate"><option value="0.6">저속</option><option value="0.9" selected>일반</option><option value="1.3">고속</option></select></label>';
+            html += '<label>⏳ 단어 공백: <select id="gapTime"><option value="0">없음</option><option value="600">짧게</option><option value="1500" selected>보통</option><option value="3000">여유</option></select></label>';
+            html += '</div>';
+
+            html += '<button id="playBtn" class="play-btn" onclick="startSleepMode()">🌙 수면 학습 이어보기</button>';
+            html += '<button id="resetBtn" class="reset-btn" onclick="resetProgress()">🔄 1번 단어부터 다시 시작</button>';
+            html += '<button id="sleepBtn" class="sleep-toggle-btn" onclick="toggleSleepScreen()">💡 절전 화면 (검은 화면) 켜기/끄기</button>';
 
             document.getElementById('app').innerHTML = html;
+
+            if (isPlaying) {
+                document.getElementById('settingsBox').style.display = 'none';
+                document.getElementById('playBtn').style.display = 'none';
+                document.getElementById('resetBtn').style.display = 'none';
+                document.getElementById('sleepBtn').style.display = 'block';
+            }
         }
 
+        // 횟수 조절 (재생 중에도 가능)
         function changeCount(n) {
-            if (isPlaying) return;
-            let newCount = words[currentIndex].count + n;
-            if (newCount < 0) newCount = 0;
-            if (newCount > 100) newCount = 100;
-            words[currentIndex].count = newCount;
-            document.getElementById('countDisplay').innerText = newCount + '번';
+            let w = words[savedIndex];
+            w.count += n;
+            if (w.count < 0) w.count = 0;
+            if (w.count > 100) w.count = 100;
+            
+            // 핸드폰에 횟수 기억시키기
+            customCounts[w.A] = w.count;
+            localStorage.setItem('vn_counts', JSON.stringify(customCounts));
+            
+            document.getElementById('countDisplay').innerText = w.count + '번';
+        }
+
+        // 완료 토글 기능
+        function toggleComplete() {
+            let w = words[savedIndex];
+            if (completedWords[w.A]) {
+                delete completedWords[w.A];
+            } else {
+                completedWords[w.A] = true;
+                passWord(); // 완료 누르면 즉시 다음으로 패스
+            }
+            localStorage.setItem('vn_completed', JSON.stringify(completedWords));
+            if (!isPlaying) renderWord();
+        }
+
+        // PASS 버튼 기능
+        function passWord() {
+            isSkipping = true;
+            window.speechSynthesis.cancel(); // 현재 나오는 소리 즉시 끄기
         }
 
         function speakText(text, lang) {
             return new Promise(resolve => {
-                if (!text || text.trim() === '') {
-                    setTimeout(resolve, 300); 
+                if (!text || text.trim() === '' || isSkipping) {
+                    resolve();
                     return;
                 }
                 const msg = new SpeechSynthesisUtterance(text);
                 msg.lang = lang;
-                
-                const rateSelect = document.getElementById('voiceRate').value;
-                msg.rate = parseFloat(rateSelect);
-                
+                msg.rate = parseFloat(document.getElementById('voiceRate').value || 0.9);
                 msg.onend = resolve;
                 msg.onerror = resolve; 
-                setTimeout(resolve, 8000);
-
                 window.speechSynthesis.speak(msg);
+                
+                // 에러 대비 강제 종료
+                setTimeout(resolve, 8000);
             });
+        }
+
+        // 딜레이 함수 (PASS 누르면 즉시 깨어남)
+        async function smartDelay(ms) {
+            let waited = 0;
+            while (waited < ms && !isSkipping && isPlaying) {
+                await new Promise(r => setTimeout(r, 100));
+                waited += 100;
+            }
         }
 
         async function startSleepMode() {
             if (isPlaying) return;
             isPlaying = true;
+            requestWakeLock(); 
 
-            document.getElementById('playBtn').style.display = 'none';
-            document.getElementById('settingsBox').style.display = 'none';
+            while (isPlaying) {
+                // 끝까지 가면 다시 0번으로 (무한 반복)
+                if (savedIndex >= words.length) savedIndex = 0;
+                
+                // 현재 위치 저장
+                localStorage.setItem('vn_index', savedIndex);
+                isSkipping = false;
+                
+                renderWord(); // 화면 업데이트
+                const w = words[savedIndex];
+                const gapSelect = parseInt(document.getElementById('gapTime').value || 1500);
 
-            while (currentIndex < words.length && isPlaying) {
-                const w = words[currentIndex];
-                document.getElementById('statusMsg').innerText = (currentIndex + 1) + '번째 단어 재생 중...';
-
-                const gapSelect = parseInt(document.getElementById('gapTime').value);
-
-                if (w.count === 0) {
-                    currentIndex++;
-                    if(currentIndex < words.length) renderWord();
+                // [기능] 완료된 단어면 3초만 보여주고 통과
+                if (completedWords[w.A]) {
+                    await smartDelay(3000);
+                    if (!isSkipping) savedIndex++;
                     continue;
                 }
 
+                // 횟수가 0이면 바로 통과
+                if (w.count === 0) {
+                    savedIndex++;
+                    continue;
+                }
+
+                // 단어 반복 (A -> C)
                 for (let i = 0; i < w.count; i++) {
-                    if (!isPlaying) break;
+                    if (!isPlaying || isSkipping) break;
                     await speakText(w.A, 'vi-VN'); 
+                    if (!isPlaying || isSkipping) break;
                     await speakText(w.C, 'ko-KR'); 
-                    await new Promise(r => setTimeout(r, gapSelect)); 
+                    await smartDelay(gapSelect);
                 }
 
-                await new Promise(r => setTimeout(r, gapSelect + 500)); 
+                if (!isPlaying || isSkipping) {
+                    if (isSkipping) savedIndex++;
+                    continue;
+                }
 
+                await smartDelay(500); 
+
+                // 예문 반복 (D -> F)
                 for (let i = 0; i < w.count; i++) {
-                    if (!isPlaying) break;
+                    if (!isPlaying || isSkipping) break;
                     await speakText(w.D, 'vi-VN'); 
+                    if (!isPlaying || isSkipping) break;
                     await speakText(w.F, 'ko-KR'); 
-                    await new Promise(r => setTimeout(r, gapSelect)); 
+                    await smartDelay(gapSelect);
                 }
 
-                await new Promise(r => setTimeout(r, gapSelect + 1000)); 
-                
-                currentIndex++;
-                if(currentIndex < words.length) {
-                    renderWord();
-                    document.getElementById('playBtn').style.display = 'none';
-                    document.getElementById('settingsBox').style.display = 'none';
+                if (!isPlaying || isSkipping) {
+                    if (isSkipping) savedIndex++;
+                    continue;
                 }
-            }
-            
-            if (currentIndex >= words.length) {
-                renderWord(); 
+
+                await smartDelay(1000); 
+                savedIndex++;
             }
         }
     </script>
