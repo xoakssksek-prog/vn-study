@@ -2,8 +2,14 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>명희의 수면 베트남어 마스터</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
     <style>
         body { font-family: sans-serif; text-align: center; background-color: #1a1a2e; color: white; padding: 20px; margin: 0; }
         .card { background: #16213e; border-radius: 20px; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); max-width: 500px; margin: auto; }
@@ -65,7 +71,6 @@
     <script>
         const sheetId = '1AiQwqgLg_XBHTiHWZXY0n2qN2Mz4NfIVcR2MxRfqkOc';
         
-        // 엑셀 시트 이름과 연결 (탭 이름과 정확히 일치해야 함)
         const sheetNames = {
             '단어': '단어',
             '문장표현': '문장표현',
@@ -88,7 +93,6 @@
         let savedShuffle = localStorage.getItem('vn_shuffle') === 'true';
         let savedStudyMode = localStorage.getItem('vn_studyMode') || '단어'; 
 
-        // 초기 데이터 로드
         loadData(savedStudyMode);
 
         async function loadData(mode) {
@@ -116,7 +120,6 @@
             }
         }
 
-        // 시트 이름을 기반으로 데이터를 가져오는 함수
         async function fetchSheetByName(name) {
             const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
             const res = await fetch(url);
