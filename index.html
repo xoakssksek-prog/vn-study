@@ -69,6 +69,15 @@
 
         #blackoutOverlay { background: #000; position: fixed; top:0; left:0; width:100%; height:100%; z-index:9999; display:none; flex-direction:column; justify-content:center; align-items:center; cursor:pointer; }
 
+        /* [수정] 범례 디자인: 작고 차분한 회색 중앙 정렬 */
+        .cal-legend { 
+            display: flex; justify-content: center; align-items: center; 
+            gap: 12px; margin-bottom: 15px; 
+            font-size: 9px; color: #94a3b8; font-weight: 300; 
+            letter-spacing: -0.01em; opacity: 0.8;
+        }
+        .cal-legend span { display: flex; align-items: center; gap: 4px; }
+
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 12px; }
         .cal-day { background: rgba(255,255,255,0.03); border-radius: 6px; aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; min-height: 40px; font-size: 11px; color: white; }
         .cal-time { font-size: 9px; color: #ffffff; margin-top: 3px; font-weight: 400; letter-spacing: -0.01em; }
@@ -78,29 +87,22 @@
         .bar-time-label { position: absolute; top: -20px; width: 100%; text-align: center; font-size: 9.5px; color: #ffffff; font-weight: bold; letter-spacing: -0.02em; }
         .report-bar { width: 14px; background: var(--accent-green); border-radius: 4px 4px 0 0; min-height: 2px; }
 
-        .comp-table-header { display: flex; padding: 10px 5px; border-bottom: 1.5px solid var(--glass-border); font-size: 11px; color: var(--accent-green); font-weight: bold; text-align: center; }
-        .comp-row { display: flex; align-items: center; padding: 10px 5px; border-bottom: 1px solid rgba(255,255,255,0.03); text-align: center; font-size: 12px; }
-        .c-vn { flex: 1.2; color: var(--accent-green); font-weight: bold; }
-        .c-pron { flex: 0.8; color: var(--accent-gold); }
-        .c-mean { flex: 1.5; color: #fff; text-align: left; padding-left: 5px; }
-        .c-hit { width: 40px; font-size: 10px; color: var(--text-dim); }
-        .c-del { width: 35px; }
+        .stats-panel { background: rgba(255,255,255,0.02); border-radius: 18px; padding: 15px; margin-top: 15px; border: 1px solid var(--glass-border); }
+        .stats-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; font-size: 13px; }
+        .stats-label { color: var(--text-dim); font-weight: 300; letter-spacing: -0.02em; }
+        .stats-value { color: var(--accent-gold); font-weight: 600; font-size: 14px; }
 
         #noticeToast { display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: rgba(30, 41, 59, 0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #e2e8f0; padding: 18px 28px; border-radius: 20px; font-size: 14px; font-weight: 300; z-index: 11000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 85%; max-width: 340px; text-align: center; pointer-events: none; line-height: 1.6; border: 1px solid rgba(255,255,255,0.1); }
         
-        /* [추가] 설치 가이드 팝업 디자인 */
         #installGuide { display: none; position: fixed; bottom: 20px; left: 10px; right: 10px; background: #fbbf24; color: #000; padding: 15px; border-radius: 15px; z-index: 12000; font-size: 13px; font-weight: bold; box-shadow: 0 -5px 25px rgba(0,0,0,0.5); text-align: center; animation: slideUp 0.5s ease-out; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .count-ctrl-btn { background: var(--accent-green); color: #000; border: none; width: 28px; height: 28px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
     <div id="noticeToast"></div>
-
-    <div id="installGuide">
-        💡 이 화면을 진짜 어플로 쓰시려면?<br>
-        하단 [공유 버튼(사각형에 화살표)] -> [홈 화면에 추가]를 눌러주세요!
-    </div>
+    <div id="installGuide">💡 이 화면을 진짜 어플로 쓰시려면?<br>하단 [공유 버튼] -> [홈 화면에 추가]를 눌러주세요!</div>
 
     <div id="blackoutOverlay" onclick="toggleBlackout()">
         <p style="font-size: 20px; color: #1e293b; font-weight: bold;">LOW POWER MODE</p>
@@ -146,16 +148,19 @@
                 <button class="row-btn btn-outline" style="flex:0; padding:5px 12px;" onclick="changeMonth(1)">▶</button>
                 <button class="close-btn" style="margin-left:10px;" onclick="closeCalendar()">닫기</button>
             </div>
-            <div class="cal-legend"><span>💎 1h↑</span><span>🌟 30m↑</span><span>⚡ 10m↑</span></div>
+
+            <div class="cal-legend">
+                <span>💎 1h+</span>
+                <span style="opacity: 0.2; font-size: 8px;">|</span>
+                <span>🌟 30m+</span>
+                <span style="opacity: 0.2; font-size: 8px;">|</span>
+                <span>⚡ 10m+</span>
+            </div>
+
             <div id="calendarGrid" class="cal-grid"></div>
             <div id="weeklyBarChart" class="report-bar-container"></div>
-            <div class="stats-panel">
-                <div class="stats-row"><span>⌛ 오늘 학습</span> <span id="statToday" style="color:var(--accent-gold); font-weight:bold;">0분</span></div>
-                <div class="stats-row"><span>📅 이달 학습</span> <span id="statMonth" style="color:var(--accent-green); font-weight:bold;">0분</span></div>
-                <div class="stats-row"><span>🚀 올해 학습</span> <span id="statYear" style="color:var(--accent-gold); font-weight:bold;">0분</span></div>
-                <hr style="border:0.1px solid rgba(255,255,255,0.1); margin:8px 0;">
-                <div class="stats-row"><span>✅ 완료 단어</span> <span id="statWords" style="color:var(--accent-green); font-weight:bold;">0개</span></div>
-            </div>
+            
+            <div id="statsContent" class="stats-panel"></div>
         </div>
     </div>
 
@@ -204,7 +209,6 @@
         let currentCalDate = new Date();
         loadData(savedStudyMode);
 
-        // [추가] 어플 설치 가이드 표시 로직 (사파리 등 브라우저 환경에서만 노출)
         window.onload = () => {
             const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
             if (!isStandalone) { document.getElementById('installGuide').style.display = 'block'; setTimeout(() => { document.getElementById('installGuide').style.display = 'none'; }, 8000); }
@@ -216,7 +220,7 @@
                 dailyTime[todayStr] = (dailyTime[todayStr] || 0) + 10;
                 localStorage.setItem('vn_daily_time', JSON.stringify(dailyTime));
                 if (savedBatteryProtect && navigator.getBattery) {
-                    navigator.getBattery().then(bt => { if(bt.level <= 0.2) { stopSleepMode(); alert("배터리 20% 보호: 시스템을 위해 학습을 종료합니다."); } });
+                    navigator.getBattery().then(bt => { if(bt.level <= 0.2) { stopSleepMode(); alert("배터리 20% 보호: 학습을 종료합니다."); } });
                 }
                 if (savedFadeOut && sleepTimerId && startTime) {
                     let totalSec = parseInt(savedTimer) * 60;
@@ -236,13 +240,13 @@
         function notify(el, type) {
             const isOn = el.checked; let msg = "";
             switch(type) {
-                case 'review': msg = isOn ? "⭐ 별표 복습: 중요 단어들만 모아서 집중적으로 학습합니다." : "📚 일반 학습: 모든 단어를 재생하는 일반 모드로 전환합니다."; break;
-                case 'shuffle': msg = isOn ? "🔀 랜덤 재생: 모든 단어의 순서를 무작위로 섞어서 학습합니다." : "🔢 순차 재생: 단어를 시트 원래 순서대로 정직하게 재생합니다."; break;
-                case 'battery': msg = isOn ? "🔋 배터리 20% 보호: 배터리가 부족하면 방전을 막기 위해 학습을 종료합니다." : "⚠️ 경고: 배터리 보호 해제! 기기가 완전히 방전될 때까지 계속 재생됩니다."; break;
-                case 'fade': msg = isOn ? "📉 볼륨 감소: 종료 전 소리가 서서히 줄어들어 숙면을 돕습니다." : "🔇 일정 볼륨: 종료 직전까지 음량을 그대로 유지합니다."; break;
-                case 'hit': msg = isOn ? "🔢 횟수 기록: 단어별 재생 횟수를 완료 목록에 누적 기록합니다." : "🚫 기록 중단: 재생 횟수를 더 이상 기록하지 않습니다."; break;
-                case 'krWord': msg = isOn ? "🇰🇷 본문 한글 해제: 한국어 뜻 없이 베트남어 발음에만 집중합니다." : "🔊 한글 동시 학습: 베트남어 발음 후 한국어 뜻을 함께 들려줍니다."; break;
-                case 'krEx': msg = isOn ? "🇰🇷 예문 한글 해제: 예문에서도 한글 뜻을 건너뛰고 재생합니다." : "🔊 예문 한글 활성: 예문 학습 시 한국어 해석을 함께 들려줍니다."; break;
+                case 'review': msg = isOn ? "⭐ 별표 복습: 중요 단어들만 모아서 학습합니다." : "📚 일반 학습: 모든 단어를 재생합니다."; break;
+                case 'shuffle': msg = isOn ? "🔀 랜덤 재생: 모든 단어의 순서를 무작위로 섞습니다." : "🔢 순차 재생: 단어를 시트 순서대로 재생합니다."; break;
+                case 'battery': msg = isOn ? "🔋 배터리 20% 보호: 배터리가 부족하면 학습을 자동 종료합니다." : "⚠️ 경고: 배터리 보호 해제! 방전될 때까지 계속 재생됩니다."; break;
+                case 'fade': msg = isOn ? "📉 볼륨 감소: 종료 전 소리가 서서히 줄어듭니다." : "🔇 일정 볼륨: 종료 직전까지 음량을 유지합니다."; break;
+                case 'hit': msg = isOn ? "🔢 횟수 기록: 단어별 재생 횟수를 완료 목록에 기록합니다." : "🚫 기록 중단: 재생 횟수를 더 이상 기록하지 않습니다."; break;
+                case 'krWord': msg = isOn ? "🇰🇷 본문 한글 해제" : "🔊 한글 동시 학습"; break;
+                case 'krEx': msg = isOn ? "🇰🇷 예문 한글 해제" : "🔊 예문 한글 활성"; break;
             }
             showNotice(msg);
         }
@@ -303,7 +307,7 @@
         
         function openSettings() { document.getElementById('settingsModal').style.display = 'block'; document.getElementById('wordCountDisplay').innerText = savedWordCount; document.getElementById('sentenceCountDisplay').innerText = savedSentenceCount; document.getElementById('fadeOutToggle').checked = savedFadeOut; document.getElementById('hitCountToggle').checked = savedHitCountToggle; document.getElementById('batteryProtect').checked = savedBatteryProtect; document.getElementById('sleepSound').value = savedSleepSound; document.getElementById('sleepTimer').value = savedTimer; document.getElementById('hideKrWord').checked = savedHideKrWord; document.getElementById('hideKrEx').checked = savedHideKrEx; document.getElementById('delayTime').value = savedDelayTime; document.getElementById('voiceRate').value = localStorage.getItem('vn_voiceRate') || '0.9'; document.getElementById('voiceType').value = savedVoiceType; }
         function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; renderWord(); }
-        function saveSettings() { savedTimer = document.getElementById('sleepTimer').value; savedHideKrWord = document.getElementById('hideKrWord').checked; savedHideKrEx = document.getElementById('hideKrEx').checked; savedBatteryProtect = document.getElementById('batteryProtect').checked; savedSleepSound = document.getElementById('sleepSound').value; savedFadeOut = document.getElementById('fadeOutToggle').checked; savedHitCountToggle = document.getElementById('hitCountToggle').checked; savedDelayTime = document.getElementById('delayTime').value; savedVoiceType = document.getElementById('voiceType').value; let vr = document.getElementById('voiceRate').value; localStorage.setItem('vn_timer', savedTimer); localStorage.setItem('vn_hideKrWord', savedHideKrWord); localStorage.setItem('vn_hideKrEx', savedHideKrEx); localStorage.setItem('vn_batteryProtect', savedBatteryProtect); localStorage.setItem('vn_sleepSound', savedSleepSound); localStorage.setItem('vn_fade_out', savedFadeOut); localStorage.setItem('vn_hit_count_toggle', savedHitCountToggle); localStorage.setItem('vn_delayTime', savedDelayTime); localStorage.setItem('vn_voiceRate', vr); localStorage.setItem('vn_voiceType', savedVoiceType); }
+        function saveSettings() { savedTimer = document.getElementById('sleepTimer').value; savedHideKrWord = document.getElementById('hideKrWord').checked; savedHideKrEx = document.getElementById('hideKrEx').checked; savedBatteryProtect = document.getElementById('batteryProtect').checked; savedSleepSound = document.getElementById('sleepSound').value; savedFadeOut = document.getElementById('fadeOutToggle').checked; savedHitCountToggle = document.getElementById('hitCountToggle').checked; savedDelayTime = document.getElementById('delayTime').value; let vr = document.getElementById('voiceRate').value; savedVoiceType = document.getElementById('voiceType').value; localStorage.setItem('vn_timer', savedTimer); localStorage.setItem('vn_hideKrWord', savedHideKrWord); localStorage.setItem('vn_hideKrEx', savedHideKrEx); localStorage.setItem('vn_batteryProtect', savedBatteryProtect); localStorage.setItem('vn_sleepSound', savedSleepSound); localStorage.setItem('vn_fade_out', savedFadeOut); localStorage.setItem('vn_hit_count_toggle', savedHitCountToggle); localStorage.setItem('vn_delayTime', savedDelayTime); localStorage.setItem('vn_voiceRate', vr); localStorage.setItem('vn_voiceType', savedVoiceType); }
         function changeGlobalCount(type, n) { if (type === 'word') savedWordCount = Math.max(0, savedWordCount + n); else savedSentenceCount = Math.max(0, savedSentenceCount + n); localStorage.setItem('vn_wordCount', savedWordCount); localStorage.setItem('vn_sentenceCount', savedSentenceCount); document.getElementById(type + 'CountDisplay').innerText = (type === 'word' ? savedWordCount : savedSentenceCount); }
         function moveWord(direction) { isSkipping = true; skipDirection = direction; window.speechSynthesis.cancel(); if (direction === 1) { advanceIndex(); } else { savedIndex--; if (savedIndex < 0) savedIndex = words.length - 1; } renderWord(); }
         function playBackgroundSound() { const player = document.getElementById('bgmPlayer'); if (savedSleepSound === 'none') { player.pause(); return; } const sounds = { rain: 'https://www.soundjay.com/nature/rain-01.mp3', ocean: 'https://www.soundjay.com/nature/ocean-wave-1.mp3', forest: 'https://www.soundjay.com/nature/forest-1.mp3', fire: 'https://www.soundjay.com/nature/fire-1.mp3', camping: 'https://www.soundjay.com/nature/cricket-chirping-01.mp3' }; player.src = sounds[savedSleepSound]; player.volume = 0.15; player.play(); }
@@ -317,8 +321,45 @@
         function openCalendar() { document.getElementById('calendarModal').style.display = 'block'; renderCalendar(); renderWeeklyChart(); }
         function closeCalendar() { document.getElementById('calendarModal').style.display = 'none'; }
         function changeMonth(offset) { currentCalDate.setMonth(currentCalDate.getMonth() + offset); renderCalendar(); }
-        function renderCalendar() { const year = currentCalDate.getFullYear(); const month = currentCalDate.getMonth(); document.getElementById('calTitle').innerText = `${year}년 ${month + 1}월`; const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const grid = document.getElementById('calendarGrid'); grid.innerHTML = ''; ['일','월','화','수','목','금','토'].forEach(d => grid.innerHTML += `<div style="font-weight:bold; color:var(--accent-green); font-size:10px;">${d}</div>`); for(let i=0; i<firstDay; i++) grid.innerHTML += '<div style="opacity:0;"></div>'; for(let i=1; i<=daysInMonth; i++) { const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`; const sec = dailyTime[ds] || 0; let medal = sec >= 3600 ? '💎' : (sec >= 1800 ? '🌟' : (sec >= 600 ? '⚡' : '')); const timeStr = sec > 0 ? formatTimeText(sec) : ''; grid.innerHTML += `<div class="cal-day"><div style="position:absolute; top:2px; left:4px; font-size:9px; color:#fff;">${i}</div><div style="font-size:14px; margin-top:3px;">${medal}</div><div class="cal-time">${timeStr}</div></div>`; } const todayStr = getTodayStr(new Date()); const monthPrefix = `${year}-${String(month+1).padStart(2,'0')}`; const yearPrefix = todayStr.substring(0, 4); let todaySec = dailyTime[todayStr] || 0; let monthSec = 0; let yearSec = 0; for (const k in dailyTime) { if (k.startsWith(monthPrefix)) monthSec += dailyTime[k]; if (k.startsWith(yearPrefix)) yearSec += dailyTime[k]; } document.getElementById('statToday').innerText = formatTimeText(todaySec); document.getElementById('statMonth').innerText = formatTimeText(monthSec); document.getElementById('statYear').innerText = formatTimeText(yearSec); document.getElementById('statWords').innerText = Object.keys(completedWords).length + '개'; }
-        function renderWeeklyChart() { const container = document.getElementById('weeklyBarChart'); container.innerHTML = ''; const today = new Date(); const dayMap = [6, 0, 1, 2, 3, 4, 5]; const currentDayIdx = dayMap[today.getDay()]; const monDate = new Date(today); monDate.setDate(today.getDate() - currentDayIdx); const dayLabels = ['월','화','수','목','금','토','일']; let maxSec = 1; const weekData = []; for (let i = 0; i < 7; i++) { const targetDate = new Date(monDate); targetDate.setDate(monDate.getDate() + i); const ds = getTodayStr(targetDate); const sec = dailyTime[ds] || 0; if (sec > maxSec) maxSec = sec; weekData.push({ label: dayLabels[i], sec: sec }); } weekData.forEach(data => { const h = Math.max(2, (data.sec / maxSec) * 55); const timeStr = data.sec > 0 ? formatTimeText(data.sec) : ''; container.innerHTML += `<div class="bar-wrapper"><div class="bar-time-label">${timeStr}</div><div class="report-bar" style="height:${h}px;"></div><div style="font-size:10px; color:#fff; font-weight:bold;">${data.label}</div></div>`; }); }
+        
+        function renderCalendar() {
+            const year = currentCalDate.getFullYear(); const month = currentCalDate.getMonth();
+            document.getElementById('calTitle').innerText = `${year}년 ${month + 1}월`;
+            const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const grid = document.getElementById('calendarGrid'); grid.innerHTML = '';
+            ['일','월','화','수','목','금','토'].forEach(d => grid.innerHTML += `<div style="font-weight:bold; color:var(--accent-green); font-size:10px;">${d}</div>`);
+            for(let i=0; i<firstDay; i++) grid.innerHTML += '<div style="opacity:0;"></div>';
+            for(let i=1; i<=daysInMonth; i++) {
+                const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                const sec = dailyTime[ds] || 0;
+                let medal = sec >= 3600 ? '💎' : (sec >= 1800 ? '🌟' : (sec >= 600 ? '⚡' : ''));
+                const timeStr = sec > 0 ? formatTimeText(sec) : '';
+                grid.innerHTML += `<div class="cal-day"><div style="position:absolute; top:2px; left:4px; font-size:9px; color:#fff;">${i}</div><div style="font-size:14px; margin-top:3px;">${medal}</div><div class="cal-time">${timeStr}</div></div>`;
+            }
+            const todayStr = getTodayStr(new Date()); const monthPrefix = `${year}-${String(month+1).padStart(2,'0')}`; const yearPrefix = todayStr.substring(0, 4);
+            let todaySec = dailyTime[todayStr] || 0; let monthSec = 0; let yearSec = 0;
+            for (const k in dailyTime) { if (k.startsWith(monthPrefix)) monthSec += dailyTime[k]; if (k.startsWith(yearPrefix)) yearSec += dailyTime[k]; }
+            const stats = document.getElementById('statsContent');
+            stats.innerHTML = `<div class="stats-row"><span class="stats-label">- 오늘 학습 시간</span> <span class="stats-value">${formatTimeText(todaySec)}</span></div><div class="stats-row"><span class="stats-label">- 이달 누적 학습</span> <span class="stats-value" style="color:var(--accent-green);">${formatTimeText(monthSec)}</span></div><div class="stats-row"><span class="stats-label">- 올해 누적 학습</span> <span class="stats-value">${formatTimeText(yearSec)}</span></div><hr style="border:none; border-bottom:1px solid rgba(255,255,255,0.05); margin:8px 0;"><div class="stats-row"><span class="stats-label">- 정복한 단어 수</span> <span class="stats-value" style="color:var(--accent-green);">${Object.keys(completedWords).length}개</span></div>`;
+        }
+
+        function renderWeeklyChart() {
+            const container = document.getElementById('weeklyBarChart'); container.innerHTML = '';
+            const today = new Date(); const dayMap = [6, 0, 1, 2, 3, 4, 5]; const currentDayIdx = dayMap[today.getDay()];
+            const monDate = new Date(today); monDate.setDate(today.getDate() - currentDayIdx);
+            const dayLabels = ['월','화','수','목','금','토','일'];
+            let maxSec = 1; const weekData = [];
+            for (let i = 0; i < 7; i++) {
+                const targetDate = new Date(monDate); targetDate.setDate(monDate.getDate() + i);
+                const ds = getTodayStr(targetDate); const sec = dailyTime[ds] || 0;
+                if (sec > maxSec) maxSec = sec; weekData.push({ label: dayLabels[i], sec: sec });
+            }
+            weekData.forEach(data => { 
+                const h = Math.max(2, (data.sec / maxSec) * 55); const timeStr = data.sec > 0 ? formatTimeText(data.sec) : '';
+                container.innerHTML += `<div class="bar-wrapper"><div class="bar-time-label">${timeStr}</div><div class="report-bar" style="height:${h}px;"></div><div style="font-size:10px; color:#fff; font-weight:bold;">${data.label}</div></div>`; 
+            });
+        }
+
         function openCompletedList() { const container = document.getElementById('compListContainer'); container.innerHTML = ''; Object.keys(completedWords).forEach(wordA => { const item = allWords.find(w => w.A === wordA) || { B: '?', C: '?' }; const hits = hitCounts[wordA] || 0; container.innerHTML += `<div class="comp-row"><div class="c-vn">${wordA}</div><div class="c-pron">${item.B}</div><div class="c-mean">${item.C}</div><div class="c-hit">${hits}회</div><div class="c-del"><button onclick="uncheckWord('${wordA}')" style="background:var(--accent-red); border:none; color:#fff; border-radius:5px; padding:4px 8px; font-size:10px;">X</button></div></div>`; }); document.getElementById('compModal').style.display = 'block'; }
         function closeModal() { document.getElementById('compModal').style.display = 'none'; renderWord(); }
         function uncheckWord(wordA) { delete completedWords[wordA]; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); openCompletedList(); }
