@@ -11,12 +11,12 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <style>
-        body { font-family: sans-serif; text-align: center; background-color: #1a1a2e; color: white; padding: 20px; margin: 0; }
-        .card { background: #16213e; border-radius: 20px; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); max-width: 500px; margin: auto; }
-        .vn { font-size: 45px; font-weight: bold; color: #4ecca3; margin-bottom: 5px; }
+        body { font-family: sans-serif; text-align: center; background-color: #1a1a2e; color: white; padding: 10px; margin: 0; overflow-x: hidden; }
+        .card { background: #16213e; border-radius: 20px; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); max-width: 500px; margin: auto; box-sizing: border-box; width: 100%; }
+        .vn { font-size: 45px; font-weight: bold; color: #4ecca3; margin-bottom: 5px; word-break: break-word; }
         .pron { font-size: 25px; color: #f2a365; margin-bottom: 5px; }
         .kr { font-size: 22px; color: #eee; margin-bottom: 20px; }
-        .ex-vn { font-size: 25px; color: #4ecca3; margin-top: 15px; }
+        .ex-vn { font-size: 25px; color: #4ecca3; margin-top: 15px; word-break: break-word; }
         .ex-pron { font-size: 20px; color: #f2a365; }
         .ex-kr { font-size: 18px; color: #ccc; margin-bottom: 15px; }
         
@@ -28,7 +28,7 @@
         .count-controls button { font-size: 20px; width: 35px; height: 35px; border: none; border-radius: 8px; background: #4ecca3; color: #1a1a2e; font-weight: bold; cursor: pointer; }
         .count-display { font-size: 18px; font-weight: bold; color: white; min-width: 40px; text-align: center; }
         
-        .btn-complete { padding: 10px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; background: #ffbc00; color: #1a1a2e; }
+        .btn-complete { padding: 12px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; background: #ffbc00; color: #1a1a2e; }
         .completed-text { color: #ffbc00; font-size: 18px; font-weight: bold; margin-bottom: 10px; background: rgba(255, 188, 0, 0.2); padding: 5px; border-radius: 8px; }
         
         .play-btn { font-size: 20px; padding: 15px; border: none; border-radius: 10px; cursor: pointer; background: #e94560; color: white; font-weight: bold; width: 100%; margin-top: 15px;}
@@ -44,7 +44,7 @@
         .comp-mean { font-size: 14px; color: #ccc; }
         .uncheck-btn { background: #ffbc00; border: none; padding: 5px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         
-        .list-btn { background: transparent; color: #4ecca3; border: 1px solid #4ecca3; padding: 10px; border-radius: 10px; width: 100%; font-size: 16px; cursor: pointer; }
+        .list-btn { background: transparent; color: #4ecca3; border: 1px solid #4ecca3; padding: 12px; border-radius: 10px; width: 100%; font-size: 16px; cursor: pointer; }
         
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 15px; }
         .cal-header { font-size: 14px; font-weight: bold; color: #4ecca3; padding: 5px 0; text-align: center; }
@@ -57,26 +57,30 @@
         .stats-panel { background: #0f3460; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: left; line-height: 1.8; font-size: 15px; color: #ccc; }
         .stats-val { color: white; font-weight: bold; float: right; }
 
-        /* 💡 스마트폰 가로 모드 전용 (집중 학습 모드) - 방향 수정! */
+        /* 💡 가로 모드 (핸드폰을 옆으로 눕혔을 때) 집중 학습 모드 */
         @media screen and (orientation: landscape) {
             .hide-in-landscape { display: none !important; }
             
-            .card { padding: 30px 15px !important; margin-top: 10px !important; }
+            body { padding: 0; }
+            .card { max-width: 100% !important; border-radius: 0 !important; min-height: 100vh; padding: 10px 20px !important; display: flex; flex-direction: column; justify-content: center; }
             
             /* 본문 폰트 대폭 확대 */
-            .vn { font-size: 65px !important; margin-bottom: 15px !important; }
-            .pron { font-size: 32px !important; margin-bottom: 15px !important; }
-            .kr { font-size: 28px !important; margin-bottom: 35px !important; }
+            .vn { font-size: 55px !important; margin-bottom: 5px !important; }
+            .pron { font-size: 26px !important; margin-bottom: 5px !important; }
+            .kr { font-size: 24px !important; margin-bottom: 15px !important; }
             
-            /* 예문 폰트 대폭 확대 */
-            .ex-vn { font-size: 34px !important; margin-top: 30px !important; line-height: 1.3 !important; }
-            .ex-pron { font-size: 24px !important; margin-bottom: 10px !important;}
-            .ex-kr { font-size: 22px !important; margin-bottom: 35px !important; line-height: 1.3 !important; }
+            /* 예문 폰트 대폭 확대 및 짤림 방지 */
+            .ex-vn { font-size: 28px !important; margin-top: 10px !important; line-height: 1.2; }
+            .ex-pron { font-size: 20px !important; margin-bottom: 5px !important; }
+            .ex-kr { font-size: 18px !important; margin-bottom: 15px !important; line-height: 1.2; }
             
-            /* 필수 버튼 크기 확대 */
-            .nav-btn { font-size: 20px !important; padding: 20px 10px !important; }
-            .list-btn, .play-btn { font-size: 22px !important; padding: 20px !important; }
-            .status { font-size: 18px !important; margin-bottom: 15px !important; }
+            /* 버튼 크기 및 간격 최적화 (짤림 방지) */
+            .controls-row { margin-top: 5px !important; padding: 5px !important; }
+            .nav-btn { font-size: 18px !important; padding: 12px 5px !important; }
+            .btn-complete { font-size: 18px !important; padding: 12px !important; }
+            .list-btn, .play-btn { font-size: 18px !important; padding: 12px !important; margin-top: 10px !important; }
+            .status { font-size: 14px !important; margin-top: 5px !important; margin-bottom: 5px !important; }
+            hr { margin: 5px 0 !important; }
         }
     </style>
 </head>
@@ -113,17 +117,10 @@
                 <button class="nav-btn" style="flex: 0 0 40px;" onclick="changeMonth(1)">▶</button>
                 <button class="close-btn" style="margin-left: 10px;" onclick="closeCalendar()">닫기</button>
             </div>
-            
             <div class="cal-legend">
-                <div>💎 2시간↑</div>
-                <div>🥇 1시간↑</div>
-                <div>🥈 30분↑</div>
-                <div>🥉 10분↑</div>
-                <div>💩 결석/미달</div>
+                <div>💎 2시간↑</div><div>🥇 1시간↑</div><div>🥈 30분↑</div><div>🥉 10분↑</div><div>💩 결석/미달</div>
             </div>
-
             <div class="cal-grid" id="calendarGrid"></div>
-            
             <div class="stats-panel">
                 <div style="color: #4ecca3; font-weight: bold; margin-bottom: 5px; font-size: 16px;">📊 나의 학습 통계</div>
                 <div>⏳ 오늘의 학습 시간 <span class="stats-val" id="statToday" style="color: #ffbc00;">0분</span></div>
@@ -138,22 +135,9 @@
 
     <script>
         const sheetId = '1AiQwqgLg_XBHTiHWZXY0n2qN2Mz4NfIVcR2MxRfqkOc';
-        
-        const sheetNames = {
-            '단어': '단어',
-            '문장표현': '문장표현',
-            '문법': '문법'
-        };
-
-        let words = [];
-        let isPlaying = false;
-        let isSkipping = false;
-        let skipDirection = 1; 
-        let sleepTimerId = null;
-
-        let savedIndex = 0;
-        let completedWords = {};
-        let dailyTime = {};
+        const sheetNames = { '단어': '단어', '문장표현': '문장표현', '문법': '문법' };
+        let words = []; let isPlaying = false; let isSkipping = false; let skipDirection = 1; let sleepTimerId = null;
+        let savedIndex = 0; let completedWords = {}; let dailyTime = {};
         
         try { savedIndex = parseInt(localStorage.getItem('vn_index') || '0'); } catch(e) {}
         try { completedWords = JSON.parse(localStorage.getItem('vn_completed') || '{}'); } catch(e) { completedWords = {}; }
@@ -166,7 +150,6 @@
         let savedTimer = localStorage.getItem('vn_timer') || '0';
         let savedShuffle = localStorage.getItem('vn_shuffle') === 'true';
         let savedStudyMode = localStorage.getItem('vn_studyMode') || '단어'; 
-        
         let currentCalDate = new Date(); 
 
         loadData(savedStudyMode);
@@ -175,66 +158,39 @@
             try {
                 const todayStr = getTodayStr(new Date());
                 if (!dailyTime[todayStr]) dailyTime[todayStr] = 0;
-                
                 dailyTime[todayStr] += 10;
                 localStorage.setItem('vn_daily_time', JSON.stringify(dailyTime));
-                
                 const calModal = document.getElementById('calendarModal');
-                if (calModal && calModal.style.display === 'block') {
-                    updateStatsDisplay();
-                }
-            } catch(e) {
-                console.error("시간 저장 오류:", e);
-            }
+                if (calModal && calModal.style.display === 'block') { updateStatsDisplay(); }
+            } catch(e) {}
         }, 10000);
 
         async function loadData(mode) {
-            words = [];
-            const appDiv = document.getElementById('app');
+            words = []; const appDiv = document.getElementById('app');
             if(appDiv) appDiv.innerHTML = `<p>${mode} 시트 연동 중...</p>`;
-            
             try {
                 if (mode === '전체랜덤') {
-                    for (const name in sheetNames) {
-                        const data = await fetchSheetByName(sheetNames[name]);
-                        words = words.concat(data);
-                    }
-                } else {
-                    words = await fetchSheetByName(sheetNames[mode]);
-                }
-            } catch (e) {
-                console.error(e);
-            }
-
-            if (words.length > 0) {
-                if (savedIndex >= words.length) savedIndex = 0;
-                renderWord();
-            } else {
-                if(appDiv) appDiv.innerHTML = `<p style="color:red;">'${mode}' 데이터를 불러오지 못했습니다.<br>구글 시트 연동을 확인해 주세요.</p>`;
-            }
+                    for (const name in sheetNames) { const data = await fetchSheetByName(sheetNames[name]); words = words.concat(data); }
+                } else { words = await fetchSheetByName(sheetNames[mode]); }
+            } catch (e) {}
+            if (words.length > 0) { if (savedIndex >= words.length) savedIndex = 0; renderWord(); }
+            else { if(appDiv) appDiv.innerHTML = `<p style="color:red;">데이터 로드 실패.</p>`; }
         }
 
         async function fetchSheetByName(name) {
             const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
-            const res = await fetch(url);
-            const data = await res.text();
+            const res = await fetch(url); const data = await res.text();
             const rows = data.split('\n').slice(1);
             return rows.map(row => {
                 const cols = row.split('","').map(c => c.replace(/(^"|"$)/g, ''));
-                return {
-                    A: cols[0] || '', B: cols[1] || '', C: cols[2] || '',
-                    D: cols[3] || '', E: cols[4] || '', F: cols[5] || ''
-                };
+                return { A: cols[0] || '', B: cols[1] || '', C: cols[2] || '', D: cols[3] || '', E: cols[4] || '', F: cols[5] || '' };
             }).filter(w => w.A.trim() !== '');
         }
 
         function changeStudyMode() {
             const mode = document.getElementById('studyMode').value;
-            savedStudyMode = mode;
-            localStorage.setItem('vn_studyMode', mode);
-            savedIndex = 0; 
-            localStorage.setItem('vn_index', '0');
-            loadData(mode);
+            savedStudyMode = mode; localStorage.setItem('vn_studyMode', mode);
+            savedIndex = 0; localStorage.setItem('vn_index', '0'); loadData(mode);
         }
 
         function saveSettings() {
@@ -242,109 +198,51 @@
             savedGapTime = document.getElementById('gapTime').value;
             savedTimer = document.getElementById('sleepTimer').value;
             savedShuffle = document.getElementById('shuffleMode').checked;
-            
-            localStorage.setItem('vn_voiceRate', savedVoiceRate);
-            localStorage.setItem('vn_gapTime', savedGapTime);
-            localStorage.setItem('vn_timer', savedTimer);
-            localStorage.setItem('vn_shuffle', savedShuffle);
+            localStorage.setItem('vn_voiceRate', savedVoiceRate); localStorage.setItem('vn_gapTime', savedGapTime);
+            localStorage.setItem('vn_timer', savedTimer); localStorage.setItem('vn_shuffle', savedShuffle);
         }
 
         function changeGlobalCount(type, n) {
             if (type === 'word') {
-                savedWordCount = Math.max(0, Math.min(100, savedWordCount + n));
-                localStorage.setItem('vn_wordCount', savedWordCount);
-                if (document.getElementById('wordCountDisplay')) {
-                    document.getElementById('wordCountDisplay').innerText = savedWordCount + '번';
-                }
+                savedWordCount = Math.max(0, Math.min(100, savedWordCount + n)); localStorage.setItem('vn_wordCount', savedWordCount);
+                if (document.getElementById('wordCountDisplay')) { document.getElementById('wordCountDisplay').innerText = savedWordCount + '번'; }
             } else if (type === 'sentence') {
-                savedSentenceCount = Math.max(0, Math.min(100, savedSentenceCount + n));
-                localStorage.setItem('vn_sentenceCount', savedSentenceCount);
-                if (document.getElementById('sentenceCountDisplay')) {
-                    document.getElementById('sentenceCountDisplay').innerText = savedSentenceCount + '번';
-                }
+                savedSentenceCount = Math.max(0, Math.min(100, savedSentenceCount + n)); localStorage.setItem('vn_sentenceCount', savedSentenceCount);
+                if (document.getElementById('sentenceCountDisplay')) { document.getElementById('sentenceCountDisplay').innerText = savedSentenceCount + '번'; }
             }
         }
 
         function renderWord() {
             if (words.length === 0) return;
-            const w = words[savedIndex];
-            const isCompleted = completedWords[w.A];
-
+            const w = words[savedIndex]; const isCompleted = completedWords[w.A];
             let html = '<div class="status">[' + savedStudyMode + '] ' + (savedIndex + 1) + ' / ' + words.length + ' 항목</div>';
-            
-            if (isCompleted) {
-                html += '<div class="completed-text">✅ 완료된 항목</div>';
-            }
-
+            if (isCompleted) { html += '<div class="completed-text">✅ 완료된 항목</div>'; }
             html += '<div class="vn">' + w.A + '</div>';
             if (w.B) html += '<div class="pron">[ ' + w.B + ' ]</div>';
             html += '<div class="kr">' + w.C + '</div>';
-            
             if (w.D || w.F) {
                 html += '<hr style="border:1px solid #333;">';
                 html += '<div class="ex-vn">' + w.D + '</div>';
                 if (w.E) html += '<div class="ex-pron">[ ' + w.E + ' ]</div>';
                 html += '<div class="ex-kr">' + w.F + '</div>';
             }
-
-            html += '<div class="controls-row">';
-            html += '<button class="nav-btn" onclick="moveWord(-1)">◀ 뒤로</button>';
-            html += '<button class="nav-btn" onclick="moveWord(1)">넘기기 ▶</button>';
-            html += '</div>';
-
+            html += '<div class="controls-row"><button class="nav-btn" onclick="moveWord(-1)">◀ 뒤로</button><button class="nav-btn" onclick="moveWord(1)">넘기기 ▶</button></div>';
             html += '<div style="display: flex; gap: 10px; margin-top: 15px;">';
-            // 가로 모드일 때 숨겨지는 학습 완료(제외) 버튼
-            html += '<button class="btn-complete hide-in-landscape" style="flex: 1; margin: 0;" onclick="toggleComplete()">' + (isCompleted ? '❌ 완료 해제' : '✅ 학습 완료(제외)') + '</button>';
-            if (!isPlaying) {
-                html += '<button class="list-btn" style="flex: 1; margin: 0;" onclick="openModal()">📋 완료 목록 보기</button>';
-            } else {
-                html += '<button class="list-btn" style="flex: 1; margin: 0; color: #ccc; border-color: #777;" onclick="toggleBlackout()">💡 화면 끄기(절전)</button>';
-            }
+            html += '<button class="btn-complete" style="flex: 1; margin: 0;" onclick="toggleComplete()">' + (isCompleted ? '❌ 완료 해제' : '✅ 학습 완료(제외)') + '</button>';
+            if (!isPlaying) { html += '<button class="list-btn" style="flex: 1; margin: 0;" onclick="openModal()">📋 완료 목록 보기</button>'; }
+            else { html += '<button class="list-btn" style="flex: 1; margin: 0; color: #ccc; border-color: #777;" onclick="toggleBlackout()">💡 화면 끄기(절전)</button>'; }
             html += '</div>';
-
-            // 가로 모드일 때 숨겨지는 달력 버튼
             html += '<button class="list-btn hide-in-landscape" style="margin-top: 10px; color: #ffbc00; border-color: #ffbc00;" onclick="openCalendar()">📅 내 학습 기록 달력 보기</button>';
-
-            if (!isPlaying) {
-                html += '<button id="playBtn" class="play-btn" onclick="startSleepMode()">🌙 수면 학습 시작</button>';
-            } else {
-                html += '<button class="play-btn" style="background: #e94560;" onclick="stopSleepMode()">⏹ 학습 종료</button>';
-            }
-
-            // 가로 모드일 때 숨겨지는 하단 설정창 전체
+            if (!isPlaying) { html += '<button id="playBtn" class="play-btn" onclick="startSleepMode()">🌙 수면 학습 시작</button>'; }
+            else { html += '<button class="play-btn" style="background: #e94560;" onclick="stopSleepMode()">⏹ 학습 종료</button>'; }
             html += '<div class="settings-panel hide-in-landscape" style="background: #0f3460; padding: 15px; border-radius: 10px; margin-top: 15px; text-align: left;">';
-            html += '<label style="display: block; font-size: 14px; margin-bottom: 15px; color: #4ecca3; font-weight:bold;">📚 엑셀 시트 선택: ';
-            html += '<select id="studyMode" onchange="changeStudyMode()" style="width: 100%; padding: 8px; font-size: 16px; border-radius: 5px; border: none; background: #1a1a2e; color: white; margin-top: 5px;">';
-            html += '<option value="단어">1. 단어 시트 학습</option><option value="문장표현">2. 문장표현 시트 학습</option><option value="문법">3. 문법 시트 학습</option><option value="전체랜덤">4. 모든 시트 랜덤</option></select></label>';
-
-            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 15px;">';
-            html += '<label style="font-size: 14px; color: #ccc; display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="shuffleMode" onchange="saveSettings()"> 🔀 랜덤 재생</label>';
-            html += '<label style="font-size: 14px; color: #ccc;">⏰ 타이머: ';
-            html += '<select id="sleepTimer" onchange="saveSettings()" style="padding: 5px; border-radius: 5px; background: #1a1a2e; color: white; border: none;">';
-            html += '<option value="0">끄기</option><option value="15">15분</option><option value="30">30분</option><option value="60">60분</option><option value="120">120분</option>';
-            html += '</select></label></div>';
-
-            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
-            html += '<span style="font-size: 14px; color: #ccc;">🔁 본문 반복:</span>';
-            html += '<div class="count-controls"><button onclick="changeGlobalCount(\'word\', -1)">-</button><span class="count-display" id="wordCountDisplay">' + savedWordCount + '번</span><button onclick="changeGlobalCount(\'word\', 1)">+</button></div>';
-            html += '</div>';
-
-            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">';
-            html += '<span style="font-size: 14px; color: #ccc;">🔁 예문 반복:</span>';
-            html += '<div class="count-controls"><button onclick="changeGlobalCount(\'sentence\', -1)">-</button><span class="count-display" id="sentenceCountDisplay">' + savedSentenceCount + '번</span><button onclick="changeGlobalCount(\'sentence\', 1)">+</button></div>';
-            html += '</div>';
-
-            html += '<label style="display: block; font-size: 14px; margin-bottom: 10px; color: #ccc;">🗣️ 발음 속도: ';
-            html += '<select id="voiceRate" onchange="saveSettings()" style="width: 100%; padding: 8px; font-size: 16px; border-radius: 5px; border: none; background: #1a1a2e; color: white; margin-top: 5px;">';
-            html += '<option value="0.6">저속</option><option value="0.9">일반</option><option value="1.3">고속</option></select></label>';
-            
-            html += '<label style="display: block; font-size: 14px; margin-bottom: 5px; color: #ccc;">⏳ 공백 딜레이: ';
-            html += '<select id="gapTime" onchange="saveSettings()" style="width: 100%; padding: 8px; font-size: 16px; border-radius: 5px; border: none; background: #1a1a2e; color: white; margin-top: 5px;">';
-            html += '<option value="0">대기 없음</option><option value="1500">표준</option><option value="3000">지연</option></select></label>';
-            html += '</div>';
-
+            html += '<label style="display: block; font-size: 14px; margin-bottom: 15px; color: #4ecca3; font-weight:bold;">📚 엑셀 시트 선택: <select id="studyMode" onchange="changeStudyMode()" style="width: 100%; padding: 8px; font-size: 16px; border-radius: 5px; border: none; background: #1a1a2e; color: white; margin-top: 5px;"><option value="단어">1. 단어 시트 학습</option><option value="문장표현">2. 문장표현 시트 학습</option><option value="문법">3. 문법 시트 학습</option><option value="전체랜덤">4. 모든 시트 랜덤</option></select></label>';
+            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 15px;"><label style="font-size: 14px; color: #ccc; display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="shuffleMode" onchange="saveSettings()"> 🔀 랜덤 재생</label><label style="font-size: 14px; color: #ccc;">⏰ 타이머: <select id="sleepTimer" onchange="saveSettings()" style="padding: 5px; border-radius: 5px; background: #1a1a2e; color: white; border: none;"><option value="0">끄기</option><option value="15">15분</option><option value="30">30분</option><option value="60">60분</option><option value="120">120분</option></select></label></div>';
+            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;"><span style="font-size: 14px; color: #ccc;">🔁 본문 반복:</span><div class="count-controls"><button onclick="changeGlobalCount(\'word\', -1)">-</button><span class="count-display" id="wordCountDisplay">' + savedWordCount + '번</span><button onclick="changeGlobalCount(\'word\', 1)">+</button></div></div>';
+            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;"><span style="font-size: 14px; color: #ccc;">🔁 예문 반복:</span><div class="count-controls"><button onclick="changeGlobalCount(\'sentence\', -1)">-</button><span class="count-display" id="sentenceCountDisplay">' + savedSentenceCount + '번</span><button onclick="changeGlobalCount(\'sentence\', 1)">+</button></div></div>';
+            html += '<label style="display: block; font-size: 14px; margin-bottom: 10px; color: #ccc;">🗣️ 발음 속도: <select id="voiceRate" onchange="saveSettings()" style="width: 100%; padding: 8px; font-size: 16px; border-radius: 5px; border: none; background: #1a1a2e; color: white; margin-top: 5px;"><option value="0.6">저속</option><option value="0.9">일반</option><option value="1.3">고속</option></select></label>';
+            html += '<label style="display: block; font-size: 14px; margin-bottom: 5px; color: #ccc;">⏳ 공백 딜레이: <select id="gapTime" onchange="saveSettings()" style="width: 100%; padding: 8px; font-size: 16px; border-radius: 5px; border: none; background: #1a1a2e; color: white; margin-top: 5px;"><option value="0">대기 없음</option><option value="1500">표준</option><option value="3000">지연</option></select></label></div>';
             document.getElementById('app').innerHTML = html;
-
             if(document.getElementById('voiceRate')) document.getElementById('voiceRate').value = savedVoiceRate;
             if(document.getElementById('gapTime')) document.getElementById('gapTime').value = savedGapTime;
             if(document.getElementById('sleepTimer')) document.getElementById('sleepTimer').value = savedTimer;
@@ -352,259 +250,24 @@
             if(document.getElementById('studyMode')) document.getElementById('studyMode').value = savedStudyMode;
         }
 
-        function toggleBlackout() {
-            const overlay = document.getElementById('blackoutOverlay');
-            overlay.style.display = (overlay.style.display === 'none') ? 'flex' : 'none';
-        }
-
-        function stopSleepMode() {
-            isPlaying = false;
-            isSkipping = true;
-            window.speechSynthesis.cancel();
-            if (sleepTimerId) clearTimeout(sleepTimerId);
-            renderWord();
-        }
-
-        function toggleComplete() {
-            let w = words[savedIndex];
-            if (completedWords[w.A]) {
-                delete completedWords[w.A];
-                localStorage.setItem('vn_completed', JSON.stringify(completedWords));
-                renderWord(); 
-            } else {
-                completedWords[w.A] = true;
-                localStorage.setItem('vn_completed', JSON.stringify(completedWords));
-                moveWord(1); 
-            }
-        }
-
-        function moveWord(direction) {
-            isSkipping = true;
-            skipDirection = direction;
-            window.speechSynthesis.cancel(); 
-            if (!isPlaying) {
-                savedIndex += direction;
-                if (savedIndex < 0) savedIndex = words.length - 1;
-                if (savedIndex >= words.length) savedIndex = 0;
-                renderWord();
-            }
-        }
-
-        function speakText(text, lang) {
-            return new Promise(resolve => {
-                if (!text || text.trim() === '' || isSkipping) return resolve();
-                const msg = new SpeechSynthesisUtterance(text);
-                msg.lang = lang; 
-                msg.rate = parseFloat(savedVoiceRate); 
-                msg.onend = resolve; msg.onerror = resolve; 
-                window.speechSynthesis.speak(msg);
-                setTimeout(resolve, 8000);
-            });
-        }
-
-        async function smartDelay(ms) {
-            if (ms <= 0) return; 
-            let waited = 0;
-            while (waited < ms && !isSkipping && isPlaying) {
-                await new Promise(r => setTimeout(r, 100));
-                waited += 100;
-            }
-        }
-
-        function advanceIndex() {
-            if (!isSkipping) {
-                if (savedShuffle && words.length > 1) {
-                    let nextIndex = savedIndex;
-                    while (nextIndex === savedIndex) {
-                        nextIndex = Math.floor(Math.random() * words.length);
-                    }
-                    savedIndex = nextIndex;
-                } else {
-                    savedIndex++;
-                }
-            } else {
-                savedIndex += skipDirection;
-            }
-        }
-
-        async function startSleepMode() {
-            if (isPlaying) return;
-            isPlaying = true;
-            if (sleepTimerId) clearTimeout(sleepTimerId);
-            const timerVal = parseInt(savedTimer);
-            if (timerVal > 0) {
-                sleepTimerId = setTimeout(() => {
-                    stopSleepMode();
-                }, timerVal * 60 * 1000);
-            }
-            while (isPlaying) {
-                if (savedIndex >= words.length) savedIndex = 0;
-                if (savedIndex < 0) savedIndex = words.length - 1;
-                localStorage.setItem('vn_index', savedIndex);
-                isSkipping = false;
-                renderWord(); 
-                const w = words[savedIndex];
-                const currentGap = parseInt(savedGapTime); 
-                
-                if (completedWords[w.A]) {
-                    await new Promise(r => setTimeout(r, 10)); 
-                    advanceIndex();
-                    continue;
-                }
-                
-                if (savedWordCount > 0) {
-                    for (let i = 0; i < savedWordCount; i++) {
-                        if (!isPlaying || isSkipping) break;
-                        await speakText(w.A, 'vi-VN'); 
-                        if (!isPlaying || isSkipping) break;
-                        await speakText(w.C, 'ko-KR'); 
-                        await smartDelay(currentGap); 
-                    }
-                }
-                if (!isPlaying || isSkipping) { advanceIndex(); continue; }
-                if (w.D && w.F && savedSentenceCount > 0) {
-                    for (let i = 0; i < savedSentenceCount; i++) {
-                        if (!isPlaying || isSkipping) break;
-                        await speakText(w.D, 'vi-VN'); 
-                        if (!isPlaying || isSkipping) break;
-                        await speakText(w.F, 'ko-KR'); 
-                        await smartDelay(currentGap);
-                    }
-                }
-                if (!isPlaying || isSkipping) { advanceIndex(); continue; }
-                await smartDelay(1000); 
-                advanceIndex();
-            }
-        }
-
-        function openModal() {
-            const container = document.getElementById('compListContainer');
-            container.innerHTML = '';
-            const compKeys = Object.keys(completedWords);
-            if(compKeys.length === 0) {
-                container.innerHTML = '<p style="color:#888;">아직 완료된 항목이 없습니다.</p>';
-            } else {
-                compKeys.forEach(wordA => {
-                    const wordData = words.find(w => w.A === wordA);
-                    const mean = wordData ? wordData.C : '';
-                    container.innerHTML += `
-                        <div class="comp-item" id="item_${wordA}">
-                            <div><div class="comp-word">${wordA}</div><div class="comp-mean">${mean}</div></div>
-                            <button class="uncheck-btn" onclick="uncheckWord('${wordA}')">해제</button>
-                        </div>`;
-                });
-            }
-            document.getElementById('compModal').style.display = 'block';
-        }
-
+        function toggleBlackout() { const overlay = document.getElementById('blackoutOverlay'); overlay.style.display = (overlay.style.display === 'none') ? 'flex' : 'none'; }
+        function stopSleepMode() { isPlaying = false; isSkipping = true; window.speechSynthesis.cancel(); if (sleepTimerId) clearTimeout(sleepTimerId); renderWord(); }
+        function toggleComplete() { let w = words[savedIndex]; if (completedWords[w.A]) { delete completedWords[w.A]; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); renderWord(); } else { completedWords[w.A] = true; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); moveWord(1); } }
+        function moveWord(direction) { isSkipping = true; skipDirection = direction; window.speechSynthesis.cancel(); if (!isPlaying) { savedIndex += direction; if (savedIndex < 0) savedIndex = words.length - 1; if (savedIndex >= words.length) savedIndex = 0; renderWord(); } }
+        function speakText(text, lang) { return new Promise(resolve => { if (!text || text.trim() === '' || isSkipping) return resolve(); const msg = new SpeechSynthesisUtterance(text); msg.lang = lang; msg.rate = parseFloat(savedVoiceRate); msg.onend = resolve; msg.onerror = resolve; window.speechSynthesis.speak(msg); setTimeout(resolve, 8000); }); }
+        async function smartDelay(ms) { if (ms <= 0) return; let waited = 0; while (waited < ms && !isSkipping && isPlaying) { await new Promise(r => setTimeout(r, 100)); waited += 100; } }
+        function advanceIndex() { if (!isSkipping) { if (savedShuffle && words.length > 1) { let nextIndex = savedIndex; while (nextIndex === savedIndex) { nextIndex = Math.floor(Math.random() * words.length); } savedIndex = nextIndex; } else { savedIndex++; } } else { savedIndex += skipDirection; } }
+        async function startSleepMode() { if (isPlaying) return; isPlaying = true; if (sleepTimerId) clearTimeout(sleepTimerId); const timerVal = parseInt(savedTimer); if (timerVal > 0) { sleepTimerId = setTimeout(() => { stopSleepMode(); }, timerVal * 60 * 1000); } while (isPlaying) { if (savedIndex >= words.length) savedIndex = 0; if (savedIndex < 0) savedIndex = words.length - 1; localStorage.setItem('vn_index', savedIndex); isSkipping = false; renderWord(); const w = words[savedIndex]; const currentGap = parseInt(savedGapTime); if (completedWords[w.A]) { await new Promise(r => setTimeout(r, 10)); advanceIndex(); continue; } if (savedWordCount > 0) { for (let i = 0; i < savedWordCount; i++) { if (!isPlaying || isSkipping) break; await speakText(w.A, 'vi-VN'); if (!isPlaying || isSkipping) break; await speakText(w.C, 'ko-KR'); await smartDelay(currentGap); } } if (!isPlaying || isSkipping) { advanceIndex(); continue; } if (w.D && w.F && savedSentenceCount > 0) { for (let i = 0; i < savedSentenceCount; i++) { if (!isPlaying || isSkipping) break; await speakText(w.D, 'vi-VN'); if (!isPlaying || isSkipping) break; await speakText(w.F, 'ko-KR'); await smartDelay(currentGap); } } if (!isPlaying || isSkipping) { advanceIndex(); continue; } await smartDelay(1000); advanceIndex(); } }
+        function openModal() { const container = document.getElementById('compListContainer'); container.innerHTML = ''; const compKeys = Object.keys(completedWords); if(compKeys.length === 0) { container.innerHTML = '<p style="color:#888;">아직 완료된 항목이 없습니다.</p>'; } else { compKeys.forEach(wordA => { const wordData = words.find(w => w.A === wordA); const mean = wordData ? wordData.C : ''; container.innerHTML += `<div class="comp-item" id="item_${wordA}"><div><div class="comp-word">${wordA}</div><div class="comp-mean">${mean}</div></div><button class="uncheck-btn" onclick="uncheckWord('${wordA}')">해제</button></div>`; }); } document.getElementById('compModal').style.display = 'block'; }
         function closeModal() { document.getElementById('compModal').style.display = 'none'; renderWord(); }
         function uncheckWord(wordA) { delete completedWords[wordA]; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); const el = document.getElementById('item_' + wordA); if(el) el.style.display = 'none'; }
-
-        function getTodayStr(d) {
-            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        }
-
-        function openCalendar() {
-            currentCalDate = new Date(); 
-            renderCalendar();
-            document.getElementById('calendarModal').style.display = 'block';
-        }
-
-        function closeCalendar() {
-            document.getElementById('calendarModal').style.display = 'none';
-        }
-
-        function changeMonth(offset) {
-            currentCalDate.setMonth(currentCalDate.getMonth() + offset);
-            renderCalendar();
-        }
-
-        function formatTimeText(seconds) {
-            if (!seconds || seconds <= 0) return '0분';
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            if (h > 0) return `${h}시간 ${m}분`;
-            return `${m}분`;
-        }
-
-        function updateStatsDisplay() {
-            const todayObj = new Date();
-            const todayStr = getTodayStr(todayObj);
-            const currentMonthStr = todayStr.substring(0, 7); 
-            const currentYearStr = todayStr.substring(0, 4);  
-            
-            let todaySec = 0;
-            let monthSec = 0;
-            let yearSec = 0;
-            let totalSec = 0;
-
-            for (const [dateStr, sec] of Object.entries(dailyTime)) {
-                totalSec += sec;
-                if (dateStr === todayStr) todaySec += sec;
-                if (dateStr.startsWith(currentMonthStr)) monthSec += sec;
-                if (dateStr.startsWith(currentYearStr)) yearSec += sec;
-            }
-
-            if(document.getElementById('statToday')) document.getElementById('statToday').innerText = formatTimeText(todaySec);
-            if(document.getElementById('statMonth')) document.getElementById('statMonth').innerText = formatTimeText(monthSec);
-            if(document.getElementById('statYear')) document.getElementById('statYear').innerText = formatTimeText(yearSec);
-            if(document.getElementById('statTotal')) document.getElementById('statTotal').innerText = formatTimeText(totalSec);
-
-            const completedCount = Object.keys(completedWords).length;
-            if(document.getElementById('statWords')) {
-                document.getElementById('statWords').innerText = `${completedCount}개`;
-            }
-        }
-
-        function renderCalendar() {
-            const year = currentCalDate.getFullYear();
-            const month = currentCalDate.getMonth();
-            const todayObj = new Date();
-            const todayStr = getTodayStr(todayObj);
-            
-            document.getElementById('calTitle').innerText = `${year}년 ${month + 1}월`;
-            
-            const firstDay = new Date(year, month, 1).getDay();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            
-            let html = '';
-            const days = ['일', '월', '화', '수', '목', '금', '토'];
-            days.forEach(d => { html += `<div class="cal-header">${d}</div>`; });
-            
-            for(let i=0; i<firstDay; i++) { html += `<div></div>`; }
-            
-            for(let i=1; i<=daysInMonth; i++) {
-                const dateObj = new Date(year, month, i);
-                const dateStr = getTodayStr(dateObj);
-                
-                let isPast = dateStr < todayStr;
-                let isToday = dateStr === todayStr;
-                
-                let seconds = dailyTime[dateStr] || 0;
-                let medal = '';
-                
-                if (isPast || isToday) {
-                    const mins = seconds / 60;
-                    if (mins >= 120) medal = '💎';       
-                    else if (mins >= 60) medal = '🥇';   
-                    else if (mins >= 30) medal = '🥈';   
-                    else if (mins >= 10) medal = '🥉';   
-                    else medal = '💩';                   
-                }
-                
-                let bgStyle = isToday ? 'background: rgba(233, 69, 96, 0.4); border: 1px solid #e94560;' : '';
-                
-                html += `
-                    <div class="cal-day" style="${bgStyle}">
-                        <div class="cal-date">${i}</div>
-                        <div class="cal-medal">${medal}</div>
-                    </div>
-                `;
-            }
-            
-            document.getElementById('calendarGrid').innerHTML = html;
-            updateStatsDisplay();
-        }
+        function getTodayStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+        function openCalendar() { currentCalDate = new Date(); renderCalendar(); document.getElementById('calendarModal').style.display = 'block'; }
+        function closeCalendar() { document.getElementById('calendarModal').style.display = 'none'; }
+        function changeMonth(offset) { currentCalDate.setMonth(currentCalDate.getMonth() + offset); renderCalendar(); }
+        function formatTimeText(seconds) { if (!seconds || seconds <= 0) return '0분'; const h = Math.floor(seconds / 3600); const m = Math.floor((seconds % 3600) / 60); if (h > 0) return `${h}시간 ${m}분`; return `${m}분`; }
+        function updateStatsDisplay() { const todayObj = new Date(); const todayStr = getTodayStr(todayObj); const currentMonthStr = todayStr.substring(0, 7); const currentYearStr = todayStr.substring(0, 4); let todaySec = 0, monthSec = 0, yearSec = 0, totalSec = 0; for (const [dateStr, sec] of Object.entries(dailyTime)) { totalSec += sec; if (dateStr === todayStr) todaySec += sec; if (dateStr.startsWith(currentMonthStr)) monthSec += sec; if (dateStr.startsWith(currentYearStr)) yearSec += sec; } if(document.getElementById('statToday')) document.getElementById('statToday').innerText = formatTimeText(todaySec); if(document.getElementById('statMonth')) document.getElementById('statMonth').innerText = formatTimeText(monthSec); if(document.getElementById('statYear')) document.getElementById('statYear').innerText = formatTimeText(yearSec); if(document.getElementById('statTotal')) document.getElementById('statTotal').innerText = formatTimeText(totalSec); const completedCount = Object.keys(completedWords).length; if(document.getElementById('statWords')) { document.getElementById('statWords').innerText = `${completedCount}개`; } }
+        function renderCalendar() { const year = currentCalDate.getFullYear(); const month = currentCalDate.getMonth(); const todayObj = new Date(); const todayStr = getTodayStr(todayObj); document.getElementById('calTitle').innerText = `${year}년 ${month + 1}월`; const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate(); let html = ''; const days = ['일', '월', '화', '수', '목', '금', '토']; days.forEach(d => { html += `<div class="cal-header">${d}</div>`; }); for(let i=0; i<firstDay; i++) { html += `<div></div>`; } for(let i=1; i<=daysInMonth; i++) { const dateObj = new Date(year, month, i); const dateStr = getTodayStr(dateObj); let isPast = dateStr < todayStr; let isToday = dateStr === todayStr; let seconds = dailyTime[dateStr] || 0; let medal = ''; if (isPast || isToday) { const mins = seconds / 60; if (mins >= 120) medal = '💎'; else if (mins >= 60) medal = '🥇'; else if (mins >= 30) medal = '🥈'; else if (mins >= 10) medal = '🥉'; else medal = '💩'; } let bgStyle = isToday ? 'background: rgba(233, 69, 96, 0.4); border: 1px solid #e94560;' : ''; html += `<div class="cal-day" style="${bgStyle}"><div class="cal-date">${i}</div><div class="cal-medal">${medal}</div></div>`; } document.getElementById('calendarGrid').innerHTML = html; updateStatsDisplay(); }
     </script>
 </body>
 </html>
