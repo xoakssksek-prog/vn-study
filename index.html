@@ -11,11 +11,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <style>
-        /* 기본 레이아웃: 여백 없이 꽉 채움 */
+        /* 기본 레이아웃 */
         body { font-family: sans-serif; text-align: center; background-color: #1a1a2e; color: white; padding: 0; margin: 0; overflow-x: hidden; width: 100%; }
         .card { background: #16213e; border-radius: 0; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); width: 100%; min-height: 90vh; margin: 0; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
         
-        /* 폰트 설정 */
         .vn { font-size: 50px; font-weight: bold; color: #4ecca3; margin-bottom: 5px; word-break: break-word; }
         .pron { font-size: 25px; color: #f2a365; margin-bottom: 5px; }
         .kr { font-size: 24px; color: #eee; margin-bottom: 20px; }
@@ -23,7 +22,6 @@
         .ex-pron { font-size: 20px; color: #f2a365; }
         .ex-kr { font-size: 18px; color: #ccc; margin-bottom: 15px; }
         
-        /* 버튼 공통 */
         .controls-row { display: flex; justify-content: space-between; align-items: center; background: #0f3460; padding: 10px; border-radius: 10px; margin-top: 15px; }
         .nav-btn { background: #3a4750; color: white; border: none; padding: 15px 10px; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; flex: 1; margin: 0 5px; }
         .btn-complete { padding: 15px; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; background: #ffbc00; color: #1a1a2e; }
@@ -31,36 +29,44 @@
         .play-btn { font-size: 22px; padding: 18px; border: none; border-radius: 10px; cursor: pointer; background: #e94560; color: white; font-weight: bold; width: 100%; margin-top: 15px;}
         .status { margin-top: 15px; font-size: 16px; color: #888; }
 
-        /* 모달 공통 */
+        /* 모달 설정 */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; overflow-y: auto; padding-top: 30px; }
         .modal-content { background: #16213e; margin: auto; width: 95%; max-width: 500px; border-radius: 15px; padding: 15px; text-align: left; box-sizing: border-box; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; }
         .modal-title { font-size: 20px; font-weight: bold; color: #4ecca3; text-align: center; flex: 1; }
-        .close-btn { background: #e94560; color: white; border: none; padding: 5px 12px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+        .close-btn { background: #e94560; color: white; border: none; padding: 5px 12px; border-radius: 5px; cursor: pointer; }
 
-        /* 📅 진짜 달력 디자인 (격자 무늬) */
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; background: #1a1a2e; border: 1px solid #333; padding: 4px; border-radius: 8px; }
-        .cal-header { font-size: 12px; font-weight: bold; color: #4ecca3; padding: 8px 0; text-align: center; background: #0f3460; border-radius: 4px; }
-        .cal-day { background: #16213e; border-radius: 4px; aspect-ratio: 1 / 1.2; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 4px; position: relative; border: 1px solid #222; }
-        .cal-date { font-size: 11px; color: #aaa; align-self: flex-start; }
-        .cal-medal { font-size: 18px; line-height: 1; margin-bottom: 2px; }
-        .cal-empty { background: transparent; border: none; }
-
-        /* 통계 패널 */
-        .stats-panel { background: #0f3460; padding: 12px; border-radius: 8px; margin-top: 15px; font-size: 14px; color: #ccc; }
-        .stats-val { color: white; font-weight: bold; float: right; }
-
-        /* 설정창 카운트 조절 */
-        .count-controls { display: flex; align-items: center; gap: 10px; }
-        .count-controls button { font-size: 18px; width: 30px; height: 30px; border: none; border-radius: 5px; background: #4ecca3; color: #1a1a2e; cursor: pointer; }
-
-        /* 가로 모드 (집중 모드) */
+        /* 가로 모드 (핸드폰을 옆으로 눕혔을 때) - 한 화면에 다 들어가게 수정 */
         @media screen and (orientation: landscape) {
+            body { overflow: hidden; height: 100vh; }
+            .card { min-height: 100vh; height: 100vh; padding: 5px 15px !important; justify-content: space-around; }
             .hide-in-landscape { display: none !important; }
-            .card { min-height: 100vh; padding: 10px 20px !important; }
-            .vn { font-size: 55px !important; }
-            .nav-btn, .btn-complete, .list-btn, .play-btn { font-size: 18px !important; padding: 10px !important; }
+            
+            .vn { font-size: 35px !important; margin: 0 !important; }
+            .pron { font-size: 18px !important; margin: 0 !important; }
+            .kr { font-size: 18px !important; margin-bottom: 5px !important; }
+            
+            hr { margin: 2px 0 !important; }
+            
+            .ex-vn { font-size: 22px !important; margin-top: 0 !important; }
+            .ex-pron { font-size: 16px !important; }
+            .ex-kr { font-size: 16px !important; margin-bottom: 5px !important; }
+            
+            .controls-row { margin-top: 0 !important; padding: 4px !important; }
+            .nav-btn { font-size: 16px !important; padding: 8px !important; }
+            .btn-complete, .list-btn, .play-btn { font-size: 16px !important; padding: 8px !important; margin-top: 5px !important; }
+            .status { font-size: 12px !important; margin-top: 2px !important; }
         }
+
+        /* 기타 스타일 */
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 4px; }
+        .cal-header { font-size: 12px; font-weight: bold; color: #4ecca3; text-align: center; padding: 5px; }
+        .cal-day { background: #16213e; border-radius: 4px; aspect-ratio: 1/1.2; display: flex; flex-direction: column; align-items: center; border: 1px solid #222; }
+        .cal-date { font-size: 10px; align-self: flex-start; padding: 2px; }
+        .stats-panel { background: #0f3460; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 13px; }
+        .stats-val { color: white; font-weight: bold; float: right; }
+        .count-controls { display: flex; align-items: center; gap: 8px; }
+        .count-controls button { width: 30px; height: 30px; border-radius: 5px; border: none; background: #4ecca3; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -71,12 +77,10 @@
     </div>
 
     <div id="app">
-        <div class="card">
-            <p>단어장 데이터를 불러오는 중입니다...</p>
-        </div>
+        <div class="card"><p>데이터 로딩 중...</p></div>
     </div>
     
-    <div class="footer-text hide-in-landscape" style="text-align: center; font-size: 13px; color: #666; margin: 20px 0;">
+    <div class="footer-text hide-in-landscape" style="text-align: center; font-size: 12px; color: #666; margin: 15px 0;">
         맹여사 그리고 이아빠 공부 열심히 하자 화이팅! 💖
     </div>
 
@@ -138,16 +142,9 @@
                 <button class="nav-btn" style="flex: 0 0 40px; padding: 5px;" onclick="changeMonth(1)">▶</button>
                 <button class="close-btn" style="margin-left: 10px;" onclick="closeCalendar()">닫기</button>
             </div>
-            <div class="cal-legend" style="display: flex; justify-content: space-around; font-size: 10px; background: #0f3460; padding: 8px; border-radius: 8px; margin-bottom: 10px; flex-wrap: wrap;">
-                <div>💎 2h↑</div><div>🥇 1h↑</div><div>🥈 30m↑</div><div>🥉 10m↑</div><div>💩 결석</div>
-            </div>
             <div class="cal-grid" id="calendarGrid"></div>
             <div class="stats-panel">
-                <div style="color: #4ecca3; font-weight: bold; margin-bottom: 8px;">📊 나의 학습 통계</div>
-                <div>⏳ 오늘 학습 <span class="stats-val" id="statToday" style="color: #ffbc00;">0분</span></div>
-                <div>📅 이번 달 <span class="stats-val" id="statMonth">0분</span></div>
-                <div>🗓️ 올해 총합 <span class="stats-val" id="statYear">0분</span></div>
-                <hr style="border: 1px solid #333; margin: 10px 0;">
+                <div>⌛ 오늘 학습 <span class="stats-val" id="statToday" style="color: #ffbc00;">0분</span></div>
                 <div>✅ 완료 단어수 <span class="stats-val" id="statWords" style="color: #ffbc00;">0개</span></div>
             </div>
         </div>
@@ -184,14 +181,12 @@
 
         async function loadData(mode) {
             words = []; const appDiv = document.getElementById('app');
-            if(appDiv) appDiv.innerHTML = `<div class="card"><p>${mode} 시트 연동 중...</p></div>`;
             try {
                 if (mode === '전체랜덤') {
                     for (const name in sheetNames) { const data = await fetchSheetByName(sheetNames[name]); words = words.concat(data); }
                 } else { words = await fetchSheetByName(sheetNames[mode]); }
             } catch (e) {}
             if (words.length > 0) { if (savedIndex >= words.length) savedIndex = 0; renderWord(); }
-            else { if(appDiv) appDiv.innerHTML = `<div class="card"><p style="color:red;">로드 실패.</p></div>`; }
         }
 
         async function fetchSheetByName(name) {
@@ -220,25 +215,21 @@
                 html += '<div class="ex-kr">' + w.F + '</div>';
             }
             html += '<div class="controls-row"><button class="nav-btn" onclick="moveWord(-1)">◀ 뒤로</button><button class="nav-btn" onclick="moveWord(1)">넘기기 ▶</button></div>';
-            html += '<div style="display: flex; gap: 10px; margin-top: 15px;">';
+            html += '<div style="display: flex; gap: 10px; margin-top: 10px;">';
             html += '<button class="btn-complete" style="flex: 1; margin: 0;" onclick="toggleComplete()">' + (isCompleted ? '❌ 완료 해제' : '✅ 학습 완료(제외)') + '</button>';
             if (!isPlaying) { html += '<button class="list-btn" style="flex: 1; margin: 0;" onclick="openModal()">📋 완료 목록</button>'; }
             else { html += '<button class="list-btn" style="flex: 1; margin: 0; color: #ccc; border-color: #777;" onclick="toggleBlackout()">💡 화면 끄기</button>'; }
             html += '</div>';
-
             html += '<div class="hide-in-landscape" style="display: flex; gap: 10px; margin-top: 10px;">';
             html += '<button class="list-btn" style="flex: 1; color: #ffbc00; border-color: #ffbc00;" onclick="openCalendar()">📅 학습 시간 보기</button>';
             html += '<button class="list-btn" style="flex: 1; color: #4ecca3; border-color: #4ecca3;" onclick="openSettings()">⚙️ 학습 설정</button>';
             html += '</div>';
-
             if (!isPlaying) { html += '<button id="playBtn" class="play-btn" onclick="startSleepMode()">🌙 수면 학습 시작</button>'; }
             else { html += '<button class="play-btn" style="background: #e94560;" onclick="stopSleepMode()">⏹ 학습 종료</button>'; }
             html += '</div>';
-            
             document.getElementById('app').innerHTML = html;
         }
 
-        // --- 기능 함수들 ---
         function openSettings() { document.getElementById('settingsModal').style.display = 'block'; document.getElementById('studyMode').value = savedStudyMode; document.getElementById('voiceRate').value = savedVoiceRate; document.getElementById('sleepTimer').value = savedTimer; document.getElementById('shuffleMode').checked = savedShuffle; document.getElementById('wordCountDisplay').innerText = savedWordCount + '번'; document.getElementById('sentenceCountDisplay').innerText = savedSentenceCount + '번'; }
         function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; renderWord(); }
         function changeStudyMode() { savedStudyMode = document.getElementById('studyMode').value; localStorage.setItem('vn_studyMode', savedStudyMode); savedIndex = 0; loadData(savedStudyMode); }
@@ -259,16 +250,16 @@
         function openCalendar() { currentCalDate = new Date(); renderCalendar(); document.getElementById('calendarModal').style.display = 'block'; }
         function closeCalendar() { document.getElementById('calendarModal').style.display = 'none'; }
         function changeMonth(offset) { currentCalDate.setMonth(currentCalDate.getMonth() + offset); renderCalendar(); }
-        function formatTimeText(seconds) { if (!seconds || seconds <= 0) return '0분'; const h = Math.floor(seconds / 3600); const m = Math.floor((seconds % 3600) / 60); return h > 0 ? `${h}시간 ${m}분` : `${m}분`; }
-        function updateStatsDisplay() { const todayObj = new Date(); const todayStr = getTodayStr(todayObj); const curMonth = todayStr.substring(0, 7); const curYear = todayStr.substring(0, 4); let todaySec = 0, monthSec = 0, yearSec = 0; for (const [date, sec] of Object.entries(dailyTime)) { if (date === todayStr) todaySec += sec; if (date.startsWith(curMonth)) monthSec += sec; if (date.startsWith(curYear)) yearSec += sec; } document.getElementById('statToday').innerText = formatTimeText(todaySec); document.getElementById('statMonth').innerText = formatTimeText(monthSec); document.getElementById('statYear').innerText = formatTimeText(yearSec); document.getElementById('statWords').innerText = Object.keys(completedWords).length + '개'; }
+        function formatTimeText(seconds) { if (!seconds || seconds <= 0) return '0분'; const h = Math.floor(seconds / 3600); const m = Math.floor((seconds % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; }
+        function updateStatsDisplay() { const todayStr = getTodayStr(new Date()); let todaySec = dailyTime[todayStr] || 0; document.getElementById('statToday').innerText = formatTimeText(todaySec); document.getElementById('statWords').innerText = Object.keys(completedWords).length + '개'; }
         
         function renderCalendar() {
             const year = currentCalDate.getFullYear(); const month = currentCalDate.getMonth();
             const todayStr = getTodayStr(new Date()); document.getElementById('calTitle').innerText = `${year}년 ${month + 1}월`;
             const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
-            let html = ''; const days = ['일', '월', '화', '수', '목', '금', '토'];
+            let html = '<div class="cal-grid">'; const days = ['일', '월', '화', '수', '목', '금', '토'];
             days.forEach(d => { html += `<div class="cal-header">${d}</div>`; });
-            for(let i=0; i<firstDay; i++) { html += `<div class="cal-day cal-empty"></div>`; }
+            for(let i=0; i<firstDay; i++) { html += `<div class="cal-day" style="background:transparent;border:none;"></div>`; }
             for(let i=1; i<=daysInMonth; i++) {
                 const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
                 let sec = dailyTime[dateStr] || 0; let medal = '';
@@ -278,9 +269,10 @@
                     else if (m >= 30) medal = '🥈'; else if (m >= 10) medal = '🥉';
                     else medal = '💩';
                 }
-                let todayStyle = dateStr === todayStr ? 'border: 1px solid #e94560; background: rgba(233, 69, 96, 0.2);' : '';
+                let todayStyle = dateStr === todayStr ? 'border: 1px solid #e94560;' : '';
                 html += `<div class="cal-day" style="${todayStyle}"><div class="cal-date">${i}</div><div class="cal-medal">${medal}</div></div>`;
             }
+            html += '</div>';
             document.getElementById('calendarGrid').innerHTML = html; updateStatsDisplay();
         }
     </script>
