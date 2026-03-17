@@ -84,6 +84,10 @@
         .stats-val { color: white; font-weight: bold; float: right; }
         .count-controls { display: flex; align-items: center; gap: 8px; }
         .count-controls button { width: 30px; height: 30px; border-radius: 5px; border: none; background: #4ecca3; cursor: pointer; }
+
+        /* 범례 스타일 */
+        .cal-legend { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; background: #0f3460; padding: 8px; border-radius: 8px; margin-bottom: 10px; font-size: 11px; color: #aaa; }
+        .legend-item { display: flex; align-items: center; gap: 3px; }
     </style>
 </head>
 <body>
@@ -155,10 +159,22 @@
                 <button class="nav-btn" style="flex: 0 0 40px; padding: 5px;" onclick="changeMonth(1)">▶</button>
                 <button class="close-btn" style="margin-left: 10px;" onclick="closeCalendar()">닫기</button>
             </div>
+
+            <div class="cal-legend">
+                <div class="legend-item">💎 2시간↑</div>
+                <div class="legend-item">🥇 1시간↑</div>
+                <div class="legend-item">🥈 30분↑</div>
+                <div class="legend-item">🥉 10분↑</div>
+                <div class="legend-item">💩 미참석</div>
+            </div>
+
             <div id="calendarGrid" class="cal-grid"></div>
             <div class="stats-panel">
-                <div>⌛ 오늘 학습 <span class="stats-val" id="statToday" style="color: #ffbc00;">0분</span></div>
-                <div>✅ 완료 단어수 <span class="stats-val" id="statWords" style="color: #ffbc00;">0개</span></div>
+                <div style="margin-bottom: 5px;">⌛ 오늘의 학습 <span class="stats-val" id="statToday" style="color: #ffbc00;">0분</span></div>
+                <div style="margin-bottom: 5px;">📅 이달의 학습 <span class="stats-val" id="statMonth" style="color: #4ecca3;">0분</span></div>
+                <div style="margin-bottom: 5px;">🚀 올해의 학습 <span class="stats-val" id="statYear" style="color: #f2a365;">0분</span></div>
+                <hr style="border: 0.2px solid #333; margin: 8px 0;">
+                <div>✅ 학습 완료한 단어수 <span class="stats-val" id="statWords" style="color: #ffbc00;">0개</span></div>
             </div>
         </div>
     </div>
@@ -214,16 +230,13 @@
             if (words.length === 0) return;
             const w = words[savedIndex]; const isCompleted = completedWords[w.A];
             
-            // 글자 길이에 따른 폰트 크기 자동 조절
             let vnSize = w.A.length > 15 ? '30px' : (w.A.length > 8 ? '40px' : '50px');
             let exVnSize = (w.D && w.D.length > 40) ? '20px' : '26px';
 
             let html = '<div class="card">';
             
-            // 상단 상태 영역
             html += '<div class="status">[' + savedStudyMode + '] ' + (savedIndex + 1) + ' / ' + words.length + ' 항목</div>';
             
-            // 중앙 본문 영역 (가변 글자 크기 적용)
             html += '<div class="content-wrap">';
             if (isCompleted) { html += '<div style="color:#ffbc00; font-weight:bold; font-size:14px; margin-bottom:5px;">✅ 완료된 항목</div>'; }
             
@@ -244,7 +257,6 @@
             }
             html += '</div>';
 
-            // 하단 조작 버튼 영역 (위치 고정)
             html += '<div class="bottom-controls">';
             if (!isPlaying) { html += '<button id="playBtn" class="play-btn" onclick="startSleepMode()">🌙 수면 학습 시작</button>'; }
             else { html += '<button class="play-btn" style="background: #e94560;" onclick="stopSleepMode()">⏹ 학습 종료</button>'; }
@@ -259,7 +271,7 @@
             html += '<button class="list-btn" style="flex: 1; color: #ffbc00; border-color: #ffbc00; font-size:15px; padding:12px;" onclick="openCalendar()">📅 학습 시간 보기</button>';
             html += '<button class="list-btn" style="flex: 1; color: #4ecca3; border-color: #4ecca3; font-size:15px; padding:12px;" onclick="openSettings()">⚙️ 학습 설정</button>';
             html += '</div>';
-            html += '</div>'; // bottom-controls 끝
+            html += '</div>';
             
             html += '</div>';
             document.getElementById('app').innerHTML = html;
@@ -285,8 +297,37 @@
         function openCalendar() { currentCalDate = new Date(); renderCalendar(); document.getElementById('calendarModal').style.display = 'block'; }
         function closeCalendar() { document.getElementById('calendarModal').style.display = 'none'; }
         function changeMonth(offset) { currentCalDate.setMonth(currentCalDate.getMonth() + offset); renderCalendar(); }
-        function formatTimeText(seconds) { if (!seconds || seconds <= 0) return '0분'; const h = Math.floor(seconds / 3600); const m = Math.floor((seconds % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; }
-        function updateStatsDisplay() { const todayStr = getTodayStr(new Date()); let todaySec = dailyTime[todayStr] || 0; document.getElementById('statToday').innerText = formatTimeText(todaySec); document.getElementById('statWords').innerText = Object.keys(completedWords).length + '개'; }
+
+        // 시간 단위 한글화 (시간/분 표시)
+        function formatTimeText(seconds) { 
+            if (!seconds || seconds <= 0) return '0분'; 
+            const h = Math.floor(seconds / 3600); 
+            const m = Math.floor((seconds % 3600) / 60); 
+            if (h > 0) return `${h}시간 ${m}분`;
+            return `${m}분`;
+        }
+
+        // 오늘/이달/올해 통계 계산 로직 추가
+        function updateStatsDisplay() { 
+            const now = new Date();
+            const todayStr = getTodayStr(now);
+            const thisMonthPrefix = todayStr.substring(0, 7); // YYYY-MM
+            const thisYearPrefix = todayStr.substring(0, 4); // YYYY
+
+            let todaySec = dailyTime[todayStr] || 0; 
+            let monthSec = 0;
+            let yearSec = 0;
+
+            for (const key in dailyTime) {
+                if (key.startsWith(thisMonthPrefix)) monthSec += dailyTime[key];
+                if (key.startsWith(thisYearPrefix)) yearSec += dailyTime[key];
+            }
+
+            document.getElementById('statToday').innerText = formatTimeText(todaySec); 
+            document.getElementById('statMonth').innerText = formatTimeText(monthSec);
+            document.getElementById('statYear').innerText = formatTimeText(yearSec);
+            document.getElementById('statWords').innerText = Object.keys(completedWords).length + '개'; 
+        }
         
         function renderCalendar() {
             const year = currentCalDate.getFullYear(); const month = currentCalDate.getMonth();
