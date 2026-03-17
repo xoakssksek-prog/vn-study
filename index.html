@@ -3,134 +3,152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>명희의 수면 베트남어 마스터</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#1a1a2e">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>명희의 프리미엄 수면 베트남어</title>
     
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #1a1a2e; }
-        body { font-family: sans-serif; text-align: center; color: white; width: 100%; display: flex; flex-direction: column; }
-        
-        .card { background: #16213e; width: 100%; height: 100dvh; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; }
-        .content-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; width: 100%; }
-        
-        .vn { font-weight: bold; color: #4ecca3; margin-bottom: 5px; word-break: break-word; line-height: 1.2; }
-        .pron { font-size: 22px; color: #f2a365; margin-bottom: 5px; }
-        .kr { font-size: 22px; color: #eee; margin-bottom: 10px; }
-        .ex-vn { color: #4ecca3; margin-top: 10px; word-break: break-word; line-height: 1.2; }
-        .ex-pron { font-size: 18px; color: #f2a365; }
-        .ex-kr { font-size: 16px; color: #ccc; margin-bottom: 10px; }
-        
-        .arrow-btn { background: none; border: none; color: rgba(255, 255, 255, 0.15); font-size: 45px; cursor: pointer; padding: 0 10px; user-select: none; -webkit-tap-highlight-color: transparent; }
-        .arrow-btn:active { color: rgba(78, 204, 163, 0.5); }
-
-        .bottom-controls { width: 100%; padding-bottom: 10px; }
-        
-        /* 버튼 공통 높이 유지 */
-        .btn-complete, .list-btn, .play-btn, .sheet-select { 
-            height: 55px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            box-sizing: border-box;
-            border-radius: 10px;
-            font-size: 15px;
-            cursor: pointer;
-            width: 100%;
-            border: none;
-            margin: 0;
-            text-align: center;
+        :root {
+            --bg-deep: #020617;
+            --bg-card: rgba(15, 23, 42, 0.8);
+            --accent-gold: #fbbf24;
+            --accent-green: #10b981;
+            --accent-red: #f43f5e;
+            --text-main: #ffffff;
+            --text-dim: #cbd5e1;
+            --glass-border: rgba(255, 255, 255, 0.08);
         }
 
-        .btn-complete { background: #ffbc00; color: #1a1a2e; font-weight: bold; }
-        .list-btn { background: transparent; color: #4ecca3; border: 1px solid #4ecca3; }
-        .sheet-select { background: #1a1a2e; color: #4ecca3; border: 1px solid #4ecca3; padding: 0 5px; appearance: none; -webkit-appearance: none; text-align-last: center; }
-        .play-btn { background: #e94560; color: white; font-weight: bold; font-size: 20px; margin-bottom: 10px; height: 60px; }
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: var(--bg-deep); font-family: -apple-system, sans-serif; }
+        body { text-align: center; color: var(--text-main); display: flex; flex-direction: column; }
         
-        .status { font-size: 14px; color: #888; margin-bottom: 10px; }
-        .nav-btn { background: #3a4750; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; flex: 1; }
+        .card { 
+            background: var(--bg-deep);
+            background-image: radial-gradient(circle at top, #1e293b 0%, #020617 100%);
+            width: 100%; height: 100dvh; padding: 24px; box-sizing: border-box; 
+            display: flex; flex-direction: column; justify-content: space-between; 
+        }
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; overflow-y: auto; padding-top: 20px; }
-        .modal-content { background: #16213e; margin: auto; width: 95%; max-width: 450px; border-radius: 15px; padding: 15px; text-align: left; box-sizing: border-box; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; }
-        .modal-title { font-size: 18px; font-weight: bold; color: #4ecca3; text-align: center; flex: 1; }
-        .close-btn { background: #e94560; color: white; border: none; padding: 5px 12px; border-radius: 5px; cursor: pointer; }
+        .content-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; width: 100%; }
+        
+        .star-btn { 
+            background: none !important; border: none !important; outline: none !important; box-shadow: none !important;
+            font-size: 42px; color: rgba(255,255,255,0.15); cursor: pointer; margin-bottom: 15px;
+            transition: all 0.3s; -webkit-tap-highlight-color: transparent;
+        }
+        .star-btn.active { color: var(--accent-gold); filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.5)); }
 
-        .report-bar-container { display: flex; align-items: flex-end; justify-content: space-around; height: 60px; margin-top: 10px; background: #1a1a2e; padding: 10px; border-radius: 8px; }
-        .report-bar-wrapper { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-        .report-bar { width: 15px; background: #4ecca3; border-radius: 3px 3px 0 0; min-height: 2px; }
-        .report-day { font-size: 9px; color: #777; }
-        .star-btn { font-size: 32px; background: none; border: none; cursor: pointer; color: #444; margin-bottom: 5px; transition: 0.2s; }
-        .star-btn.active { color: #ffbc00; text-shadow: 0 0 10px rgba(255, 188, 0, 0.5); }
+        .vn { font-weight: 800; color: var(--accent-green); margin-bottom: 10px; word-break: break-word; line-height: 1.1; letter-spacing: -0.03em; text-shadow: 0 0 15px rgba(16, 185, 129, 0.3); }
+        .pron { font-size: 22px; color: var(--accent-gold); margin-bottom: 10px; opacity: 0.8; }
+        .kr { font-size: 26px; font-weight: 600; color: #fff; margin-bottom: 15px; }
+        
+        .ex-box { background: rgba(0,0,0,0.25); padding: 20px; border-radius: 20px; border: 1px solid var(--glass-border); margin-top: 10px; }
+        .ex-vn { color: var(--accent-green); font-weight: 600; font-size: 22px; line-height: 1.3; }
+        .ex-pron { font-size: 16px; color: var(--accent-gold); margin-top: 5px; }
+        .ex-kr { font-size: 16px; color: var(--text-dim); margin-top: 5px; }
+        
+        .arrow-btn { background: none; border: none; color: rgba(255, 255, 255, 0.1); font-size: 50px; cursor: pointer; padding: 0 10px; -webkit-tap-highlight-color: transparent; }
+        .arrow-btn:active { color: var(--accent-green); }
 
-        .cal-grid { display: grid !important; grid-template-columns: repeat(7, 1fr) !important; gap: 4px; background: #1a1a2e; padding: 8px; border-radius: 10px; width: 100%; box-sizing: border-box; }
-        .cal-header { font-size: 11px; font-weight: bold; color: #4ecca3; text-align: center; padding: 5px 0; background: #0f3460; border-radius: 4px; }
-        .cal-day { background: #16213e; border-radius: 4px; aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; border: 1px solid #222; min-height: 45px; }
-        .cal-date { font-size: 10px; color: #aaa; position: absolute; top: 2px; left: 4px; }
-        .cal-medal { font-size: 18px; margin-top: 5px; }
-        .stats-panel { background: #0f3460; padding: 12px; border-radius: 8px; margin-top: 15px; font-size: 13px; color: #ccc; }
-        .stats-val { color: white; font-weight: bold; float: right; }
-        .count-controls { display: flex; align-items: center; gap: 8px; }
-        .count-controls button { width: 30px; height: 30px; border-radius: 5px; border: none; background: #4ecca3; cursor: pointer; }
+        .bottom-controls { width: 100%; padding-bottom: 15px; }
+        
+        .play-btn { 
+            height: 65px; width: 100%; border-radius: 18px; border: none; font-size: 20px; font-weight: 800;
+            background: linear-gradient(135deg, #f43f5e, #be123c); color: white; margin-bottom: 12px;
+            box-shadow: 0 8px 16px rgba(244, 63, 94, 0.3); cursor: pointer;
+        }
 
-        .quick-settings { display: flex; justify-content: space-around; align-items: center; margin-top: 8px; font-size: 14px; color: #aaa; }
-        .quick-settings label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+        .row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .row-btn { 
+            flex: 1; height: 55px; border-radius: 15px; border: none; font-size: 15px; font-weight: 600;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+
+        .btn-gold { background: linear-gradient(135deg, #fbbf24, #d97706); color: #451a03; }
+        .btn-outline { background: rgba(255,255,255,0.05); color: #fff; border: 1px solid var(--glass-border); }
+        .sheet-select { background: #0f172a; color: var(--accent-green); border: 1px solid var(--accent-green); text-align-last: center; appearance: none; }
+
+        .quick-settings { display: flex; justify-content: space-around; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 15px; font-size: 14px; margin-bottom: 10px; }
+        .quick-settings label { display: flex; align-items: center; gap: 6px; color: var(--text-dim); cursor: pointer; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; padding-top: 20px; overflow-y: auto; }
+        .modal-content { background: #0f172a; margin: 10px auto; width: 92%; max-width: 400px; border-radius: 24px; padding: 20px; border: 1px solid var(--glass-border); text-align: left; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; color: white; }
+        .close-btn { background: var(--accent-red); color: white; border: none; padding: 8px 16px; border-radius: 10px; cursor: pointer; }
+
+        #blackoutOverlay { background: #000; position: fixed; top:0; left:0; width:100%; height:100%; z-index:9999; display:none; flex-direction:column; justify-content:center; align-items:center; cursor:pointer; }
+
+        .cal-legend { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; font-size: 11px; color: #fff; font-weight: bold; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 12px; }
+        .cal-header { font-size: 11px; font-weight: bold; color: var(--accent-green); text-align: center; padding-bottom: 5px; }
+        .cal-day { background: rgba(255,255,255,0.03); border-radius: 6px; aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; min-height: 40px; font-size: 11px; color: white; }
+        .cal-date { position: absolute; top: 2px; left: 4px; color: #fff; font-size: 9px; opacity: 0.7; }
+
+        .report-bar-container { display: flex; align-items: flex-end; justify-content: space-around; height: 100px; background: rgba(0,0,0,0.3); padding: 25px 10px 5px 10px; border-radius: 12px; margin-top: 15px; }
+        .bar-wrapper { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; position: relative; }
+        .bar-time { font-size: 9px; color: #fff; position: absolute; top: -18px; font-weight: bold; width: 100%; text-align: center; }
+        .report-bar { width: 14px; background: var(--accent-green); border-radius: 4px 4px 0 0; min-height: 2px; transition: height 0.3s; }
+        .bar-label { font-size: 10px; color: #fff; font-weight: bold; }
+
+        .stats-panel { margin-top: 15px; font-size: 13px; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 16px; line-height: 2; color: white; }
+        .stats-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        
+        .comp-table-header { display: flex; padding: 10px 5px; border-bottom: 1.5px solid var(--glass-border); font-size: 11px; color: var(--accent-green); font-weight: bold; text-align: center; background: rgba(0,0,0,0.1); border-radius: 8px 8px 0 0; }
+        .comp-row { display: flex; align-items: center; padding: 10px 5px; border-bottom: 1px solid rgba(255,255,255,0.03); text-align: center; font-size: 12px; }
+        .c-vn { flex: 1.2; color: var(--accent-green); font-weight: bold; word-break: break-all; }
+        .c-pron { flex: 1; color: var(--accent-gold); word-break: break-all; }
+        .c-mean { flex: 1.5; color: #fff; word-break: break-all; text-align: left; padding-left: 5px; }
+        .c-del { width: 40px; }
     </style>
 </head>
 <body>
 
-    <div id="blackoutOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 9999; flex-direction: column; justify-content: center; align-items: center; color: #444; cursor: pointer;" onclick="toggleBlackout()">
-        <p style="font-size: 20px;">저전력 모드 작동 중</p>
-        <p style="font-size: 14px;">화면을 터치하면 다시 켜집니다</p>
+    <div id="blackoutOverlay" onclick="toggleBlackout()">
+        <p style="font-size: 20px; color: #1e293b; font-weight: bold;">LOW POWER MODE</p>
+        <p style="font-size: 12px; color: #0f172a;">Touch to Wake</p>
     </div>
 
-    <div id="app" style="height: 100%;">
-        <div class="card"><p>데이터 로딩 중...</p></div>
-    </div>
+    <div id="app" style="height: 100%;"><div class="card">데이터 로딩 중...</div></div>
 
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title">⚙️ 설정</div>
+                <h2 style="color: var(--accent-green); margin:0; font-size: 20px;">PREMIUM SETTINGS</h2>
                 <button class="close-btn" onclick="closeSettings()">닫기</button>
             </div>
-            <div style="background: #0f3460; padding: 15px; border-radius: 10px; text-align: left;">
-                <button class="btn-complete" style="margin-bottom: 20px; font-size: 15px;" onclick="openCompletedList()">📋 완료 목록 보기</button>
-
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <label style="font-size: 14px; color: #ccc;">⏰ 타이머: 
-                        <select id="sleepTimer" onchange="saveSettings()" style="padding: 5px; border-radius: 5px; background: #1a1a2e; color: white; border: none;">
-                            <option value="0">끄기</option><option value="15">15분</option><option value="30">30분</option><option value="60">60분</option><option value="120">120분</option><option value="180">180분</option><option value="240">240분</option>
-                        </select>
-                    </label>
+            <button class="btn-gold row-btn" style="width:100%; margin-bottom:15px;" onclick="openCompletedList()">📋 완료 목록 보기</button>
+            
+            <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 15px;">
+                <div style="margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>⏰ 타이머</span>
+                    <select id="sleepTimer" onchange="saveSettings()" style="background:#020617; color:#fff; border:none; padding:4px; border-radius:5px;">
+                        <option value="0">OFF</option><option value="15">15분</option><option value="30">30분</option><option value="60">60분</option><option value="120">120분</option><option value="180">180분</option><option value="240">240분</option>
+                    </select>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <span>🔁 본문 반복:</span>
-                    <div class="count-controls">
-                        <label style="font-size: 11px; color: #aaa; margin-right: 5px;"><input type="checkbox" id="hideKrWord" onchange="saveSettings()"> 한글해제</label>
-                        <button onclick="changeGlobalCount('word', -1)">-</button><span id="wordCountDisplay">3번</span><button onclick="changeGlobalCount('word', 1)">+</button>
+                <div style="margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>🔁 본문 반복</span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 11px; color: var(--accent-gold); cursor:pointer;"><input type="checkbox" id="hideKrWord" onchange="saveSettings()"> KR OFF</label>
+                        <button onclick="changeGlobalCount('word', -1)" style="padding:2px 8px;">-</button><span id="wordCountDisplay" style="min-width:15px;text-align:center;">3</span><button onclick="changeGlobalCount('word', 1)" style="padding:2px 8px;">+</button>
                     </div>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <span>🔁 예문 반복:</span>
-                    <div class="count-controls">
-                        <label style="font-size: 11px; color: #aaa; margin-right: 5px;"><input type="checkbox" id="hideKrEx" onchange="saveSettings()"> 한글해제</label>
-                        <button onclick="changeGlobalCount('sentence', -1)">-</button><span id="sentenceCountDisplay">1번</span><button onclick="changeGlobalCount('sentence', 1)">+</button>
+                <div style="margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>🔁 예문 반복</span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 11px; color: var(--accent-gold); cursor:pointer;"><input type="checkbox" id="hideKrEx" onchange="saveSettings()"> KR OFF</label>
+                        <button onclick="changeGlobalCount('sentence', -1)" style="padding:2px 8px;">-</button><span id="sentenceCountDisplay" style="min-width:15px;text-align:center;">1</span><button onclick="changeGlobalCount('sentence', 1)" style="padding:2px 8px;">+</button>
                     </div>
                 </div>
-                <label style="display: block; font-size: 14px; margin-bottom: 10px;">🗣️ 발음 속도: 
-                    <select id="voiceRate" onchange="saveSettings()" style="width: 100%; padding: 12px; border-radius: 5px; border: none; background: #1a1a2e; color: white;">
-                        <option value="0.6">저속</option><option value="0.9">일반</option><option value="1.3">고속</option>
+                <div style="margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>🗣️ 발음 속도</span>
+                    <select id="voiceRate" onchange="saveSettings()" style="background:#020617; color:#fff; border:none; padding:4px; border-radius:5px;">
+                        <option value="0.6">느림</option><option value="0.9">표준</option><option value="1.3">빠름</option>
                     </select>
-                </label>
-                <label style="display: block; font-size: 14px; margin-bottom: 10px;">⏳ 대기 시간: 
-                    <select id="delayTime" onchange="saveSettings()" style="width: 100%; padding: 12px; border-radius: 5px; border: none; background: #1a1a2e; color: white;">
-                        <option value="0">없음</option><option value="1000">표준(1초)</option><option value="2000">조금 느림(2초)</option><option value="3000">느림(3초)</option>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>⏳ 대기 시간</span>
+                    <select id="delayTime" onchange="saveSettings()" style="background:#020617; color:#fff; border:none; padding:4px; border-radius:5px;">
+                        <option value="0">없음</option><option value="1000">1초</option><option value="2000">2초</option><option value="3000">3초</option>
                     </select>
-                </label>
+                </div>
             </div>
         </div>
     </div>
@@ -138,24 +156,43 @@
     <div id="calendarModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <button class="nav-btn" style="flex: 0 0 40px; padding: 5px;" onclick="changeMonth(-1)">◀</button>
-                <div class="modal-title" id="calTitle">학습 시간 보기</div>
-                <button class="nav-btn" style="flex: 0 0 40px; padding: 5px;" onclick="changeMonth(1)">▶</button>
-                <button class="close-btn" style="margin-left: 10px;" onclick="closeCalendar()">닫기</button>
+                <button class="row-btn btn-outline" style="flex:0; padding:5px 12px;" onclick="changeMonth(-1)">◀</button>
+                <h3 id="calTitle" style="margin:0; font-size: 16px; color:#fff;">학습 리포트</h3>
+                <button class="row-btn btn-outline" style="flex:0; padding:5px 12px;" onclick="changeMonth(1)">▶</button>
+                <button class="close-btn" style="margin-left:10px;" onclick="closeCalendar()">닫기</button>
             </div>
+            
+            <div class="cal-legend">
+                <span>💎 1h↑</span><span>🌟 30m↑</span><span>⚡ 10m↑</span>
+            </div>
+
             <div id="calendarGrid" class="cal-grid"></div>
+            <div id="weeklyBarChart" class="report-bar-container"></div>
             <div class="stats-panel">
-                <div style="margin-bottom: 10px; font-weight: bold; color: #4ecca3;">📊 최근 7일 학습 리포트</div>
-                <div id="weeklyBarChart" class="report-bar-container"></div>
-                <hr style="border: 0.2px solid #333; margin: 15px 0;">
-                <div style="margin-bottom: 5px;">⌛ 오늘의 학습 <span class="stats-val" id="statToday" style="color: #ffbc00;">0분</span></div>
-                <div style="margin-bottom: 5px;">📅 이달의 학습 <span class="stats-val" id="statMonth" style="color: #4ecca3;">0분</span></div>
-                <div>✅ 학습 완료 단어 <span class="stats-val" id="statWords" style="color: #ffbc00;">0개</span></div>
+                <div class="stats-row"><span>⌛ 오늘 학습</span> <span id="statToday" style="color:var(--accent-gold); font-weight:bold;">0분</span></div>
+                <div class="stats-row"><span>📅 이달 학습</span> <span id="statMonth" style="color:var(--accent-green); font-weight:bold;">0분</span></div>
+                <div class="stats-row"><span>🚀 올해 학습</span> <span id="statYear" style="color:var(--accent-gold); font-weight:bold;">0분</span></div>
+                <hr style="border:0.1px solid rgba(255,255,255,0.1); margin:8px 0;">
+                <div class="stats-row"><span>✅ 완료 단어</span> <span id="statWords" style="color:var(--accent-green); font-weight:bold;">0개</span></div>
             </div>
         </div>
     </div>
 
-    <div id="compModal" class="modal"><div class="modal-content"><div class="modal-header"><div class="modal-title">✅ 완료 목록</div><button class="close-btn" onclick="closeModal()">닫기</button></div><div id="compListContainer"></div></div></div>
+    <div id="compModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 style="margin:0; color:#fff;">마스터 리스트</h3>
+                <button class="close-btn" onclick="closeModal()">닫기</button>
+            </div>
+            <div class="comp-table-header">
+                <div class="c-vn">베트남어</div>
+                <div class="c-pron">발음</div>
+                <div class="c-mean">뜻</div>
+                <div class="c-del">삭제</div>
+            </div>
+            <div id="compListContainer" style="max-height:60vh; overflow-y:auto; background: rgba(0,0,0,0.1); border-radius: 0 0 12px 12px;"></div>
+        </div>
+    </div>
 
     <script>
         const sheetId = '1AiQwqgLg_XBHTiHWZXY0n2qN2Mz4NfIVcR2MxRfqkOc';
@@ -178,7 +215,7 @@
         let savedHideKrWord = localStorage.getItem('vn_hideKrWord') === 'true';
         let savedHideKrEx = localStorage.getItem('vn_hideKrEx') === 'true';
         let reviewMode = localStorage.getItem('vn_reviewMode') === 'true';
-        let currentCalDate = new Date(); 
+        let currentCalDate = new Date();
 
         loadData(savedStudyMode);
 
@@ -190,15 +227,15 @@
             }
         }, 10000);
 
-        async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
-        function releaseWakeLock() { if (wakeLock !== null) { wakeLock.release().then(() => { wakeLock = null; }); } }
-
         async function loadData(mode) {
             allWords = []; try {
                 if (mode === '전체랜덤') {
-                    for (const name in sheetNames) { const data = await fetchSheetByName(sheetNames[name]); allWords = allWords.concat(data); }
+                    for (const name in sheetNames) { 
+                        const data = await fetchSheetByName(sheetNames[name]); 
+                        allWords = allWords.concat(data); 
+                    }
                 } else { allWords = await fetchSheetByName(sheetNames[mode]); }
-            } catch (e) {}
+            } catch (e) { }
             applyModeFilter();
         }
 
@@ -206,8 +243,7 @@
             if (reviewMode) {
                 words = allWords.filter(w => starredWords[w.A]);
                 if (words.length === 0) { 
-                    alert("별표 표시한 단어가 없습니다! 일반 모드로 전환합니다."); 
-                    reviewMode = false; localStorage.setItem('vn_reviewMode', 'false');
+                    alert("별표 표시한 단어가 없습니다!"); reviewMode = false; localStorage.setItem('vn_reviewMode', 'false');
                     words = allWords; 
                 }
             } else { words = allWords; }
@@ -218,231 +254,162 @@
         async function fetchSheetByName(name) {
             const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
             const res = await fetch(url); const data = await res.text();
-            const rows = data.split('\n').slice(1);
-            return rows.map(row => {
+            return data.split('\n').slice(1).map(row => {
                 const cols = row.split('","').map(c => c.replace(/(^"|"$)/g, ''));
                 return { A: cols[0] || '', B: cols[1] || '', C: cols[2] || '', D: cols[3] || '', E: cols[4] || '', F: cols[5] || '' };
             }).filter(w => w.A.trim() !== '');
         }
 
         function renderWord() {
-            if (words.length === 0) return;
+            const app = document.getElementById('app');
+            if (words.length === 0) { app.innerHTML = '<div class="card">데이터가 없습니다.</div>'; return; }
             const w = words[savedIndex]; 
             const isCompleted = completedWords[w.A];
             const isStarred = starredWords[w.A];
-            
-            let vnSize = w.A.length > 15 ? '30px' : (w.A.length > 8 ? '40px' : '50px');
-            let exVnSize = (w.D && w.D.length > 40) ? '20px' : '26px';
+            let vnSize = w.A.length > 15 ? '34px' : (w.A.length > 8 ? '44px' : '52px');
 
             let html = '<div class="card">';
-            html += '<div class="status">' + (reviewMode ? '⭐ 복습모드' : '[' + savedStudyMode + ']') + ' ' + (savedIndex + 1) + ' / ' + words.length + '</div>';
+            html += '<div class="status">' + (reviewMode ? '⭐ REVIEW' : 'MODE: ' + savedStudyMode) + ' | ' + (savedIndex + 1) + '/' + words.length + '</div>';
             html += '<div class="content-wrap">';
-            
             html += `<button class="star-btn ${isStarred ? 'active' : ''}" onclick="toggleStar()">${isStarred ? '★' : '☆'}</button>`;
-            if (isCompleted) html += '<div style="color:#ffbc00; font-weight:bold; font-size:14px; margin-bottom:5px;">✅ 완료된 항목</div>';
+            if (isCompleted) html += '<div style="color:var(--accent-gold); font-size:14px; margin-bottom:5px; font-weight:bold;">✅ 마스터한 항목</div>';
             
-            html += '<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">';
-            html += '<button class="arrow-btn" onclick="moveWord(-1)">◀</button>';
-            html += '<div class="vn" style="font-size:' + vnSize + '; flex: 1;">' + w.A + '</div>';
-            html += '<button class="arrow-btn" onclick="moveWord(1)">▶</button>';
+            html += '<div style="display: flex; align-items: center; justify-content: space-between;">';
+            html += '<button class="arrow-btn" onclick="moveWord(-1)">‹</button>';
+            html += '<div class="vn" style="font-size:' + vnSize + ';">' + w.A + '</div>';
+            html += '<button class="arrow-btn" onclick="moveWord(1)">›</button>';
             html += '</div>';
 
-            if (w.B) html += '<div class="pron">[ ' + w.B + ' ]</div>';
+            if (w.B) html += '<div class="pron">[' + w.B + ']</div>';
             html += '<div class="kr">' + w.C + '</div>';
-            
-            if (w.D || w.F) {
-                html += '<hr style="border:0.5px solid #333; width:80%; margin: 10px auto;">';
-                html += '<div class="ex-vn" style="font-size:' + exVnSize + ';">' + w.D + '</div>';
-                if (w.E) html += '<div class="ex-pron">[ ' + w.E + ' ]</div>';
-                html += '<div class="ex-kr">' + w.F + '</div>';
+            if (w.D) {
+                html += '<div class="ex-box"><div class="ex-vn">' + w.D + '</div>';
+                if (w.E) html += '<div class="ex-pron">[' + w.E + ']</div>';
+                html += '<div class="ex-kr">' + w.F + '</div></div>';
             }
             html += '</div>';
 
             html += '<div class="bottom-controls">';
             if (!isPlaying) { html += '<button class="play-btn" onclick="startSleepMode()">🌙 수면 학습 시작</button>'; }
-            else { html += '<button class="play-btn" style="background: #e94560;" onclick="stopSleepMode()">⏹ 학습 종료</button>'; }
+            else { html += '<button class="play-btn" style="background:#334155;" onclick="stopSleepMode()">⏹ 학습 종료</button>'; }
 
-            html += '<div style="display: flex; flex-direction: column; gap: 10px;">';
-            
-            // 상단 줄: 학습 완료 버튼 | 엑셀 시트 선택
-            html += '<div style="display: flex; gap: 10px;">';
-            html += `<button class="btn-complete" onclick="toggleComplete()">${isCompleted ? '❌ 해제' : '✅ 학습 완료'}</button>`;
-            html += `<select class="sheet-select" onchange="changeStudyModeMain(this)">`;
-            const modes = ['단어', '문장표현', '문법', '전체랜덤'];
-            modes.forEach(m => { html += `<option value="${m}" ${savedStudyMode === m ? 'selected' : ''}>${m}</option>`; });
-            html += `</select>`;
-            html += '</div>';
+            html += '<div class="row">';
+            html += `<button class="row-btn btn-gold" onclick="toggleComplete()">${isCompleted ? '완료 해제' : '학습 완료'}</button>`;
+            html += `<select class="row-btn btn-outline sheet-select" onchange="changeStudyModeMain(this)">`;
+            ['단어', '문장표현', '문법', '전체랜덤'].forEach(m => { html += `<option value="${m}" ${savedStudyMode === m ? 'selected' : ''}>${m}</option>`; });
+            html += `</select></div>`;
 
-            // 중간 줄: 학습 시간 보기(저전력) | 설정 (좌우 50%씩)
-            html += '<div style="display: flex; gap: 10px;">';
-            if (!isPlaying) {
-                html += `<button class="list-btn" style="flex: 1; color: #ffbc00; border-color: #ffbc00;" onclick="openCalendar()">📅 학습 시간 보기</button>`;
-            } else {
-                html += `<button class="list-btn" style="flex: 1; color: #ffbc00; border-color: #ffbc00;" onclick="toggleBlackout()">💡 저전력 모드</button>`;
-            }
-            html += `<button class="list-btn" style="flex: 1;" onclick="openSettings()">⚙️ 설정</button>`;
-            html += '</div>';
+            html += '<div class="row">';
+            if (!isPlaying) { html += `<button class="row-btn btn-outline" style="color:var(--accent-gold);" onclick="openCalendar()">📊 학습 리포트</button>`; }
+            else { html += `<button class="row-btn btn-outline" style="color:var(--accent-gold);" onclick="toggleBlackout()">💡 저전력 모드</button>`; }
+            html += `<button class="row-btn btn-outline" onclick="openSettings()">⚙️ 설정</button></div>`;
             
-            // 하단 퀵 설정 체크박스
             html += `<div class="quick-settings">`;
             html += `<label><input type="checkbox" id="mainReviewMode" ${reviewMode ? 'checked' : ''} onchange="toggleMainReview()"> ⭐ 별표 복습</label>`;
             html += `<label><input type="checkbox" id="mainShuffleMode" ${savedShuffle ? 'checked' : ''} onchange="toggleMainShuffle()"> 🔀 랜덤 재생</label>`;
-            html += `</div>`;
-            
-            html += '</div></div></div>';
-            document.getElementById('app').innerHTML = html;
+            html += `</div></div></div>`;
+            app.innerHTML = html;
         }
 
-        // 메인 시트 변경 함수
-        function changeStudyModeMain(el) {
-            savedStudyMode = el.value;
-            localStorage.setItem('vn_studyMode', savedStudyMode);
-            savedIndex = 0;
-            loadData(savedStudyMode);
+        async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
+        function releaseWakeLock() { if (wakeLock) { wakeLock.release(); wakeLock = null; } }
+        function toggleStar() { const w = words[savedIndex]; if (starredWords[w.A]) delete starredWords[w.A]; else starredWords[w.A] = true; localStorage.setItem('vn_starred', JSON.stringify(starredWords)); renderWord(); }
+        
+        function toggleComplete() { 
+            let w = words[savedIndex]; 
+            if (completedWords[w.A]) { delete completedWords[w.A]; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); renderWord(); } 
+            else { completedWords[w.A] = true; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); moveWord(1); } 
         }
 
-        function toggleStar() {
-            const w = words[savedIndex];
-            if (starredWords[w.A]) delete starredWords[w.A];
-            else starredWords[w.A] = true;
-            localStorage.setItem('vn_starred', JSON.stringify(starredWords));
-            renderWord();
-        }
-
-        function toggleMainReview() {
-            reviewMode = document.getElementById('mainReviewMode').checked;
-            localStorage.setItem('vn_reviewMode', reviewMode);
-            savedIndex = 0;
-            applyModeFilter();
-        }
-
-        function toggleMainShuffle() {
-            savedShuffle = document.getElementById('mainShuffleMode').checked;
-            localStorage.setItem('vn_shuffle', savedShuffle);
-            renderWord();
-        }
-
-        function openSettings() { 
-            document.getElementById('settingsModal').style.display = 'block'; 
-            document.getElementById('voiceRate').value = savedVoiceRate; 
-            document.getElementById('sleepTimer').value = savedTimer; 
-            document.getElementById('wordCountDisplay').innerText = savedWordCount + '번'; 
-            document.getElementById('sentenceCountDisplay').innerText = savedSentenceCount + '번'; 
-            document.getElementById('delayTime').value = savedDelayTime;
-            document.getElementById('hideKrWord').checked = savedHideKrWord;
-            document.getElementById('hideKrEx').checked = savedHideKrEx;
-        }
+        function toggleMainReview() { reviewMode = document.getElementById('mainReviewMode').checked; localStorage.setItem('vn_reviewMode', reviewMode); savedIndex = 0; applyModeFilter(); }
+        function toggleMainShuffle() { savedShuffle = document.getElementById('mainShuffleMode').checked; localStorage.setItem('vn_shuffle', savedShuffle); renderWord(); }
+        function changeStudyModeMain(el) { savedStudyMode = el.value; localStorage.setItem('vn_studyMode', savedStudyMode); savedIndex = 0; loadData(savedStudyMode); }
+        function openSettings() { document.getElementById('settingsModal').style.display = 'block'; document.getElementById('wordCountDisplay').innerText = savedWordCount; document.getElementById('sentenceCountDisplay').innerText = savedSentenceCount; }
         function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; renderWord(); }
+        function saveSettings() { savedVoiceRate = localStorage.getItem('vn_voiceRate'); savedTimer = document.getElementById('sleepTimer').value; savedDelayTime = document.getElementById('delayTime').value; savedHideKrWord = document.getElementById('hideKrWord').checked; savedHideKrEx = document.getElementById('hideKrEx').checked; localStorage.setItem('vn_timer', savedTimer); localStorage.setItem('vn_delayTime', savedDelayTime); localStorage.setItem('vn_hideKrWord', savedHideKrWord); localStorage.setItem('vn_hideKrEx', savedHideKrEx); }
+        function changeGlobalCount(type, n) { if (type === 'word') savedWordCount = Math.max(0, savedWordCount + n); else savedSentenceCount = Math.max(0, savedSentenceCount + n); localStorage.setItem('vn_wordCount', savedWordCount); localStorage.setItem('vn_sentenceCount', savedSentenceCount); document.getElementById(type + 'CountDisplay').innerText = (type === 'word' ? savedWordCount : savedSentenceCount); }
         
-        function changeStudyMode() { 
-            savedStudyMode = document.getElementById('studyMode').value; 
-            localStorage.setItem('vn_studyMode', savedStudyMode); 
-            savedIndex = 0; loadData(savedStudyMode); 
+        function moveWord(direction) { 
+            isSkipping = true; skipDirection = direction; window.speechSynthesis.cancel(); 
+            if (direction === 1) { advanceIndex(); } 
+            else { savedIndex--; if (savedIndex < 0) savedIndex = words.length - 1; } 
+            renderWord(); 
         }
 
-        function saveSettings() { 
-            savedVoiceRate = document.getElementById('voiceRate').value; savedTimer = document.getElementById('sleepTimer').value; 
-            savedDelayTime = document.getElementById('delayTime').value;
-            savedHideKrWord = document.getElementById('hideKrWord').checked; savedHideKrEx = document.getElementById('hideKrEx').checked;
-            localStorage.setItem('vn_voiceRate', savedVoiceRate); localStorage.setItem('vn_timer', savedTimer); 
-            localStorage.setItem('vn_delayTime', savedDelayTime);
-            localStorage.setItem('vn_hideKrWord', savedHideKrWord); localStorage.setItem('vn_hideKrEx', savedHideKrEx);
-        }
-
-        function changeGlobalCount(type, n) { if (type === 'word') { savedWordCount = Math.max(0, Math.min(100, savedWordCount + n)); document.getElementById('wordCountDisplay').innerText = savedWordCount + '번'; } else { savedSentenceCount = Math.max(0, Math.min(100, savedSentenceCount + n)); document.getElementById('sentenceCountDisplay').innerText = savedSentenceCount + '번'; } localStorage.setItem('vn_wordCount', savedWordCount); localStorage.setItem('vn_sentenceCount', savedSentenceCount); }
-        function moveWord(direction) { isSkipping = true; skipDirection = direction; window.speechSynthesis.cancel(); if (!isPlaying) { savedIndex += direction; if (savedIndex < 0) savedIndex = words.length - 1; if (savedIndex >= words.length) savedIndex = 0; renderWord(); } }
-        function toggleComplete() { let w = words[savedIndex]; if (completedWords[w.A]) { delete completedWords[w.A]; } else { completedWords[w.A] = true; moveWord(1); } localStorage.setItem('vn_completed', JSON.stringify(completedWords)); renderWord(); }
-        
-        async function startSleepMode() { 
-            if (isPlaying) return; isPlaying = true; requestWakeLock();
-            if (sleepTimerId) clearTimeout(sleepTimerId);
-            const timerVal = parseInt(savedTimer); 
-            if (timerVal > 0) sleepTimerId = setTimeout(() => stopSleepMode(), timerVal * 60 * 1000);
-            
-            while (isPlaying) {
-                if (savedIndex >= words.length) savedIndex = 0;
-                localStorage.setItem('vn_index', savedIndex); isSkipping = false; renderWord();
-                const w = words[savedIndex];
-                if (completedWords[w.A] && !reviewMode) { advanceIndex(); continue; }
-                
-                if (savedWordCount > 0) {
-                    for (let i = 0; i < savedWordCount; i++) {
-                        if (!isPlaying || isSkipping) break;
-                        await speakText(w.A, 'vi-VN');
-                        if (!isPlaying || isSkipping) break;
-                        if (!savedHideKrWord) await speakText(w.C, 'ko-KR');
-                        await new Promise(r => setTimeout(r, parseInt(savedDelayTime)));
-                    }
-                }
-                if (w.D && savedSentenceCount > 0) {
-                    for (let i = 0; i < savedSentenceCount; i++) {
-                        if (!isPlaying || isSkipping) break;
-                        await speakText(w.D, 'vi-VN');
-                        if (!isPlaying || isSkipping) break;
-                        if (!savedHideKrEx) await speakText(w.F, 'ko-KR');
-                        await new Promise(r => setTimeout(r, parseInt(savedDelayTime)));
-                    }
-                }
-                advanceIndex();
-            }
-        }
-
-        function stopSleepMode() { isPlaying = false; isSkipping = true; window.speechSynthesis.cancel(); if (sleepTimerId) clearTimeout(sleepTimerId); releaseWakeLock(); renderWord(); }
-        function speakText(text, lang) { return new Promise(resolve => { if(!text || isSkipping) return resolve(); const msg = new SpeechSynthesisUtterance(text); msg.lang = lang; msg.rate = parseFloat(savedVoiceRate); msg.onend = resolve; msg.onerror = resolve; window.speechSynthesis.speak(msg); }); }
-        function advanceIndex() { if (savedShuffle && !isSkipping) savedIndex = Math.floor(Math.random() * words.length); else if (isSkipping) savedIndex += skipDirection; else savedIndex++; }
-        
-        function openCalendar() { currentCalDate = new Date(); renderCalendar(); document.getElementById('calendarModal').style.display = 'block'; renderWeeklyChart(); }
-        function closeCalendar() { document.getElementById('calendarModal').style.display = 'none'; }
+        async function startSleepMode() { if (isPlaying) return; isPlaying = true; requestWakeLock(); if (sleepTimerId) clearTimeout(sleepTimerId); const timerVal = parseInt(savedTimer); if (timerVal > 0) sleepTimerId = setTimeout(() => stopSleepMode(), timerVal * 60 * 1000); while (isPlaying) { if (savedIndex >= words.length) savedIndex = 0; localStorage.setItem('vn_index', savedIndex); isSkipping = false; renderWord(); const w = words[savedIndex]; if (completedWords[w.A] && !reviewMode) { advanceIndex(); continue; } for (let i = 0; i < savedWordCount; i++) { if (!isPlaying || isSkipping) break; await speakText(w.A, 'vi-VN'); if (!isPlaying || isSkipping) break; if (!savedHideKrWord) await speakText(w.C, 'ko-KR'); if (!isPlaying || isSkipping) break; await new Promise(r => setTimeout(r, parseInt(savedDelayTime))); } if (w.D && savedSentenceCount > 0) { for (let i = 0; i < savedSentenceCount; i++) { if (!isPlaying || isSkipping) break; await speakText(w.D, 'vi-VN'); if (!isPlaying || isSkipping) break; if (!savedHideKrEx) await speakText(w.F, 'ko-KR'); if (!isPlaying || isSkipping) break; await new Promise(r => setTimeout(r, parseInt(savedDelayTime))); } } if (!isSkipping) advanceIndex(); } }
+        function stopSleepMode() { isPlaying = false; isSkipping = true; window.speechSynthesis.cancel(); releaseWakeLock(); renderWord(); }
+        function speakText(text, lang) { return new Promise(resolve => { if(!text || isSkipping) return resolve(); const msg = new SpeechSynthesisUtterance(text); msg.lang = lang; msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); msg.onend = resolve; msg.onerror = resolve; window.speechSynthesis.speak(msg); }); }
+        function advanceIndex() { if (savedShuffle && !isSkipping) savedIndex = Math.floor(Math.random() * words.length); else savedIndex++; if (savedIndex >= words.length) savedIndex = 0; }
+        function toggleBlackout() { const o = document.getElementById('blackoutOverlay'); o.style.display = (o.style.display === 'none') ? 'flex' : 'none'; }
         function getTodayStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-        
-        function toggleBlackout() { 
-            const o = document.getElementById('blackoutOverlay'); 
-            o.style.display = (o.style.display === 'none') ? 'flex' : 'none'; 
+        function formatTimeText(seconds) { if (!seconds || seconds <= 0) return '0분'; const h = Math.floor(seconds / 3600); const m = Math.floor((seconds % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; }
+
+        function openCalendar() { document.getElementById('calendarModal').style.display = 'block'; renderCalendar(); renderWeeklyChart(); }
+        function closeCalendar() { document.getElementById('calendarModal').style.display = 'none'; }
+        function changeMonth(offset) { currentCalDate.setMonth(currentCalDate.getMonth() + offset); renderCalendar(); }
+
+        function renderCalendar() {
+            const year = currentCalDate.getFullYear(); const month = currentCalDate.getMonth();
+            document.getElementById('calTitle').innerText = `${year}년 ${month + 1}월`;
+            const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const grid = document.getElementById('calendarGrid'); grid.innerHTML = '';
+            ['일','월','화','수','목','금','토'].forEach(d => grid.innerHTML += `<div class="cal-header">${d}</div>`);
+            for(let i=0; i<firstDay; i++) grid.innerHTML += '<div class="cal-day" style="opacity:0;"></div>';
+            
+            for(let i=1; i<=daysInMonth; i++) {
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                const sec = dailyTime[dateStr] || 0;
+                
+                // [수정] 등급 아이콘 변경 (💎🌟⚡)
+                let medal = '';
+                if (sec >= 3600) medal = '💎'; 
+                else if (sec >= 1800) medal = '🌟'; 
+                else if (sec >= 600) medal = '⚡';
+                
+                grid.innerHTML += `<div class="cal-day"><div class="cal-date">${i}</div><div style="margin-top:5px; font-size: 14px;">${medal}</div></div>`;
+            }
+            const todayStr = getTodayStr(new Date());
+            const monthPrefix = todayStr.substring(0, 7); const yearPrefix = todayStr.substring(0, 4);
+            let todaySec = dailyTime[todayStr] || 0; let monthSec = 0; let yearSec = 0;
+            for (const key in dailyTime) { if (key.startsWith(monthPrefix)) monthSec += dailyTime[key]; if (key.startsWith(yearPrefix)) yearSec += dailyTime[key]; }
+            document.getElementById('statToday').innerText = formatTimeText(todaySec);
+            document.getElementById('statMonth').innerText = formatTimeText(monthSec);
+            document.getElementById('statYear').innerText = formatTimeText(yearSec);
+            document.getElementById('statWords').innerText = Object.keys(completedWords).length + '개';
         }
 
         function renderWeeklyChart() {
             const container = document.getElementById('weeklyBarChart'); container.innerHTML = '';
-            const days = ['일','월','화','수','목','금','토']; const today = new Date();
+            const dayNames = ['일','월','화','수','목','금','토']; const today = new Date();
             let maxSec = 1; const weekData = [];
             for (let i = 6; i >= 0; i--) {
                 const d = new Date(); d.setDate(today.getDate() - i);
-                const dateStr = getTodayStr(d); const sec = dailyTime[dateStr] || 0;
-                if (sec > maxSec) maxSec = sec; weekData.push({ day: days[d.getDay()], sec: sec });
+                const sec = dailyTime[getTodayStr(d)] || 0;
+                if (sec > maxSec) maxSec = sec; weekData.push({ label: dayNames[d.getDay()], sec: sec });
             }
-            weekData.forEach(data => {
-                const height = Math.max(2, (data.sec / maxSec) * 50);
-                container.innerHTML += `<div class="report-bar-wrapper"><div class="report-bar" style="height:${height}px; ${data.sec === 0 ? 'background:#333;' : ''}"></div><div class="report-day">${data.day}</div></div>`;
+            weekData.forEach(data => { 
+                const h = Math.max(2, (data.sec / maxSec) * 55); 
+                const timeStr = data.sec > 0 ? formatTimeText(data.sec) : '';
+                container.innerHTML += `<div class="bar-wrapper"><div class="bar-time">${timeStr}</div><div class="report-bar" style="height:${h}px;"></div><div class="bar-label">${data.label}</div></div>`; 
             });
-        }
-
-        function renderCalendar() {
-            const year = currentCalDate.getFullYear(); const month = currentCalDate.getMonth();
-            document.getElementById('calTitle').innerText = `${year}년 ${month+1}월`;
-            const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month+1, 0).getDate();
-            let html = ''; ['일','월','화','수','목','금','토'].forEach(d => html += `<div class="cal-header">${d}</div>`);
-            for(let i=0; i<firstDay; i++) html += '<div class="cal-day"></div>';
-            for(let i=1; i<=daysInMonth; i++) {
-                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-                const m = (dailyTime[dateStr] || 0) / 60;
-                let medal = m >= 60 ? '🥇' : (m >= 30 ? '🥈' : (m >= 10 ? '🥉' : ''));
-                html += `<div class="cal-day"><div class="cal-date">${i}</div><div class="cal-medal">${medal}</div></div>`;
-            }
-            document.getElementById('calendarGrid').innerHTML = html;
-            const todayStr = getTodayStr(new Date());
-            document.getElementById('statToday').innerText = Math.floor((dailyTime[todayStr] || 0)/60) + '분';
-            document.getElementById('statWords').innerText = Object.keys(completedWords).length + '개';
         }
 
         function openCompletedList() {
             const container = document.getElementById('compListContainer'); container.innerHTML = '';
             Object.keys(completedWords).forEach(wordA => {
-                container.innerHTML += `<div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #333;"><span>${wordA}</span><button onclick="uncheckWord('${wordA}')" style="background:#e94560; color:white; border:none; padding:5px 10px; border-radius:5px;">해제</button></div>`;
+                const item = allWords.find(w => w.A === wordA) || { B: '?', C: '?' };
+                container.innerHTML += `
+                <div class="comp-row">
+                    <div class="c-vn">${wordA}</div>
+                    <div class="c-pron">${item.B}</div>
+                    <div class="c-mean">${item.C}</div>
+                    <div class="c-del"><button onclick="uncheckWord('${wordA}')" style="background:var(--accent-red); border:none; color:#fff; border-radius:5px; padding:4px 8px; font-size:10px; cursor:pointer;">X</button></div>
+                </div>`;
             });
             document.getElementById('compModal').style.display = 'block';
         }
         function closeModal() { document.getElementById('compModal').style.display = 'none'; renderWord(); }
         function uncheckWord(wordA) { delete completedWords[wordA]; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); openCompletedList(); }
-        function changeMonth(offset) { currentCalDate.setMonth(currentCalDate.getMonth() + offset); renderCalendar(); }
     </script>
 </body>
 </html>
