@@ -217,10 +217,13 @@
             if (!isPlaying) { html += '<button class="list-btn" style="flex: 1; margin: 0;" onclick="openModal()">📋 완료 목록</button>'; }
             else { html += '<button class="list-btn" style="flex: 1; margin: 0; color: #ccc; border-color: #777;" onclick="toggleBlackout()">💡 화면 끄기</button>'; }
             html += '</div>';
-            html += '<div class="hide-in-landscape" style="display: flex; gap: 10px; margin-top: 10px;">';
+            
+            // 이 부분에서 'hide-in-landscape' 클래스를 제거하여 가로 모드에서도 보이게 수정했습니다.
+            html += '<div style="display: flex; gap: 10px; margin-top: 10px;">';
             html += '<button class="list-btn" style="flex: 1; color: #ffbc00; border-color: #ffbc00;" onclick="openCalendar()">📅 학습 시간 보기</button>';
             html += '<button class="list-btn" style="flex: 1; color: #4ecca3; border-color: #4ecca3;" onclick="openSettings()">⚙️ 학습 설정</button>';
             html += '</div>';
+            
             if (!isPlaying) { html += '<button id="playBtn" class="play-btn" onclick="startSleepMode()">🌙 수면 학습 시작</button>'; }
             else { html += '<button class="play-btn" style="background: #e94560;" onclick="stopSleepMode()">⏹ 학습 종료</button>'; }
             html += '</div>';
