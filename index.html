@@ -179,7 +179,8 @@
             let html = '<div class="status">[' + savedStudyMode + '] ' + (savedIndex + 1) + ' / ' + words.length + ' 항목</div>';
             
             if (isCompleted) {
-                html += '<div class="completed-text">✅ 완료된 항목 (3초 대기 중...)</div>';
+                // 3초 대기 문구 삭제
+                html += '<div class="completed-text">✅ 완료된 항목</div>';
             }
 
             html += '<div class="vn">' + w.A + '</div>';
@@ -193,13 +194,30 @@
                 html += '<div class="ex-kr">' + w.F + '</div>';
             }
 
+            // 이전/다음 버튼
             html += '<div class="controls-row">';
             html += '<button class="nav-btn" onclick="moveWord(-1)">◀ 뒤로</button>';
             html += '<button class="nav-btn" onclick="moveWord(1)">넘기기 ▶</button>';
             html += '</div>';
 
-            html += '<button class="btn-complete" onclick="toggleComplete()">' + (isCompleted ? '❌ 완료 해제' : '✅ 학습 완료하기') + '</button>';
+            // 1. 학습 완료하기 & 완료 목록 보기 버튼을 반반 나누어 배치
+            html += '<div style="display: flex; gap: 10px; margin-top: 15px;">';
+            html += '<button class="btn-complete" style="margin-top: 0; flex: 1;" onclick="toggleComplete()">' + (isCompleted ? '❌ 완료 해제' : '✅ 학습 완료하기') + '</button>';
+            if (!isPlaying) {
+                html += '<button class="list-btn" style="margin-top: 0; flex: 1;" onclick="openModal()">📋 완료 목록 보기</button>';
+            } else {
+                html += '<button class="list-btn" style="margin-top: 0; flex: 1; color: #e94560; border-color: #e94560;" onclick="stopSleepMode()">⏹ 학습 종료</button>';
+            }
+            html += '</div>';
 
+            // 2. 수면 학습 시작 버튼을 바로 아래 배치
+            if (!isPlaying) {
+                html += '<button id="playBtn" class="play-btn" style="margin-top: 10px;" onclick="startSleepMode()">🌙 수면 학습 시작</button>';
+            } else {
+                html += '<button class="play-btn" style="background: #333; margin-top: 10px;" onclick="toggleBlackout()">💡 화면 끄기 (절전)</button>';
+            }
+
+            // 3. 기존 하단에 있던 설정 영역 시작
             html += '<div style="background: #0f3460; padding: 15px; border-radius: 10px; margin-top: 15px; text-align: left;">';
             
             html += '<label style="display: block; font-size: 14px; margin-bottom: 15px; color: #4ecca3; font-weight:bold;">📚 엑셀 시트 선택: ';
@@ -232,14 +250,6 @@
             html += '<option value="0">대기 없음</option><option value="1500">표준</option><option value="3000">지연</option></select></label>';
             html += '</div>';
 
-            if (!isPlaying) {
-                html += '<button id="playBtn" class="play-btn" onclick="startSleepMode()">🌙 수면 학습 시작</button>';
-                html += '<button class="list-btn" onclick="openModal()">📋 완료 목록 보기</button>';
-            } else {
-                html += '<button class="play-btn" style="background:#333; margin-top:20px;" onclick="toggleBlackout()">💡 화면 끄기 (절전)</button>';
-                html += '<button class="list-btn" style="color:#e94560; border-color:#e94560;" onclick="stopSleepMode()">⏹ 학습 종료</button>';
-            }
-
             document.getElementById('app').innerHTML = html;
 
             if(document.getElementById('voiceRate')) document.getElementById('voiceRate').value = savedVoiceRate;
@@ -266,11 +276,13 @@
             let w = words[savedIndex];
             if (completedWords[w.A]) {
                 delete completedWords[w.A];
+                localStorage.setItem('vn_completed', JSON.stringify(completedWords));
+                renderWord(); // 해제 시에는 화면 유지
             } else {
                 completedWords[w.A] = true;
+                localStorage.setItem('vn_completed', JSON.stringify(completedWords));
+                moveWord(1); // 학습 완료 체크 시 즉시 다음 단어로 이동
             }
-            localStorage.setItem('vn_completed', JSON.stringify(completedWords));
-            renderWord();
         }
 
         function moveWord(direction) {
@@ -340,11 +352,14 @@
                 renderWord(); 
                 const w = words[savedIndex];
                 const currentGap = parseInt(savedGapTime); 
+                
+                // 완료된 단어는 대기 시간 없이 즉시 통과 (브라우저 과부하 방지용 10ms만 대기)
                 if (completedWords[w.A]) {
-                    await smartDelay(3000); 
+                    await new Promise(r => setTimeout(r, 10)); 
                     advanceIndex();
                     continue;
                 }
+                
                 if (savedWordCount > 0) {
                     for (let i = 0; i < savedWordCount; i++) {
                         if (!isPlaying || isSkipping) break;
