@@ -57,9 +57,9 @@
         .stats-panel { background: #0f3460; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: left; line-height: 1.8; font-size: 15px; color: #ccc; }
         .stats-val { color: white; font-weight: bold; float: right; }
 
-        /* 💡 스마트폰 세로 모드 전용 (집중 학습 모드) */
-        @media screen and (orientation: portrait) {
-            .hide-in-portrait { display: none !important; }
+        /* 💡 스마트폰 가로 모드 전용 (집중 학습 모드) - 방향 수정! */
+        @media screen and (orientation: landscape) {
+            .hide-in-landscape { display: none !important; }
             
             .card { padding: 30px 15px !important; margin-top: 10px !important; }
             
@@ -91,7 +91,7 @@
         <p>단어장 데이터를 불러오는 중입니다...</p>
     </div>
     
-    <div class="footer-text hide-in-portrait" style="text-align: center; font-size: 13px; color: #666; margin-top: 25px; margin-bottom: 20px;">
+    <div class="footer-text hide-in-landscape" style="text-align: center; font-size: 13px; color: #666; margin-top: 25px; margin-bottom: 20px;">
         맹여사 그리고 이아빠 공부 열심히 하자 화이팅! 💖
     </div>
 
@@ -293,8 +293,8 @@
             html += '</div>';
 
             html += '<div style="display: flex; gap: 10px; margin-top: 15px;">';
-            // 세로 모드일 때 숨겨지는 학습 완료(제외) 버튼
-            html += '<button class="btn-complete hide-in-portrait" style="flex: 1; margin: 0;" onclick="toggleComplete()">' + (isCompleted ? '❌ 완료 해제' : '✅ 학습 완료(제외)') + '</button>';
+            // 가로 모드일 때 숨겨지는 학습 완료(제외) 버튼
+            html += '<button class="btn-complete hide-in-landscape" style="flex: 1; margin: 0;" onclick="toggleComplete()">' + (isCompleted ? '❌ 완료 해제' : '✅ 학습 완료(제외)') + '</button>';
             if (!isPlaying) {
                 html += '<button class="list-btn" style="flex: 1; margin: 0;" onclick="openModal()">📋 완료 목록 보기</button>';
             } else {
@@ -302,8 +302,8 @@
             }
             html += '</div>';
 
-            // 세로 모드일 때 숨겨지는 달력 버튼
-            html += '<button class="list-btn hide-in-portrait" style="margin-top: 10px; color: #ffbc00; border-color: #ffbc00;" onclick="openCalendar()">📅 내 학습 기록 달력 보기</button>';
+            // 가로 모드일 때 숨겨지는 달력 버튼
+            html += '<button class="list-btn hide-in-landscape" style="margin-top: 10px; color: #ffbc00; border-color: #ffbc00;" onclick="openCalendar()">📅 내 학습 기록 달력 보기</button>';
 
             if (!isPlaying) {
                 html += '<button id="playBtn" class="play-btn" onclick="startSleepMode()">🌙 수면 학습 시작</button>';
@@ -311,8 +311,8 @@
                 html += '<button class="play-btn" style="background: #e94560;" onclick="stopSleepMode()">⏹ 학습 종료</button>';
             }
 
-            // 세로 모드일 때 숨겨지는 하단 설정창 전체
-            html += '<div class="settings-panel hide-in-portrait" style="background: #0f3460; padding: 15px; border-radius: 10px; margin-top: 15px; text-align: left;">';
+            // 가로 모드일 때 숨겨지는 하단 설정창 전체
+            html += '<div class="settings-panel hide-in-landscape" style="background: #0f3460; padding: 15px; border-radius: 10px; margin-top: 15px; text-align: left;">';
             html += '<label style="display: block; font-size: 14px; margin-bottom: 15px; color: #4ecca3; font-weight:bold;">📚 엑셀 시트 선택: ';
             html += '<select id="studyMode" onchange="changeStudyMode()" style="width: 100%; padding: 8px; font-size: 16px; border-radius: 5px; border: none; background: #1a1a2e; color: white; margin-top: 5px;">';
             html += '<option value="단어">1. 단어 시트 학습</option><option value="문장표현">2. 문장표현 시트 학습</option><option value="문법">3. 문법 시트 학습</option><option value="전체랜덤">4. 모든 시트 랜덤</option></select></label>';
