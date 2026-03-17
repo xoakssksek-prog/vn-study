@@ -11,59 +11,75 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <style>
-        /* 기본 레이아웃 */
-        body { font-family: sans-serif; text-align: center; background-color: #1a1a2e; color: white; padding: 0; margin: 0; overflow-x: hidden; width: 100%; }
-        .card { background: #16213e; border-radius: 0; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); width: 100%; min-height: 90vh; margin: 0; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
+        /* 전체 화면 고정 및 스크롤 금지 */
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #1a1a2e; }
+        body { font-family: sans-serif; text-align: center; color: white; width: 100%; display: flex; flex-direction: column; }
         
-        .vn { font-size: 50px; font-weight: bold; color: #4ecca3; margin-bottom: 5px; word-break: break-word; flex: 1; }
-        .pron { font-size: 25px; color: #f2a365; margin-bottom: 5px; }
-        .kr { font-size: 24px; color: #eee; margin-bottom: 20px; }
-        .ex-vn { font-size: 28px; color: #4ecca3; margin-top: 15px; word-break: break-word; }
-        .ex-pron { font-size: 20px; color: #f2a365; }
-        .ex-kr { font-size: 18px; color: #ccc; margin-bottom: 15px; }
+        /* 카드 레이아웃: 화면 높이에 꽉 차게 설정 */
+        .card { 
+            background: #16213e; 
+            width: 100%; 
+            height: 100dvh; /* 기기 높이에 맞춤 */
+            padding: 20px; 
+            box-sizing: border-box; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; /* 상-중-하 배치 고정 */
+        }
         
-        /* 화살표 버튼 스타일 - 색상을 아주 연한 회색으로 변경 */
+        /* 본문 영역: 공간이 남으면 채우고 중앙 정렬 */
+        .content-wrap { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            overflow: hidden; 
+            width: 100%;
+        }
+        
+        .vn { font-weight: bold; color: #4ecca3; margin-bottom: 5px; word-break: break-word; line-height: 1.2; }
+        .pron { font-size: 22px; color: #f2a365; margin-bottom: 5px; }
+        .kr { font-size: 22px; color: #eee; margin-bottom: 10px; }
+        .ex-vn { color: #4ecca3; margin-top: 10px; word-break: break-word; line-height: 1.2; }
+        .ex-pron { font-size: 18px; color: #f2a365; }
+        .ex-kr { font-size: 16px; color: #ccc; margin-bottom: 10px; }
+        
         .arrow-btn { background: none; border: none; color: rgba(255, 255, 255, 0.15); font-size: 45px; cursor: pointer; padding: 0 10px; user-select: none; -webkit-tap-highlight-color: transparent; }
         .arrow-btn:active { color: rgba(78, 204, 163, 0.5); }
 
-        .nav-btn { background: #3a4750; color: white; border: none; padding: 15px 10px; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; flex: 1; margin: 0 5px; }
-        .btn-complete { padding: 15px; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; background: #ffbc00; color: #1a1a2e; }
+        /* 하단 고정 버튼 영역 */
+        .bottom-controls { width: 100%; padding-bottom: 10px; }
+
+        .btn-complete { padding: 15px; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; background: #ffbc00; color: #1a1a2e; width: 100%; }
         .list-btn { background: transparent; color: #4ecca3; border: 1px solid #4ecca3; padding: 15px; border-radius: 10px; width: 100%; font-size: 18px; cursor: pointer; }
         .play-btn { font-size: 22px; padding: 18px; border: none; border-radius: 10px; cursor: pointer; background: #e94560; color: white; font-weight: bold; width: 100%; margin-top: 15px;}
-        .status { margin-top: 15px; font-size: 16px; color: #888; }
+        .status { font-size: 14px; color: #888; margin-bottom: 10px; }
+        .nav-btn { background: #3a4750; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; flex: 1; }
 
-        /* 모달 설정 */
+        /* 모달 스타일 */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; overflow-y: auto; padding-top: 20px; }
         .modal-content { background: #16213e; margin: auto; width: 95%; max-width: 450px; border-radius: 15px; padding: 15px; text-align: left; box-sizing: border-box; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; }
         .modal-title { font-size: 18px; font-weight: bold; color: #4ecca3; text-align: center; flex: 1; }
         .close-btn { background: #e94560; color: white; border: none; padding: 5px 12px; border-radius: 5px; cursor: pointer; }
 
-        /* 📅 진짜 달력 디자인 (가로 7칸 고정) */
+        /* 가로 모드 최적화 */
+        @media screen and (orientation: landscape) {
+            .card { padding: 5px 15px !important; }
+            .vn { font-size: 30px !important; }
+            .pron, .kr { font-size: 16px !important; margin-bottom: 2px !important; }
+            .ex-vn { font-size: 18px !important; margin-top: 2px !important; }
+            .ex-pron, .ex-kr { font-size: 14px !important; margin-bottom: 2px !important; }
+            .play-btn, .btn-complete, .list-btn { padding: 8px !important; font-size: 15px !important; margin-top: 5px !important; }
+            .status { margin-bottom: 2px !important; }
+        }
+
+        /* 달력 및 설정 패널 */
         .cal-grid { display: grid !important; grid-template-columns: repeat(7, 1fr) !important; gap: 4px; background: #1a1a2e; padding: 8px; border-radius: 10px; width: 100%; box-sizing: border-box; }
         .cal-header { font-size: 11px; font-weight: bold; color: #4ecca3; text-align: center; padding: 5px 0; background: #0f3460; border-radius: 4px; }
         .cal-day { background: #16213e; border-radius: 4px; aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; border: 1px solid #222; min-height: 45px; }
         .cal-date { font-size: 10px; color: #aaa; position: absolute; top: 2px; left: 4px; }
         .cal-medal { font-size: 18px; margin-top: 5px; }
-        .cal-empty { background: transparent; border: none; }
-
-        /* 가로 모드 (집중 학습 모드) */
-        @media screen and (orientation: landscape) {
-            body { overflow: hidden; height: 100vh; }
-            .card { min-height: 100vh; height: 100vh; padding: 5px 15px !important; justify-content: space-around; }
-            .hide-in-landscape { display: none !important; }
-            .vn { font-size: 35px !important; margin: 0 !important; }
-            .arrow-btn { font-size: 35px !important; }
-            .pron { font-size: 18px !important; margin: 0 !important; }
-            .kr { font-size: 18px !important; margin-bottom: 5px !important; }
-            hr { margin: 2px 0 !important; }
-            .ex-vn { font-size: 22px !important; margin-top: 0 !important; }
-            .ex-pron { font-size: 16px !important; }
-            .ex-kr { font-size: 16px !important; margin-bottom: 5px !important; }
-            .btn-complete, .list-btn, .play-btn { font-size: 16px !important; padding: 8px !important; margin-top: 5px !important; }
-            .status { font-size: 12px !important; }
-        }
-
         .stats-panel { background: #0f3460; padding: 12px; border-radius: 8px; margin-top: 15px; font-size: 13px; color: #ccc; }
         .stats-val { color: white; font-weight: bold; float: right; }
         .count-controls { display: flex; align-items: center; gap: 8px; }
@@ -77,12 +93,8 @@
         <p style="font-size: 14px;">화면을 터치하면 다시 켜집니다</p>
     </div>
 
-    <div id="app">
+    <div id="app" style="height: 100%;">
         <div class="card"><p>데이터 로딩 중...</p></div>
-    </div>
-    
-    <div class="footer-text hide-in-landscape" style="text-align: center; font-size: 12px; color: #666; margin: 15px 0;">
-        맹여사 그리고 이아빠 공부 열심히 하자 화이팅! 💖
     </div>
 
     <div id="settingsModal" class="modal">
@@ -201,26 +213,39 @@
         function renderWord() {
             if (words.length === 0) return;
             const w = words[savedIndex]; const isCompleted = completedWords[w.A];
+            
+            // 글자 길이에 따른 폰트 크기 자동 조절
+            let vnSize = w.A.length > 15 ? '30px' : (w.A.length > 8 ? '40px' : '50px');
+            let exVnSize = (w.D && w.D.length > 40) ? '20px' : '26px';
+
             let html = '<div class="card">';
+            
+            // 상단 상태 영역
             html += '<div class="status">[' + savedStudyMode + '] ' + (savedIndex + 1) + ' / ' + words.length + ' 항목</div>';
-            if (isCompleted) { html += '<div class="completed-text">✅ 완료된 항목</div>'; }
+            
+            // 중앙 본문 영역 (가변 글자 크기 적용)
+            html += '<div class="content-wrap">';
+            if (isCompleted) { html += '<div style="color:#ffbc00; font-weight:bold; font-size:14px; margin-bottom:5px;">✅ 완료된 항목</div>'; }
             
             html += '<div style="display: flex; align-items: center; justify-content: center; width: 100%;">';
             html += '<button class="arrow-btn" onclick="moveWord(-1)">◀</button>';
-            html += '<div class="vn">' + w.A + '</div>';
+            html += '<div class="vn" style="font-size:' + vnSize + ';">' + w.A + '</div>';
             html += '<button class="arrow-btn" onclick="moveWord(1)">▶</button>';
             html += '</div>';
 
             if (w.B) html += '<div class="pron">[ ' + w.B + ' ]</div>';
             html += '<div class="kr">' + w.C + '</div>';
+            
             if (w.D || w.F) {
-                html += '<hr style="border:1px solid #333;">';
-                html += '<div class="ex-vn">' + w.D + '</div>';
+                html += '<hr style="border:0.5px solid #333; width:80%; margin: 10px auto;">';
+                html += '<div class="ex-vn" style="font-size:' + exVnSize + ';">' + w.D + '</div>';
                 if (w.E) html += '<div class="ex-pron">[ ' + w.E + ' ]</div>';
                 html += '<div class="ex-kr">' + w.F + '</div>';
             }
+            html += '</div>';
 
-            // [변경] 수면 학습 시작 버튼을 다른 조작 버튼 위로 이동
+            // 하단 조작 버튼 영역 (위치 고정)
+            html += '<div class="bottom-controls">';
             if (!isPlaying) { html += '<button id="playBtn" class="play-btn" onclick="startSleepMode()">🌙 수면 학습 시작</button>'; }
             else { html += '<button class="play-btn" style="background: #e94560;" onclick="stopSleepMode()">⏹ 학습 종료</button>'; }
 
@@ -231,9 +256,10 @@
             html += '</div>';
             
             html += '<div style="display: flex; gap: 10px; margin-top: 10px;">';
-            html += '<button class="list-btn" style="flex: 1; color: #ffbc00; border-color: #ffbc00;" onclick="openCalendar()">📅 학습 시간 보기</button>';
-            html += '<button class="list-btn" style="flex: 1; color: #4ecca3; border-color: #4ecca3;" onclick="openSettings()">⚙️ 학습 설정</button>';
+            html += '<button class="list-btn" style="flex: 1; color: #ffbc00; border-color: #ffbc00; font-size:15px; padding:12px;" onclick="openCalendar()">📅 학습 시간 보기</button>';
+            html += '<button class="list-btn" style="flex: 1; color: #4ecca3; border-color: #4ecca3; font-size:15px; padding:12px;" onclick="openSettings()">⚙️ 학습 설정</button>';
             html += '</div>';
+            html += '</div>'; // bottom-controls 끝
             
             html += '</div>';
             document.getElementById('app').innerHTML = html;
