@@ -55,7 +55,7 @@
     <div id="compModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title">✅ 완료된 단어 목록</div>
+                <div class="modal-title">✅ 완료된 항목 목록</div>
                 <button class="close-btn" onclick="closeModal()">닫기</button>
             </div>
             <div id="compListContainer"></div>
@@ -64,7 +64,13 @@
 
     <script>
         const sheetId = '1AiQwqgLg_XBHTiHWZXY0n2qN2Mz4NfIVcR2MxRfqkOc';
-        const url = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:csv';
+        
+        // 엑셀 시트 이름과 연결 (탭 이름과 정확히 일치해야 함)
+        const sheetNames = {
+            '단어': '단어',
+            '문장표현': '문장표현',
+            '문법': '문법'
+        };
 
         let words = [];
         let isPlaying = false;
@@ -72,34 +78,67 @@
         let skipDirection = 1; 
         let sleepTimerId = null;
 
-        // 영구 저장소 불러오기 (기존)
         let savedIndex = parseInt(localStorage.getItem('vn_index') || '0');
         let completedWords = JSON.parse(localStorage.getItem('vn_completed') || '{}');
         let savedVoiceRate = localStorage.getItem('vn_voiceRate') || '0.9';
         let savedGapTime = localStorage.getItem('vn_gapTime') || '1500';
         let savedWordCount = parseInt(localStorage.getItem('vn_wordCount') || '3');
         let savedSentenceCount = parseInt(localStorage.getItem('vn_sentenceCount') || '1');
-        
-        // 추가된 영구 저장소 (타이머, 랜덤재생)
         let savedTimer = localStorage.getItem('vn_timer') || '0';
         let savedShuffle = localStorage.getItem('vn_shuffle') === 'true';
+        let savedStudyMode = localStorage.getItem('vn_studyMode') || '단어'; 
 
-        fetch(url)
-            .then(res => res.text())
-            .then(data => {
-                const rows = data.split('\n').slice(1);
-                words = rows.map(row => {
-                    const cols = row.split('","').map(c => c.replace(/(^"|"$)/g, ''));
-                    return {
-                        A: cols[0] || '', B: cols[1] || '', C: cols[2] || '',
-                        D: cols[3] || '', E: cols[4] || '', F: cols[5] || ''
-                    };
-                }).filter(w => w.A.trim() !== ''); 
-                
-                if (words.length === 0) return;
+        // 초기 데이터 로드
+        loadData(savedStudyMode);
+
+        async function loadData(mode) {
+            words = [];
+            document.getElementById('app').innerHTML = `<p>${mode} 시트 연동 중...</p>`;
+            
+            try {
+                if (mode === '전체랜덤') {
+                    for (const name in sheetNames) {
+                        const data = await fetchSheetByName(sheetNames[name]);
+                        words = words.concat(data);
+                    }
+                } else {
+                    words = await fetchSheetByName(sheetNames[mode]);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+
+            if (words.length > 0) {
                 if (savedIndex >= words.length) savedIndex = 0;
                 renderWord();
-            });
+            } else {
+                document.getElementById('app').innerHTML = `<p style="color:red;">'${mode}' 데이터를 불러오지 못했습니다.<br>시트 이름이 정확한지 확인해 주세요.</p>`;
+            }
+        }
+
+        // 시트 이름을 기반으로 데이터를 가져오는 함수
+        async function fetchSheetByName(name) {
+            const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
+            const res = await fetch(url);
+            const data = await res.text();
+            const rows = data.split('\n').slice(1);
+            return rows.map(row => {
+                const cols = row.split('","').map(c => c.replace(/(^"|"$)/g, ''));
+                return {
+                    A: cols[0] || '', B: cols[1] || '', C: cols[2] || '',
+                    D: cols[3] || '', E: cols[4] || '', F: cols[5] || ''
+                };
+            }).filter(w => w.A.trim() !== '');
+        }
+
+        function changeStudyMode() {
+            const mode = document.getElementById('studyMode').value;
+            savedStudyMode = mode;
+            localStorage.setItem('vn_studyMode', mode);
+            savedIndex = 0; 
+            localStorage.setItem('vn_index', '0');
+            loadData(mode);
+        }
 
         function saveSettings() {
             savedVoiceRate = document.getElementById('voiceRate').value;
@@ -130,13 +169,14 @@
         }
 
         function renderWord() {
+            if (words.length === 0) return;
             const w = words[savedIndex];
             const isCompleted = completedWords[w.A];
 
-            let html = '<div class="status">' + (savedIndex + 1) + ' / ' + words.length + ' 번째 단어</div>';
+            let html = '<div class="status">[' + savedStudyMode + '] ' + (savedIndex + 1) + ' / ' + words.length + ' 항목</div>';
             
             if (isCompleted) {
-                html += '<div class="completed-text">✅ 완료된 단어 (3초 대기 중...)</div>';
+                html += '<div class="completed-text">✅ 완료된 항목 (3초 대기 중...)</div>';
             }
 
             html += '<div class="vn">' + w.A + '</div>';
@@ -151,15 +191,18 @@
             }
 
             html += '<div class="controls-row">';
-            html += '<button class="nav-btn" onclick="moveWord(-1)">◀ 뒤로 가기</button>';
+            html += '<button class="nav-btn" onclick="moveWord(-1)">◀ 뒤로</button>';
             html += '<button class="nav-btn" onclick="moveWord(1)">넘기기 ▶</button>';
             html += '</div>';
 
-            html += '<button class="btn-complete" onclick="toggleComplete()">' + (isCompleted ? '❌ 완료 해제하기' : '✅ 이 단어 완료하기') + '</button>';
+            html += '<button class="btn-complete" onclick="toggleComplete()">' + (isCompleted ? '❌ 완료 해제' : '✅ 학습 완료하기') + '</button>';
 
             html += '<div style="background: #0f3460; padding: 15px; border-radius: 10px; margin-top: 15px; text-align: left;">';
             
-            // 추가된 설정: 랜덤 재생 & 수면 타이머
+            html += '<label style="display: block; font-size: 14px; margin-bottom: 15px; color: #4ecca3; font-weight:bold;">📚 엑셀 시트 선택: ';
+            html += '<select id="studyMode" onchange="changeStudyMode()" style="width: 100%; padding: 8px; font-size: 16px; border-radius: 5px; border: none; background: #1a1a2e; color: white; margin-top: 5px;">';
+            html += '<option value="단어">1. 단어 시트 학습</option><option value="문장표현">2. 문장표현 시트 학습</option><option value="문법">3. 문법 시트 학습</option><option value="전체랜덤">4. 모든 시트 랜덤</option></select></label>';
+
             html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 15px;">';
             html += '<label style="font-size: 14px; color: #ccc; display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="shuffleMode" onchange="saveSettings()"> 🔀 랜덤 재생</label>';
             html += '<label style="font-size: 14px; color: #ccc;">⏰ 타이머: ';
@@ -168,12 +211,12 @@
             html += '</select></label></div>';
 
             html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
-            html += '<span style="font-size: 14px; color: #ccc;">🔁 단어 반복 횟수:</span>';
+            html += '<span style="font-size: 14px; color: #ccc;">🔁 본문 반복:</span>';
             html += '<div class="count-controls"><button onclick="changeGlobalCount(\'word\', -1)">-</button><span class="count-display" id="wordCountDisplay">' + savedWordCount + '번</span><button onclick="changeGlobalCount(\'word\', 1)">+</button></div>';
             html += '</div>';
 
             html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">';
-            html += '<span style="font-size: 14px; color: #ccc;">🔁 문장 반복 횟수:</span>';
+            html += '<span style="font-size: 14px; color: #ccc;">🔁 예문 반복:</span>';
             html += '<div class="count-controls"><button onclick="changeGlobalCount(\'sentence\', -1)">-</button><span class="count-display" id="sentenceCountDisplay">' + savedSentenceCount + '번</span><button onclick="changeGlobalCount(\'sentence\', 1)">+</button></div>';
             html += '</div>';
 
@@ -186,13 +229,12 @@
             html += '<option value="0">대기 없음</option><option value="1500">표준</option><option value="3000">지연</option></select></label>';
             html += '</div>';
 
-            // 재생 중일 때는 시작 버튼 대신 '절전 화면 켜기' 버튼과 '학습 종료' 버튼 표시
             if (!isPlaying) {
-                html += '<button id="playBtn" class="play-btn" onclick="startSleepMode()">🌙 수면 학습 시작 / 이어보기</button>';
-                html += '<button class="list-btn" onclick="openModal()">📋 완료 단어장 열기</button>';
+                html += '<button id="playBtn" class="play-btn" onclick="startSleepMode()">🌙 수면 학습 시작</button>';
+                html += '<button class="list-btn" onclick="openModal()">📋 완료 목록 보기</button>';
             } else {
-                html += '<button class="play-btn" style="background:#333; margin-top:20px;" onclick="toggleBlackout()">💡 화면 끄기 (절전 블랙아웃)</button>';
-                html += '<button class="list-btn" style="color:#e94560; border-color:#e94560;" onclick="stopSleepMode()">⏹ 학습 종료하기</button>';
+                html += '<button class="play-btn" style="background:#333; margin-top:20px;" onclick="toggleBlackout()">💡 화면 끄기 (절전)</button>';
+                html += '<button class="list-btn" style="color:#e94560; border-color:#e94560;" onclick="stopSleepMode()">⏹ 학습 종료</button>';
             }
 
             document.getElementById('app').innerHTML = html;
@@ -201,9 +243,9 @@
             if(document.getElementById('gapTime')) document.getElementById('gapTime').value = savedGapTime;
             if(document.getElementById('sleepTimer')) document.getElementById('sleepTimer').value = savedTimer;
             if(document.getElementById('shuffleMode')) document.getElementById('shuffleMode').checked = savedShuffle;
+            if(document.getElementById('studyMode')) document.getElementById('studyMode').value = savedStudyMode;
         }
 
-        // 절전 화면 토글 함수
         function toggleBlackout() {
             const overlay = document.getElementById('blackoutOverlay');
             overlay.style.display = (overlay.style.display === 'none') ? 'flex' : 'none';
@@ -261,7 +303,6 @@
             }
         }
 
-        // 단어 넘기기 공통 함수 (랜덤 적용)
         function advanceIndex() {
             if (!isSkipping) {
                 if (savedShuffle && words.length > 1) {
@@ -281,38 +322,26 @@
         async function startSleepMode() {
             if (isPlaying) return;
             isPlaying = true;
-
-            // 타이머 설정
             if (sleepTimerId) clearTimeout(sleepTimerId);
             const timerVal = parseInt(savedTimer);
             if (timerVal > 0) {
                 sleepTimerId = setTimeout(() => {
                     stopSleepMode();
-                    alert(timerVal + '분 수면 타이머가 종료되었습니다.');
                 }, timerVal * 60 * 1000);
             }
-
             while (isPlaying) {
                 if (savedIndex >= words.length) savedIndex = 0;
                 if (savedIndex < 0) savedIndex = words.length - 1;
-                
                 localStorage.setItem('vn_index', savedIndex);
                 isSkipping = false;
                 renderWord(); 
                 const w = words[savedIndex];
                 const currentGap = parseInt(savedGapTime); 
-
-                if (savedWordCount === 0 && savedSentenceCount === 0) {
-                    advanceIndex();
-                    continue;
-                }
-
                 if (completedWords[w.A]) {
                     await smartDelay(3000); 
                     advanceIndex();
                     continue;
                 }
-
                 if (savedWordCount > 0) {
                     for (let i = 0; i < savedWordCount; i++) {
                         if (!isPlaying || isSkipping) break;
@@ -322,14 +351,7 @@
                         await smartDelay(currentGap); 
                     }
                 }
-
-                if (!isPlaying || isSkipping) {
-                    advanceIndex();
-                    continue;
-                }
-
-                if (currentGap > 0) await smartDelay(500); 
-
+                if (!isPlaying || isSkipping) { advanceIndex(); continue; }
                 if (w.D && w.F && savedSentenceCount > 0) {
                     for (let i = 0; i < savedSentenceCount; i++) {
                         if (!isPlaying || isSkipping) break;
@@ -339,13 +361,8 @@
                         await smartDelay(currentGap);
                     }
                 }
-
-                if (!isPlaying || isSkipping) {
-                    advanceIndex();
-                    continue;
-                }
-
-                if (currentGap > 0) await smartDelay(1000); 
+                if (!isPlaying || isSkipping) { advanceIndex(); continue; }
+                await smartDelay(1000); 
                 advanceIndex();
             }
         }
@@ -353,38 +370,25 @@
         function openModal() {
             const container = document.getElementById('compListContainer');
             container.innerHTML = '';
-            
             const compKeys = Object.keys(completedWords);
             if(compKeys.length === 0) {
-                container.innerHTML = '<p style="color:#888;">아직 완료된 단어가 없습니다.</p>';
+                container.innerHTML = '<p style="color:#888;">아직 완료된 항목이 없습니다.</p>';
             } else {
                 compKeys.forEach(wordA => {
                     const wordData = words.find(w => w.A === wordA);
                     const mean = wordData ? wordData.C : '';
                     container.innerHTML += `
                         <div class="comp-item" id="item_${wordA}">
-                            <div>
-                                <div class="comp-word">${wordA}</div>
-                                <div class="comp-mean">${mean}</div>
-                            </div>
+                            <div><div class="comp-word">${wordA}</div><div class="comp-mean">${mean}</div></div>
                             <button class="uncheck-btn" onclick="uncheckWord('${wordA}')">해제</button>
-                        </div>
-                    `;
+                        </div>`;
                 });
             }
             document.getElementById('compModal').style.display = 'block';
         }
 
-        function closeModal() {
-            document.getElementById('compModal').style.display = 'none';
-            renderWord(); 
-        }
-
-        function uncheckWord(wordA) {
-            delete completedWords[wordA];
-            localStorage.setItem('vn_completed', JSON.stringify(completedWords));
-            document.getElementById('item_' + wordA).style.display = 'none';
-        }
+        function closeModal() { document.getElementById('compModal').style.display = 'none'; renderWord(); }
+        function uncheckWord(wordA) { delete completedWords[wordA]; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); const el = document.getElementById('item_' + wordA); if(el) el.style.display = 'none'; }
     </script>
 </body>
 </html>
