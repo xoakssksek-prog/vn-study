@@ -1,0 +1,16 @@
+{
+  "name": "명희의 수면 베트남어",
+  "short_name": "베트남어",
+  "description": "구글 시트 연동 수면 학습 베트남어 단어장",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#4ecca3",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/197/197473.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
