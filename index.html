@@ -30,40 +30,39 @@
         .status { margin-top: 15px; font-size: 16px; color: #888; }
 
         /* 모달 설정 */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; overflow-y: auto; padding-top: 30px; }
-        .modal-content { background: #16213e; margin: auto; width: 95%; max-width: 500px; border-radius: 15px; padding: 15px; text-align: left; box-sizing: border-box; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; overflow-y: auto; padding-top: 20px; }
+        .modal-content { background: #16213e; margin: auto; width: 95%; max-width: 450px; border-radius: 15px; padding: 15px; text-align: left; box-sizing: border-box; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; }
-        .modal-title { font-size: 20px; font-weight: bold; color: #4ecca3; text-align: center; flex: 1; }
+        .modal-title { font-size: 18px; font-weight: bold; color: #4ecca3; text-align: center; flex: 1; }
         .close-btn { background: #e94560; color: white; border: none; padding: 5px 12px; border-radius: 5px; cursor: pointer; }
 
-        /* 가로 모드 (핸드폰을 옆으로 눕혔을 때) - 한 화면에 다 들어가게 수정 */
+        /* 📅 진짜 달력 디자인 (가로 7칸 고정) */
+        .cal-grid { display: grid !important; grid-template-columns: repeat(7, 1fr) !important; gap: 4px; background: #1a1a2e; padding: 8px; border-radius: 10px; width: 100%; box-sizing: border-box; }
+        .cal-header { font-size: 11px; font-weight: bold; color: #4ecca3; text-align: center; padding: 5px 0; background: #0f3460; border-radius: 4px; }
+        .cal-day { background: #16213e; border-radius: 4px; aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; border: 1px solid #222; min-height: 45px; }
+        .cal-date { font-size: 10px; color: #aaa; position: absolute; top: 2px; left: 4px; }
+        .cal-medal { font-size: 18px; margin-top: 5px; }
+        .cal-empty { background: transparent; border: none; }
+
+        /* 가로 모드 (집중 학습 모드) */
         @media screen and (orientation: landscape) {
             body { overflow: hidden; height: 100vh; }
             .card { min-height: 100vh; height: 100vh; padding: 5px 15px !important; justify-content: space-around; }
             .hide-in-landscape { display: none !important; }
-            
             .vn { font-size: 35px !important; margin: 0 !important; }
             .pron { font-size: 18px !important; margin: 0 !important; }
             .kr { font-size: 18px !important; margin-bottom: 5px !important; }
-            
             hr { margin: 2px 0 !important; }
-            
             .ex-vn { font-size: 22px !important; margin-top: 0 !important; }
             .ex-pron { font-size: 16px !important; }
             .ex-kr { font-size: 16px !important; margin-bottom: 5px !important; }
-            
             .controls-row { margin-top: 0 !important; padding: 4px !important; }
             .nav-btn { font-size: 16px !important; padding: 8px !important; }
             .btn-complete, .list-btn, .play-btn { font-size: 16px !important; padding: 8px !important; margin-top: 5px !important; }
-            .status { font-size: 12px !important; margin-top: 2px !important; }
+            .status { font-size: 12px !important; }
         }
 
-        /* 기타 스타일 */
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 4px; }
-        .cal-header { font-size: 12px; font-weight: bold; color: #4ecca3; text-align: center; padding: 5px; }
-        .cal-day { background: #16213e; border-radius: 4px; aspect-ratio: 1/1.2; display: flex; flex-direction: column; align-items: center; border: 1px solid #222; }
-        .cal-date { font-size: 10px; align-self: flex-start; padding: 2px; }
-        .stats-panel { background: #0f3460; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 13px; }
+        .stats-panel { background: #0f3460; padding: 12px; border-radius: 8px; margin-top: 15px; font-size: 13px; color: #ccc; }
         .stats-val { color: white; font-weight: bold; float: right; }
         .count-controls { display: flex; align-items: center; gap: 8px; }
         .count-controls button { width: 30px; height: 30px; border-radius: 5px; border: none; background: #4ecca3; cursor: pointer; }
@@ -142,7 +141,7 @@
                 <button class="nav-btn" style="flex: 0 0 40px; padding: 5px;" onclick="changeMonth(1)">▶</button>
                 <button class="close-btn" style="margin-left: 10px;" onclick="closeCalendar()">닫기</button>
             </div>
-            <div class="cal-grid" id="calendarGrid"></div>
+            <div id="calendarGrid" class="cal-grid"></div>
             <div class="stats-panel">
                 <div>⌛ 오늘 학습 <span class="stats-val" id="statToday" style="color: #ffbc00;">0분</span></div>
                 <div>✅ 완료 단어수 <span class="stats-val" id="statWords" style="color: #ffbc00;">0개</span></div>
@@ -161,7 +160,6 @@
         try { dailyTime = JSON.parse(localStorage.getItem('vn_daily_time') || '{}'); } catch(e) { dailyTime = {}; }
 
         let savedVoiceRate = localStorage.getItem('vn_voiceRate') || '0.9';
-        let savedGapTime = localStorage.getItem('vn_gapTime') || '1500';
         let savedWordCount = parseInt(localStorage.getItem('vn_wordCount') || '3');
         let savedSentenceCount = parseInt(localStorage.getItem('vn_sentenceCount') || '1');
         let savedTimer = localStorage.getItem('vn_timer') || '0';
@@ -180,8 +178,7 @@
         }, 10000);
 
         async function loadData(mode) {
-            words = []; const appDiv = document.getElementById('app');
-            try {
+            words = []; try {
                 if (mode === '전체랜덤') {
                     for (const name in sheetNames) { const data = await fetchSheetByName(sheetNames[name]); words = words.concat(data); }
                 } else { words = await fetchSheetByName(sheetNames[mode]); }
@@ -242,7 +239,7 @@
         function speakText(text, lang) { return new Promise(resolve => { if (!text || text.trim() === '' || isSkipping) return resolve(); const msg = new SpeechSynthesisUtterance(text); msg.lang = lang; msg.rate = parseFloat(savedVoiceRate); msg.onend = resolve; msg.onerror = resolve; window.speechSynthesis.speak(msg); setTimeout(resolve, 8000); }); }
         async function smartDelay(ms) { if (ms <= 0) return; let waited = 0; while (waited < ms && !isSkipping && isPlaying) { await new Promise(r => setTimeout(r, 100)); waited += 100; } }
         function advanceIndex() { if (!isSkipping) { if (savedShuffle && words.length > 1) { let nextIndex = savedIndex; while (nextIndex === savedIndex) { nextIndex = Math.floor(Math.random() * words.length); } savedIndex = nextIndex; } else { savedIndex++; } } else { savedIndex += skipDirection; } }
-        async function startSleepMode() { if (isPlaying) return; isPlaying = true; if (sleepTimerId) clearTimeout(sleepTimerId); const timerVal = parseInt(savedTimer); if (timerVal > 0) { sleepTimerId = setTimeout(() => { stopSleepMode(); }, timerVal * 60 * 1000); } while (isPlaying) { if (savedIndex >= words.length) savedIndex = 0; if (savedIndex < 0) savedIndex = words.length - 1; localStorage.setItem('vn_index', savedIndex); isSkipping = false; renderWord(); const w = words[savedIndex]; const currentGap = parseInt(savedGapTime); if (completedWords[w.A]) { await new Promise(r => setTimeout(r, 10)); advanceIndex(); continue; } if (savedWordCount > 0) { for (let i = 0; i < savedWordCount; i++) { if (!isPlaying || isSkipping) break; await speakText(w.A, 'vi-VN'); if (!isPlaying || isSkipping) break; await speakText(w.C, 'ko-KR'); await smartDelay(currentGap); } } if (!isPlaying || isSkipping) { advanceIndex(); continue; } if (w.D && w.F && savedSentenceCount > 0) { for (let i = 0; i < savedSentenceCount; i++) { if (!isPlaying || isSkipping) break; await speakText(w.D, 'vi-VN'); if (!isPlaying || isSkipping) break; await speakText(w.F, 'ko-KR'); await smartDelay(currentGap); } } if (!isPlaying || isSkipping) { advanceIndex(); continue; } await smartDelay(1000); advanceIndex(); } }
+        async function startSleepMode() { if (isPlaying) return; isPlaying = true; if (sleepTimerId) clearTimeout(sleepTimerId); const timerVal = parseInt(savedTimer); if (timerVal > 0) { sleepTimerId = setTimeout(() => { stopSleepMode(); }, timerVal * 60 * 1000); } while (isPlaying) { if (savedIndex >= words.length) savedIndex = 0; if (savedIndex < 0) savedIndex = words.length - 1; localStorage.setItem('vn_index', savedIndex); isSkipping = false; renderWord(); const w = words[savedIndex]; if (completedWords[w.A]) { await new Promise(r => setTimeout(r, 10)); advanceIndex(); continue; } if (savedWordCount > 0) { for (let i = 0; i < savedWordCount; i++) { if (!isPlaying || isSkipping) break; await speakText(w.A, 'vi-VN'); if (!isPlaying || isSkipping) break; await speakText(w.C, 'ko-KR'); await smartDelay(1500); } } if (!isPlaying || isSkipping) { advanceIndex(); continue; } if (w.D && w.F && savedSentenceCount > 0) { for (let i = 0; i < savedSentenceCount; i++) { if (!isPlaying || isSkipping) break; await speakText(w.D, 'vi-VN'); if (!isPlaying || isSkipping) break; await speakText(w.F, 'ko-KR'); await smartDelay(1500); } } if (!isPlaying || isSkipping) { advanceIndex(); continue; } await smartDelay(1000); advanceIndex(); } }
         function openModal() { const container = document.getElementById('compListContainer'); container.innerHTML = ''; const compKeys = Object.keys(completedWords); if(compKeys.length === 0) { container.innerHTML = '<p style="color:#888;">항목이 없습니다.</p>'; } else { compKeys.forEach(wordA => { const wordData = words.find(w => w.A === wordA); const mean = wordData ? wordData.C : ''; container.innerHTML += `<div class="comp-item" id="item_${wordA}"><div><div class="comp-word">${wordA}</div><div class="comp-mean">${mean}</div></div><button class="uncheck-btn" onclick="uncheckWord('${wordA}')">해제</button></div>`; }); } document.getElementById('compModal').style.display = 'block'; }
         function closeModal() { document.getElementById('compModal').style.display = 'none'; renderWord(); }
         function uncheckWord(wordA) { delete completedWords[wordA]; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); const el = document.getElementById('item_' + wordA); if(el) el.style.display = 'none'; }
@@ -257,22 +254,21 @@
             const year = currentCalDate.getFullYear(); const month = currentCalDate.getMonth();
             const todayStr = getTodayStr(new Date()); document.getElementById('calTitle').innerText = `${year}년 ${month + 1}월`;
             const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
-            let html = '<div class="cal-grid">'; const days = ['일', '월', '화', '수', '목', '금', '토'];
+            let html = ''; const days = ['일', '월', '화', '수', '목', '금', '토'];
             days.forEach(d => { html += `<div class="cal-header">${d}</div>`; });
-            for(let i=0; i<firstDay; i++) { html += `<div class="cal-day" style="background:transparent;border:none;"></div>`; }
+            for(let i=0; i<firstDay; i++) { html += `<div class="cal-day cal-empty"></div>`; }
             for(let i=1; i<=daysInMonth; i++) {
-                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-                let sec = dailyTime[dateStr] || 0; let medal = '';
-                if (dateStr <= todayStr) {
+                const curDateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                let sec = dailyTime[curDateStr] || 0; let medal = '';
+                if (curDateStr <= todayStr) {
                     const m = sec / 60;
                     if (m >= 120) medal = '💎'; else if (m >= 60) medal = '🥇';
                     else if (m >= 30) medal = '🥈'; else if (m >= 10) medal = '🥉';
                     else medal = '💩';
                 }
-                let todayStyle = dateStr === todayStr ? 'border: 1px solid #e94560;' : '';
+                let todayStyle = curDateStr === todayStr ? 'border: 2px solid #e94560; background: rgba(233, 69, 96, 0.2);' : '';
                 html += `<div class="cal-day" style="${todayStyle}"><div class="cal-date">${i}</div><div class="cal-medal">${medal}</div></div>`;
             }
-            html += '</div>';
             document.getElementById('calendarGrid').innerHTML = html; updateStatsDisplay();
         }
     </script>
