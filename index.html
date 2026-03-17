@@ -127,15 +127,29 @@
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <span>🔁 본문 반복:</span>
-                    <div class="count-controls"><button onclick="changeGlobalCount('word', -1)">-</button><span id="wordCountDisplay">3번</span><button onclick="changeGlobalCount('word', 1)">+</button></div>
+                    <div class="count-controls">
+                        <label style="font-size: 11px; color: #aaa; margin-right: 5px;"><input type="checkbox" id="hideKrWord" onchange="saveSettings()"> 한글해제</label>
+                        <button onclick="changeGlobalCount('word', -1)">-</button><span id="wordCountDisplay">3번</span><button onclick="changeGlobalCount('word', 1)">+</button>
+                    </div>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <span>🔁 예문 반복:</span>
-                    <div class="count-controls"><button onclick="changeGlobalCount('sentence', -1)">-</button><span id="sentenceCountDisplay">1번</span><button onclick="changeGlobalCount('sentence', 1)">+</button></div>
+                    <div class="count-controls">
+                        <label style="font-size: 11px; color: #aaa; margin-right: 5px;"><input type="checkbox" id="hideKrEx" onchange="saveSettings()"> 한글해제</label>
+                        <button onclick="changeGlobalCount('sentence', -1)">-</button><span id="sentenceCountDisplay">1번</span><button onclick="changeGlobalCount('sentence', 1)">+</button>
+                    </div>
                 </div>
                 <label style="display: block; font-size: 14px; margin-bottom: 10px;">🗣️ 발음 속도: 
                     <select id="voiceRate" onchange="saveSettings()" style="width: 100%; padding: 12px; border-radius: 5px; border: none; background: #1a1a2e; color: white;">
                         <option value="0.6">저속</option><option value="0.9">일반</option><option value="1.3">고속</option>
+                    </select>
+                </label>
+                <label style="display: block; font-size: 14px; margin-bottom: 10px;">⏳ 대기 시간: 
+                    <select id="delayTime" onchange="saveSettings()" style="width: 100%; padding: 12px; border-radius: 5px; border: none; background: #1a1a2e; color: white;">
+                        <option value="0">없음 (바로 넘김)</option>
+                        <option value="1000">표준 (1초)</option>
+                        <option value="2000">조금 느림 (2초)</option>
+                        <option value="3000">느림 (3초)</option>
                     </select>
                 </label>
             </div>
@@ -196,6 +210,10 @@
         let savedTimer = localStorage.getItem('vn_timer') || '0';
         let savedShuffle = localStorage.getItem('vn_shuffle') === 'true';
         let savedStudyMode = localStorage.getItem('vn_studyMode') || '단어'; 
+        let savedDelayTime = localStorage.getItem('vn_delayTime') || '1000'; // 기본 1초
+        let savedHideKrWord = localStorage.getItem('vn_hideKrWord') === 'true';
+        let savedHideKrEx = localStorage.getItem('vn_hideKrEx') === 'true';
+        
         let currentCalDate = new Date(); 
 
         loadData(savedStudyMode);
@@ -241,7 +259,6 @@
             html += '<div class="content-wrap">';
             if (isCompleted) { html += '<div style="color:#ffbc00; font-weight:bold; font-size:14px; margin-bottom:5px;">✅ 완료된 항목</div>'; }
             
-            // [수정] 화살표 버튼 위치 고정 로직 (justify-content: space-between 적용)
             html += '<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">';
             html += '<button class="arrow-btn" style="width: 50px; flex-shrink: 0;" onclick="moveWord(-1)">◀</button>';
             html += '<div class="vn" style="font-size:' + vnSize + '; flex: 1; text-align: center;">' + w.A + '</div>';
@@ -279,10 +296,38 @@
             document.getElementById('app').innerHTML = html;
         }
 
-        function openSettings() { document.getElementById('settingsModal').style.display = 'block'; document.getElementById('studyMode').value = savedStudyMode; document.getElementById('voiceRate').value = savedVoiceRate; document.getElementById('sleepTimer').value = savedTimer; document.getElementById('shuffleMode').checked = savedShuffle; document.getElementById('wordCountDisplay').innerText = savedWordCount + '번'; document.getElementById('sentenceCountDisplay').innerText = savedSentenceCount + '번'; }
+        function openSettings() { 
+            document.getElementById('settingsModal').style.display = 'block'; 
+            document.getElementById('studyMode').value = savedStudyMode; 
+            document.getElementById('voiceRate').value = savedVoiceRate; 
+            document.getElementById('sleepTimer').value = savedTimer; 
+            document.getElementById('shuffleMode').checked = savedShuffle; 
+            document.getElementById('wordCountDisplay').innerText = savedWordCount + '번'; 
+            document.getElementById('sentenceCountDisplay').innerText = savedSentenceCount + '번'; 
+            document.getElementById('delayTime').value = savedDelayTime;
+            document.getElementById('hideKrWord').checked = savedHideKrWord;
+            document.getElementById('hideKrEx').checked = savedHideKrEx;
+        }
+
         function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; renderWord(); }
         function changeStudyMode() { savedStudyMode = document.getElementById('studyMode').value; localStorage.setItem('vn_studyMode', savedStudyMode); savedIndex = 0; loadData(savedStudyMode); }
-        function saveSettings() { savedVoiceRate = document.getElementById('voiceRate').value; savedTimer = document.getElementById('sleepTimer').value; savedShuffle = document.getElementById('shuffleMode').checked; localStorage.setItem('vn_voiceRate', savedVoiceRate); localStorage.setItem('vn_timer', savedTimer); localStorage.setItem('vn_shuffle', savedShuffle); }
+        
+        function saveSettings() { 
+            savedVoiceRate = document.getElementById('voiceRate').value; 
+            savedTimer = document.getElementById('sleepTimer').value; 
+            savedShuffle = document.getElementById('shuffleMode').checked; 
+            savedDelayTime = document.getElementById('delayTime').value;
+            savedHideKrWord = document.getElementById('hideKrWord').checked;
+            savedHideKrEx = document.getElementById('hideKrEx').checked;
+
+            localStorage.setItem('vn_voiceRate', savedVoiceRate); 
+            localStorage.setItem('vn_timer', savedTimer); 
+            localStorage.setItem('vn_shuffle', savedShuffle); 
+            localStorage.setItem('vn_delayTime', savedDelayTime);
+            localStorage.setItem('vn_hideKrWord', savedHideKrWord);
+            localStorage.setItem('vn_hideKrEx', savedHideKrEx);
+        }
+
         function changeGlobalCount(type, n) { if (type === 'word') { savedWordCount = Math.max(0, Math.min(100, savedWordCount + n)); localStorage.setItem('vn_wordCount', savedWordCount); document.getElementById('wordCountDisplay').innerText = savedWordCount + '번'; } else { savedSentenceCount = Math.max(0, Math.min(100, savedSentenceCount + n)); localStorage.setItem('vn_sentenceCount', savedSentenceCount); document.getElementById('sentenceCountDisplay').innerText = savedSentenceCount + '번'; } }
         function toggleBlackout() { const overlay = document.getElementById('blackoutOverlay'); overlay.style.display = (overlay.style.display === 'none') ? 'flex' : 'none'; }
         function stopSleepMode() { isPlaying = false; isSkipping = true; window.speechSynthesis.cancel(); if (sleepTimerId) clearTimeout(sleepTimerId); renderWord(); }
@@ -291,7 +336,55 @@
         function speakText(text, lang) { return new Promise(resolve => { if (!text || text.trim() === '' || isSkipping) return resolve(); const msg = new SpeechSynthesisUtterance(text); msg.lang = lang; msg.rate = parseFloat(savedVoiceRate); msg.onend = resolve; msg.onerror = resolve; window.speechSynthesis.speak(msg); setTimeout(resolve, 8000); }); }
         async function smartDelay(ms) { if (ms <= 0) return; let waited = 0; while (waited < ms && !isSkipping && isPlaying) { await new Promise(r => setTimeout(r, 100)); waited += 100; } }
         function advanceIndex() { if (!isSkipping) { if (savedShuffle && words.length > 1) { let nextIndex = savedIndex; while (nextIndex === savedIndex) { nextIndex = Math.floor(Math.random() * words.length); } savedIndex = nextIndex; } else { savedIndex++; } } else { savedIndex += skipDirection; } }
-        async function startSleepMode() { if (isPlaying) return; isPlaying = true; if (sleepTimerId) clearTimeout(sleepTimerId); const timerVal = parseInt(savedTimer); if (timerVal > 0) { sleepTimerId = setTimeout(() => { stopSleepMode(); }, timerVal * 60 * 1000); } while (isPlaying) { if (savedIndex >= words.length) savedIndex = 0; if (savedIndex < 0) savedIndex = words.length - 1; localStorage.setItem('vn_index', savedIndex); isSkipping = false; renderWord(); const w = words[savedIndex]; if (completedWords[w.A]) { await new Promise(r => setTimeout(r, 10)); advanceIndex(); continue; } if (savedWordCount > 0) { for (let i = 0; i < savedWordCount; i++) { if (!isPlaying || isSkipping) break; await speakText(w.A, 'vi-VN'); if (!isPlaying || isSkipping) break; await speakText(w.C, 'ko-KR'); await smartDelay(1500); } } if (!isPlaying || isSkipping) { advanceIndex(); continue; } if (w.D && w.F && savedSentenceCount > 0) { for (let i = 0; i < savedSentenceCount; i++) { if (!isPlaying || isSkipping) break; await speakText(w.D, 'vi-VN'); if (!isPlaying || isSkipping) break; await speakText(w.F, 'ko-KR'); await smartDelay(1500); } } if (!isPlaying || isSkipping) { advanceIndex(); continue; } await smartDelay(1000); advanceIndex(); } }
+        
+        async function startSleepMode() { 
+            if (isPlaying) return; isPlaying = true; 
+            if (sleepTimerId) clearTimeout(sleepTimerId); 
+            const timerVal = parseInt(savedTimer); 
+            if (timerVal > 0) { sleepTimerId = setTimeout(() => { stopSleepMode(); }, timerVal * 60 * 1000); } 
+            
+            while (isPlaying) { 
+                if (savedIndex >= words.length) savedIndex = 0; 
+                if (savedIndex < 0) savedIndex = words.length - 1; 
+                localStorage.setItem('vn_index', savedIndex); 
+                isSkipping = false; renderWord(); 
+                const w = words[savedIndex]; 
+                if (completedWords[w.A]) { await new Promise(r => setTimeout(r, 10)); advanceIndex(); continue; } 
+                
+                // 본문 반복 루프
+                if (savedWordCount > 0) { 
+                    for (let i = 0; i < savedWordCount; i++) { 
+                        if (!isPlaying || isSkipping) break; 
+                        await speakText(w.A, 'vi-VN'); 
+                        if (!isPlaying || isSkipping) break; 
+                        // 한국어 해제가 체크되어 있지 않을 때만 발음
+                        if (!savedHideKrWord) {
+                            await speakText(w.C, 'ko-KR'); 
+                        }
+                        await smartDelay(parseInt(savedDelayTime)); 
+                    } 
+                } 
+                if (!isPlaying || isSkipping) { advanceIndex(); continue; } 
+                
+                // 예문 반복 루프
+                if (w.D && (w.F || savedHideKrEx) && savedSentenceCount > 0) { 
+                    for (let i = 0; i < savedSentenceCount; i++) { 
+                        if (!isPlaying || isSkipping) break; 
+                        await speakText(w.D, 'vi-VN'); 
+                        if (!isPlaying || isSkipping) break; 
+                        // 한국어 해제가 체크되어 있지 않을 때만 발음
+                        if (!savedHideKrEx) {
+                            await speakText(w.F, 'ko-KR'); 
+                        }
+                        await smartDelay(parseInt(savedDelayTime)); 
+                    } 
+                } 
+                if (!isPlaying || isSkipping) { advanceIndex(); continue; } 
+                await smartDelay(1000); 
+                advanceIndex(); 
+            } 
+        }
+
         function openModal() { const container = document.getElementById('compListContainer'); container.innerHTML = ''; const compKeys = Object.keys(completedWords); if(compKeys.length === 0) { container.innerHTML = '<p style="color:#888;">항목이 없습니다.</p>'; } else { compKeys.forEach(wordA => { const wordData = words.find(w => w.A === wordA); const mean = wordData ? wordData.C : ''; container.innerHTML += `<div class="comp-item" id="item_${wordA}"><div><div class="comp-word">${wordA}</div><div class="comp-mean">${mean}</div></div><button class="uncheck-btn" onclick="uncheckWord('${wordA}')">해제</button></div>`; }); } document.getElementById('compModal').style.display = 'block'; }
         function closeModal() { document.getElementById('compModal').style.display = 'none'; renderWord(); }
         function uncheckWord(wordA) { delete completedWords[wordA]; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); const el = document.getElementById('item_' + wordA); if(el) el.style.display = 'none'; }
@@ -300,7 +393,6 @@
         function closeCalendar() { document.getElementById('calendarModal').style.display = 'none'; }
         function changeMonth(offset) { currentCalDate.setMonth(currentCalDate.getMonth() + offset); renderCalendar(); }
 
-        // 시간 단위 한글화 (시간/분 표시)
         function formatTimeText(seconds) { 
             if (!seconds || seconds <= 0) return '0분'; 
             const h = Math.floor(seconds / 3600); 
@@ -309,12 +401,11 @@
             return `${m}분`;
         }
 
-        // 오늘/이달/올해 통계 계산 로직 추가
         function updateStatsDisplay() { 
             const now = new Date();
             const todayStr = getTodayStr(now);
-            const thisMonthPrefix = todayStr.substring(0, 7); // YYYY-MM
-            const thisYearPrefix = todayStr.substring(0, 4); // YYYY
+            const thisMonthPrefix = todayStr.substring(0, 7); 
+            const thisYearPrefix = todayStr.substring(0, 4); 
 
             let todaySec = dailyTime[todayStr] || 0; 
             let monthSec = 0;
