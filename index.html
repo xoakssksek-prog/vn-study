@@ -121,7 +121,13 @@
                     <label style="font-size: 14px; color: #ccc; display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="shuffleMode" onchange="saveSettings()"> 🔀 랜덤 재생</label>
                     <label style="font-size: 14px; color: #ccc;">⏰ 타이머: 
                         <select id="sleepTimer" onchange="saveSettings()" style="padding: 5px; border-radius: 5px; background: #1a1a2e; color: white; border: none;">
-                            <option value="0">끄기</option><option value="15">15분</option><option value="30">30분</option><option value="60">60분</option><option value="120">120분</option>
+                            <option value="0">끄기</option>
+                            <option value="15">15분</option>
+                            <option value="30">30분</option>
+                            <option value="60">60분</option>
+                            <option value="120">120분</option>
+                            <option value="180">180분</option>
+                            <option value="240">240분</option>
                         </select>
                     </label>
                 </div>
@@ -199,6 +205,7 @@
         const sheetNames = { '단어': '단어', '문장표현': '문장표현', '문법': '문법' };
         let words = []; let isPlaying = false; let isSkipping = false; let skipDirection = 1; let sleepTimerId = null;
         let savedIndex = 0; let completedWords = {}; let dailyTime = {};
+        let wakeLock = null;
         
         try { savedIndex = parseInt(localStorage.getItem('vn_index') || '0'); } catch(e) {}
         try { completedWords = JSON.parse(localStorage.getItem('vn_completed') || '{}'); } catch(e) { completedWords = {}; }
@@ -210,7 +217,7 @@
         let savedTimer = localStorage.getItem('vn_timer') || '0';
         let savedShuffle = localStorage.getItem('vn_shuffle') === 'true';
         let savedStudyMode = localStorage.getItem('vn_studyMode') || '단어'; 
-        let savedDelayTime = localStorage.getItem('vn_delayTime') || '1000'; // 기본 1초
+        let savedDelayTime = localStorage.getItem('vn_delayTime') || '1000';
         let savedHideKrWord = localStorage.getItem('vn_hideKrWord') === 'true';
         let savedHideKrEx = localStorage.getItem('vn_hideKrEx') === 'true';
         
@@ -225,6 +232,20 @@
             localStorage.setItem('vn_daily_time', JSON.stringify(dailyTime));
             if (document.getElementById('calendarModal').style.display === 'block') { updateStatsDisplay(); }
         }, 10000);
+
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {}
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release().then(() => { wakeLock = null; });
+            }
+        }
 
         async function loadData(mode) {
             words = []; try {
@@ -330,7 +351,15 @@
 
         function changeGlobalCount(type, n) { if (type === 'word') { savedWordCount = Math.max(0, Math.min(100, savedWordCount + n)); localStorage.setItem('vn_wordCount', savedWordCount); document.getElementById('wordCountDisplay').innerText = savedWordCount + '번'; } else { savedSentenceCount = Math.max(0, Math.min(100, savedSentenceCount + n)); localStorage.setItem('vn_sentenceCount', savedSentenceCount); document.getElementById('sentenceCountDisplay').innerText = savedSentenceCount + '번'; } }
         function toggleBlackout() { const overlay = document.getElementById('blackoutOverlay'); overlay.style.display = (overlay.style.display === 'none') ? 'flex' : 'none'; }
-        function stopSleepMode() { isPlaying = false; isSkipping = true; window.speechSynthesis.cancel(); if (sleepTimerId) clearTimeout(sleepTimerId); renderWord(); }
+        
+        function stopSleepMode() { 
+            isPlaying = false; isSkipping = true; 
+            window.speechSynthesis.cancel(); 
+            if (sleepTimerId) clearTimeout(sleepTimerId); 
+            releaseWakeLock();
+            renderWord(); 
+        }
+
         function toggleComplete() { let w = words[savedIndex]; if (completedWords[w.A]) { delete completedWords[w.A]; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); renderWord(); } else { completedWords[w.A] = true; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); moveWord(1); } }
         function moveWord(direction) { isSkipping = true; skipDirection = direction; window.speechSynthesis.cancel(); if (!isPlaying) { savedIndex += direction; if (savedIndex < 0) savedIndex = words.length - 1; if (savedIndex >= words.length) savedIndex = 0; renderWord(); } }
         function speakText(text, lang) { return new Promise(resolve => { if (!text || text.trim() === '' || isSkipping) return resolve(); const msg = new SpeechSynthesisUtterance(text); msg.lang = lang; msg.rate = parseFloat(savedVoiceRate); msg.onend = resolve; msg.onerror = resolve; window.speechSynthesis.speak(msg); setTimeout(resolve, 8000); }); }
@@ -339,6 +368,8 @@
         
         async function startSleepMode() { 
             if (isPlaying) return; isPlaying = true; 
+            requestWakeLock();
+
             if (sleepTimerId) clearTimeout(sleepTimerId); 
             const timerVal = parseInt(savedTimer); 
             if (timerVal > 0) { sleepTimerId = setTimeout(() => { stopSleepMode(); }, timerVal * 60 * 1000); } 
@@ -351,31 +382,23 @@
                 const w = words[savedIndex]; 
                 if (completedWords[w.A]) { await new Promise(r => setTimeout(r, 10)); advanceIndex(); continue; } 
                 
-                // 본문 반복 루프
                 if (savedWordCount > 0) { 
                     for (let i = 0; i < savedWordCount; i++) { 
                         if (!isPlaying || isSkipping) break; 
                         await speakText(w.A, 'vi-VN'); 
                         if (!isPlaying || isSkipping) break; 
-                        // 한국어 해제가 체크되어 있지 않을 때만 발음
-                        if (!savedHideKrWord) {
-                            await speakText(w.C, 'ko-KR'); 
-                        }
+                        if (!savedHideKrWord) { await speakText(w.C, 'ko-KR'); }
                         await smartDelay(parseInt(savedDelayTime)); 
                     } 
                 } 
                 if (!isPlaying || isSkipping) { advanceIndex(); continue; } 
                 
-                // 예문 반복 루프
                 if (w.D && (w.F || savedHideKrEx) && savedSentenceCount > 0) { 
                     for (let i = 0; i < savedSentenceCount; i++) { 
                         if (!isPlaying || isSkipping) break; 
                         await speakText(w.D, 'vi-VN'); 
                         if (!isPlaying || isSkipping) break; 
-                        // 한국어 해제가 체크되어 있지 않을 때만 발음
-                        if (!savedHideKrEx) {
-                            await speakText(w.F, 'ko-KR'); 
-                        }
+                        if (!savedHideKrEx) { await speakText(w.F, 'ko-KR'); }
                         await smartDelay(parseInt(savedDelayTime)); 
                     } 
                 } 
