@@ -320,11 +320,11 @@
             const p = document.getElementById('bgmPlayer'); 
             if (savedSleepSound === 'none') { p.pause(); return; } 
             const s = { 
-                rain: 'https://cdn.freesound.org/previews/531/531947_11142502-lq.mp3', 
-                ocean: 'https://cdn.freesound.org/previews/400/400632_7322211-lq.mp3', 
-                forest: 'https://cdn.freesound.org/previews/538/538608_11568472-lq.mp3', 
-                fire: 'https://cdn.freesound.org/previews/222/222500_4107740-lq.mp3', 
-                camping: 'https://cdn.freesound.org/previews/329/329433_5813354-lq.mp3' 
+                rain: 'https://actions.google.com/sounds/v1/water/rain_on_roof.ogg', 
+                ocean: 'https://actions.google.com/sounds/v1/water/ocean_waves.ogg', 
+                forest: 'https://actions.google.com/sounds/v1/ambiences/jungle_atmosphere_late_night.ogg', 
+                fire: 'https://actions.google.com/sounds/v1/ambiences/fire.ogg', 
+                camping: 'https://actions.google.com/sounds/v1/ambiences/night_crickets.ogg' 
             }; 
             p.src = s[savedSleepSound]; 
             p.volume = parseFloat(savedBgmVolume); 
