@@ -183,7 +183,7 @@
         </div>
     </div>
 
-    <audio id="bgmPlayer" loop></audio>
+    <audio id="bgmPlayer" loop crossorigin="anonymous"></audio>
     <input type="file" id="importFile" style="display:none" onchange="processFile(this)">
 
     <script>
@@ -193,6 +193,11 @@
         let savedIndex = 0; let completedWords = {}; let starredWords = {}; let dailyTime = {}; let wakeLock = null;
         let hitCounts = {}; let startTime = null;
         let currentWordRep = 0; let currentExRep = 0; let currentPlayingIndex = -1;
+
+        // 웹 오디오 API를 위한 변수
+        let audioCtx;
+        let gainNode;
+        let audioTrack;
 
         try { 
             savedIndex = parseInt(localStorage.getItem('vn_index') || '0');
@@ -337,7 +342,16 @@
         function saveSettings() { 
             savedAppVolume = document.getElementById('appVolume').value; savedBgmVolume = document.getElementById('bgmVolume').value; savedTimer = document.getElementById('sleepTimer').value; savedHideKrWord = document.getElementById('hideKrWord').checked; savedHideKrEx = document.getElementById('hideKrEx').checked; savedBatteryProtect = document.getElementById('batteryProtect').checked; savedSleepSound = document.getElementById('sleepSound').value; savedFadeOut = document.getElementById('fadeOutToggle').checked; savedHitCountToggle = document.getElementById('hitCountToggle').checked; savedDelayTime = document.getElementById('delayTime').value; let vr = document.getElementById('voiceRate').value; savedVoiceType = document.getElementById('voiceType').value; savedAccent = document.getElementById('accentType').value; 
             localStorage.setItem('vn_app_volume', savedAppVolume); localStorage.setItem('vn_bgm_volume', savedBgmVolume); localStorage.setItem('vn_timer', savedTimer); localStorage.setItem('vn_hideKrWord', savedHideKrWord); localStorage.setItem('vn_hideKrEx', savedHideKrEx); localStorage.setItem('vn_batteryProtect', savedBatteryProtect); localStorage.setItem('vn_sleepSound', savedSleepSound); localStorage.setItem('vn_fade_out', savedFadeOut); localStorage.setItem('vn_hit_count_toggle', savedHitCountToggle); localStorage.setItem('vn_delayTime', savedDelayTime); localStorage.setItem('vn_voiceRate', vr); localStorage.setItem('vn_voiceType', savedVoiceType); localStorage.setItem('vn_accent', savedAccent); 
-            const p = document.getElementById('bgmPlayer'); if (p) p.volume = parseFloat(savedBgmVolume); 
+            
+            const p = document.getElementById('bgmPlayer'); 
+            if (p) {
+                // 오디오 증폭기가 활성화되어 있으면 증폭값을 업데이트
+                if (gainNode) {
+                    gainNode.gain.value = parseFloat(savedBgmVolume) * 4.0; // 4배 뻥튀기 적용
+                } else {
+                    p.volume = parseFloat(savedBgmVolume);
+                }
+            } 
             if(isPlaying) { isSkipping = true; window.speechSynthesis.cancel(); }
         }
         
@@ -366,8 +380,34 @@
                 fire: 'https://actions.google.com/sounds/v1/ambiences/fire.ogg', 
                 camping: 'https://actions.google.com/sounds/v1/ambiences/night_crickets.ogg' 
             }; 
+            
             p.src = s[savedSleepSound]; 
-            p.volume = parseFloat(savedBgmVolume); 
+
+            // 웹 오디오 엔진 연결 (최초 1회만 실행됨)
+            if (!audioCtx) {
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    audioCtx = new AudioContext();
+                    audioTrack = audioCtx.createMediaElementSource(p);
+                    gainNode = audioCtx.createGain();
+                    audioTrack.connect(gainNode).connect(audioCtx.destination);
+                } catch(e) {
+                    console.log("Web Audio API Error:", e);
+                }
+            }
+
+            // 오디오 컨텍스트가 잠겨있을 수 있으므로 재개
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            // 볼륨을 원래 소스의 4배로 증폭
+            if(gainNode) {
+                gainNode.gain.value = parseFloat(savedBgmVolume) * 4.0;
+            } else {
+                p.volume = parseFloat(savedBgmVolume);
+            }
+
             p.play().catch(e => console.log("Audio play failed:", e)); 
         }
 
@@ -450,7 +490,6 @@
             return new Promise(resolve => { 
                 if(!text || isSkipping || !isPlaying) return resolve(); 
                 
-                // 음성 엔진이 꼬이는 것을 방지하기 위해 0.02초의 버퍼를 둡니다.
                 setTimeout(() => {
                     if(!isPlaying || isSkipping) return resolve();
                     
@@ -487,7 +526,6 @@
                     msg.onerror = safeResolve; 
                     window.speechSynthesis.speak(msg); 
                     
-                    // 핵심 수정: 듣는 도중 설정이 바뀌거나 넘기기를 할 때 즉각적으로 음성을 끊고 탈출하는 추적기
                     const checker = setInterval(() => {
                         if (!isPlaying || isSkipping) {
                             clearInterval(checker);
