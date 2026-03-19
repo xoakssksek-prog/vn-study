@@ -84,7 +84,6 @@
         .stats-label { color: var(--text-dim); font-weight: 300; }
         .stats-value { color: var(--accent-gold); font-weight: 600; font-size: 14px; }
 
-        /* [수정] 완료 목록 테이블 디자인 (깨짐 방지) */
         .comp-table-header { display: flex; padding: 12px 5px; border-bottom: 1.5px solid var(--accent-green); font-size: 11px; color: var(--accent-green); font-weight: 800; text-align: left; }
         .comp-row { display: flex; align-items: flex-start; padding: 12px 5px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; line-height: 1.4; }
         
@@ -193,7 +192,7 @@
         let allWords = []; let words = []; let isPlaying = false; let isSkipping = false; let skipDirection = 1; let sleepTimerId = null;
         let savedIndex = 0; let completedWords = {}; let starredWords = {}; let dailyTime = {}; let wakeLock = null;
         let hitCounts = {}; let startTime = null;
-        let currentWordRep = 0; let currentExRep = 0; let currentPlayingIndex = -1; // 일시정지 상태 저장용 변수 추가
+        let currentWordRep = 0; let currentExRep = 0; let currentPlayingIndex = -1;
 
         try { 
             savedIndex = parseInt(localStorage.getItem('vn_index') || '0');
@@ -306,15 +305,56 @@
         function releaseWakeLock() { if (wakeLock) { wakeLock.release(); wakeLock = null; } }
         function toggleStar() { const w = words[savedIndex]; if (starredWords[w.A]) delete starredWords[w.A]; else starredWords[w.A] = true; localStorage.setItem('vn_starred', JSON.stringify(starredWords)); renderWord(); }
         function toggleComplete() { let w = words[savedIndex]; if (completedWords[w.A]) { delete completedWords[w.A]; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); renderWord(); } else { completedWords[w.A] = true; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); moveWord(1); } }
-        function toggleMainReview() { reviewMode = document.getElementById('mainReviewMode').checked; localStorage.setItem('vn_reviewMode', reviewMode); savedIndex = 0; applyModeFilter(); }
-        function toggleMainShuffle() { savedShuffle = document.getElementById('mainShuffleMode').checked; localStorage.setItem('vn_shuffle', savedShuffle); renderWord(); }
-        function changeStudyModeMain(el) { savedStudyMode = el.value; localStorage.setItem('vn_studyMode', savedStudyMode); savedIndex = 0; loadData(savedStudyMode); }
+        
+        function toggleMainReview() { 
+            reviewMode = document.getElementById('mainReviewMode').checked; 
+            localStorage.setItem('vn_reviewMode', reviewMode); 
+            savedIndex = 0; 
+            const wasPlaying = isPlaying;
+            if(wasPlaying) stopSleepMode();
+            applyModeFilter(); 
+            if(wasPlaying) startSleepMode();
+        }
+        function toggleMainShuffle() { 
+            savedShuffle = document.getElementById('mainShuffleMode').checked; 
+            localStorage.setItem('vn_shuffle', savedShuffle); 
+            if(isPlaying) { isSkipping = true; window.speechSynthesis.cancel(); }
+            renderWord(); 
+        }
+        async function changeStudyModeMain(el) { 
+            savedStudyMode = el.value; 
+            localStorage.setItem('vn_studyMode', savedStudyMode); 
+            savedIndex = 0; 
+            const wasPlaying = isPlaying;
+            if(wasPlaying) stopSleepMode();
+            await loadData(savedStudyMode); 
+            if(wasPlaying) startSleepMode();
+        }
         
         function openSettings() { document.getElementById('settingsModal').style.display = 'block'; document.getElementById('appVolume').value = savedAppVolume; document.getElementById('bgmVolume').value = savedBgmVolume; document.getElementById('wordCountDisplay').innerText = savedWordCount; document.getElementById('sentenceCountDisplay').innerText = savedSentenceCount; document.getElementById('fadeOutToggle').checked = savedFadeOut; document.getElementById('hitCountToggle').checked = savedHitCountToggle; document.getElementById('batteryProtect').checked = savedBatteryProtect; document.getElementById('sleepSound').value = savedSleepSound; document.getElementById('sleepTimer').value = savedTimer; document.getElementById('hideKrWord').checked = savedHideKrWord; document.getElementById('hideKrEx').checked = savedHideKrEx; document.getElementById('delayTime').value = savedDelayTime; document.getElementById('voiceRate').value = localStorage.getItem('vn_voiceRate') || '0.9'; document.getElementById('voiceType').value = savedVoiceType; document.getElementById('accentType').value = savedAccent; }
         function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; renderWord(); }
-        function saveSettings() { savedAppVolume = document.getElementById('appVolume').value; savedBgmVolume = document.getElementById('bgmVolume').value; savedTimer = document.getElementById('sleepTimer').value; savedHideKrWord = document.getElementById('hideKrWord').checked; savedHideKrEx = document.getElementById('hideKrEx').checked; savedBatteryProtect = document.getElementById('batteryProtect').checked; savedSleepSound = document.getElementById('sleepSound').value; savedFadeOut = document.getElementById('fadeOutToggle').checked; savedHitCountToggle = document.getElementById('hitCountToggle').checked; savedDelayTime = document.getElementById('delayTime').value; let vr = document.getElementById('voiceRate').value; savedVoiceType = document.getElementById('voiceType').value; savedAccent = document.getElementById('accentType').value; localStorage.setItem('vn_app_volume', savedAppVolume); localStorage.setItem('vn_bgm_volume', savedBgmVolume); localStorage.setItem('vn_timer', savedTimer); localStorage.setItem('vn_hideKrWord', savedHideKrWord); localStorage.setItem('vn_hideKrEx', savedHideKrEx); localStorage.setItem('vn_batteryProtect', savedBatteryProtect); localStorage.setItem('vn_sleepSound', savedSleepSound); localStorage.setItem('vn_fade_out', savedFadeOut); localStorage.setItem('vn_hit_count_toggle', savedHitCountToggle); localStorage.setItem('vn_delayTime', savedDelayTime); localStorage.setItem('vn_voiceRate', vr); localStorage.setItem('vn_voiceType', savedVoiceType); localStorage.setItem('vn_accent', savedAccent); const p = document.getElementById('bgmPlayer'); if (p) p.volume = parseFloat(savedBgmVolume); }
-        function changeGlobalCount(type, n) { if (type === 'word') savedWordCount = Math.max(0, savedWordCount + n); else savedSentenceCount = Math.max(0, savedSentenceCount + n); localStorage.setItem('vn_wordCount', savedWordCount); localStorage.setItem('vn_sentenceCount', savedSentenceCount); document.getElementById(type + 'CountDisplay').innerText = (type === 'word' ? savedWordCount : savedSentenceCount); }
-        function moveWord(direction) { isSkipping = true; skipDirection = direction; window.speechSynthesis.cancel(); if (direction === 1) { advanceIndex(); } else { savedIndex--; if (savedIndex < 0) savedIndex = words.length - 1; } renderWord(); }
+        
+        function saveSettings() { 
+            savedAppVolume = document.getElementById('appVolume').value; savedBgmVolume = document.getElementById('bgmVolume').value; savedTimer = document.getElementById('sleepTimer').value; savedHideKrWord = document.getElementById('hideKrWord').checked; savedHideKrEx = document.getElementById('hideKrEx').checked; savedBatteryProtect = document.getElementById('batteryProtect').checked; savedSleepSound = document.getElementById('sleepSound').value; savedFadeOut = document.getElementById('fadeOutToggle').checked; savedHitCountToggle = document.getElementById('hitCountToggle').checked; savedDelayTime = document.getElementById('delayTime').value; let vr = document.getElementById('voiceRate').value; savedVoiceType = document.getElementById('voiceType').value; savedAccent = document.getElementById('accentType').value; 
+            localStorage.setItem('vn_app_volume', savedAppVolume); localStorage.setItem('vn_bgm_volume', savedBgmVolume); localStorage.setItem('vn_timer', savedTimer); localStorage.setItem('vn_hideKrWord', savedHideKrWord); localStorage.setItem('vn_hideKrEx', savedHideKrEx); localStorage.setItem('vn_batteryProtect', savedBatteryProtect); localStorage.setItem('vn_sleepSound', savedSleepSound); localStorage.setItem('vn_fade_out', savedFadeOut); localStorage.setItem('vn_hit_count_toggle', savedHitCountToggle); localStorage.setItem('vn_delayTime', savedDelayTime); localStorage.setItem('vn_voiceRate', vr); localStorage.setItem('vn_voiceType', savedVoiceType); localStorage.setItem('vn_accent', savedAccent); 
+            const p = document.getElementById('bgmPlayer'); if (p) p.volume = parseFloat(savedBgmVolume); 
+            if(isPlaying) { isSkipping = true; window.speechSynthesis.cancel(); }
+        }
+        
+        function changeGlobalCount(type, n) { 
+            if (type === 'word') savedWordCount = Math.max(0, savedWordCount + n); 
+            else savedSentenceCount = Math.max(0, savedSentenceCount + n); 
+            localStorage.setItem('vn_wordCount', savedWordCount); 
+            localStorage.setItem('vn_sentenceCount', savedSentenceCount); 
+            document.getElementById(type + 'CountDisplay').innerText = (type === 'word' ? savedWordCount : savedSentenceCount); 
+            if(isPlaying) { isSkipping = true; window.speechSynthesis.cancel(); }
+        }
+        
+        function moveWord(direction) { 
+            isSkipping = true; skipDirection = direction; window.speechSynthesis.cancel(); 
+            if (direction === 1) { advanceIndex(); } else { savedIndex--; if (savedIndex < 0) savedIndex = words.length - 1; } 
+            renderWord(); 
+        }
         
         function playBackgroundSound() { 
             const p = document.getElementById('bgmPlayer'); 
@@ -370,10 +410,15 @@
                     if (!isPlaying || isSkipping) break; 
                     if (!savedHideKrWord) await speakText(w.C, 'ko-KR'); 
                     if (!isPlaying || isSkipping) break; 
-                    await new Promise(r => setTimeout(r, parseInt(savedDelayTime))); 
+                    
+                    let delayMs = parseInt(savedDelayTime);
+                    for(let ms=0; ms<delayMs; ms+=100) {
+                        if(!isPlaying || isSkipping) break;
+                        await new Promise(r => setTimeout(r, 100));
+                    }
                 } 
                 
-                if (!isPlaying || isSkipping) break; 
+                if (!isPlaying || isSkipping) continue; 
                 
                 if (w.D && savedSentenceCount > 0) { 
                     for (; currentExRep < savedSentenceCount; currentExRep++) { 
@@ -382,19 +427,79 @@
                         if (!isPlaying || isSkipping) break; 
                         if (!savedHideKrEx) await speakText(w.F, 'ko-KR'); 
                         if (!isPlaying || isSkipping) break; 
-                        await new Promise(r => setTimeout(r, parseInt(savedDelayTime))); 
+                        
+                        let delayMs = parseInt(savedDelayTime);
+                        for(let ms=0; ms<delayMs; ms+=100) {
+                            if(!isPlaying || isSkipping) break;
+                            await new Promise(r => setTimeout(r, 100));
+                        }
                     } 
                 } 
                 
-                if (!isPlaying || isSkipping) break; 
+                if (!isPlaying || isSkipping) continue; 
                 
                 currentWordRep = 0; 
                 currentExRep = 0; 
                 if (!isSkipping) advanceIndex(); 
             } 
         }
+        
         function stopSleepMode() { isPlaying = false; window.speechSynthesis.cancel(); document.getElementById('bgmPlayer').pause(); releaseWakeLock(); renderWord(); }
-        function speakText(text, lang) { return new Promise(resolve => { if(!text || isSkipping) return resolve(); const msg = new SpeechSynthesisUtterance(text); msg.lang = lang; if(lang === 'vi-VN') { let voices = window.speechSynthesis.getVoices(); let vnVoices = voices.filter(v => v.lang.startsWith('vi')); if(vnVoices.length > 1) { if(savedAccent === 'hcm') { let hcmVoice = vnVoices.find(v => v.name.toLowerCase().includes('ho chi minh') || v.name.toLowerCase().includes('south')); msg.voice = hcmVoice ? hcmVoice : vnVoices[1]; } else { msg.voice = vnVoices[0]; } } } msg.volume = parseFloat(savedAppVolume); const baseRate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); switch(savedVoiceType) { case 'male': msg.pitch = 0.55; break; case 'child': msg.pitch = 1.85; break; case 'grandma': msg.pitch = 1.45; break; case 'grandpa': msg.pitch = 0.35; break; case 'soft': msg.pitch = 0.95; break; case 'clear': msg.pitch = 1.25; break; default: msg.pitch = 1.0; } msg.rate = baseRate; msg.onend = resolve; msg.onerror = resolve; window.speechSynthesis.speak(msg); }); }
+        
+        function speakText(text, lang) { 
+            return new Promise(resolve => { 
+                if(!text || isSkipping || !isPlaying) return resolve(); 
+                
+                // 음성 엔진이 꼬이는 것을 방지하기 위해 0.02초의 버퍼를 둡니다.
+                setTimeout(() => {
+                    if(!isPlaying || isSkipping) return resolve();
+                    
+                    const msg = new SpeechSynthesisUtterance(text); 
+                    msg.lang = lang; 
+                    if(lang === 'vi-VN') { 
+                        let voices = window.speechSynthesis.getVoices(); 
+                        let vnVoices = voices.filter(v => v.lang.startsWith('vi')); 
+                        if(vnVoices.length > 1) { 
+                            if(savedAccent === 'hcm') { 
+                                let hcmVoice = vnVoices.find(v => v.name.toLowerCase().includes('ho chi minh') || v.name.toLowerCase().includes('south')); 
+                                msg.voice = hcmVoice ? hcmVoice : vnVoices[1]; 
+                            } else { 
+                                msg.voice = vnVoices[0]; 
+                            } 
+                        } 
+                    } 
+                    msg.volume = parseFloat(savedAppVolume); 
+                    const baseRate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
+                    switch(savedVoiceType) { 
+                        case 'male': msg.pitch = 0.55; break; 
+                        case 'child': msg.pitch = 1.85; break; 
+                        case 'grandma': msg.pitch = 1.45; break; 
+                        case 'grandpa': msg.pitch = 0.35; break; 
+                        case 'soft': msg.pitch = 0.95; break; 
+                        case 'clear': msg.pitch = 1.25; break; 
+                        default: msg.pitch = 1.0; 
+                    } 
+                    msg.rate = baseRate; 
+                    
+                    let isResolved = false;
+                    const safeResolve = () => { if(!isResolved) { isResolved = true; resolve(); } };
+                    msg.onend = safeResolve; 
+                    msg.onerror = safeResolve; 
+                    window.speechSynthesis.speak(msg); 
+                    
+                    // 핵심 수정: 듣는 도중 설정이 바뀌거나 넘기기를 할 때 즉각적으로 음성을 끊고 탈출하는 추적기
+                    const checker = setInterval(() => {
+                        if (!isPlaying || isSkipping) {
+                            clearInterval(checker);
+                            window.speechSynthesis.cancel();
+                            safeResolve();
+                        }
+                    }, 50);
+
+                }, 20); 
+            }); 
+        }
+        
         function advanceIndex() { if (savedShuffle && !isSkipping) savedIndex = Math.floor(Math.random() * words.length); else savedIndex++; if (savedIndex >= words.length) savedIndex = 0; }
         function toggleBlackout() { const o = document.getElementById('blackoutOverlay'); o.style.display = (o.style.display === 'none') ? 'flex' : 'none'; }
         function getTodayStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -405,7 +510,6 @@
         function renderCalendar() { const year = currentCalDate.getFullYear(); const month = currentCalDate.getMonth(); document.getElementById('calTitle').innerText = `${year}년 ${month + 1}월`; const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const grid = document.getElementById('calendarGrid'); grid.innerHTML = ''; ['일','월','화','수','목','금','토'].forEach(d => grid.innerHTML += `<div style="font-weight:bold; color:var(--accent-green); font-size:10px;">${d}</div>`); for(let i=0; i<firstDay; i++) grid.innerHTML += '<div style="opacity:0;"></div>'; for(let i=1; i<=daysInMonth; i++) { const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`; const sec = dailyTime[ds] || 0; let medal = sec >= 3600 ? '💎' : (sec >= 1800 ? '🌟' : (sec >= 600 ? '⚡' : '')); const timeStr = sec > 0 ? formatTimeText(sec) : ''; grid.innerHTML += `<div class="cal-day"><div style="position:absolute; top:2px; left:4px; font-size:9px; color:#fff;">${i}</div><div style="font-size:14px; margin-top:3px;">${medal}</div><div class="cal-time">${timeStr}</div></div>`; } const todayStr = getTodayStr(new Date()); const monthPrefix = `${year}-${String(month+1).padStart(2,'0')}`; const yearPrefix = todayStr.substring(0, 4); let todaySec = dailyTime[todayStr] || 0; let monthSec = 0; let yearSec = 0; for (const k in dailyTime) { if (k.startsWith(monthPrefix)) monthSec += dailyTime[k]; if (k.startsWith(yearPrefix)) yearSec += dailyTime[k]; } const stats = document.getElementById('statsContent'); stats.innerHTML = `<div class="stats-row"><span class="stats-label">- 오늘 학습 시간</span> <span class="stats-value">${formatTimeText(todaySec)}</span></div><div class="stats-row"><span class="stats-label">- 이달 누적 학습</span> <span class="stats-value" style="color:var(--accent-green);">${formatTimeText(monthSec)}</span></div><div class="stats-row"><span class="stats-label">- 올해 누적 학습</span> <span class="stats-value">${formatTimeText(yearSec)}</span></div><hr style="border:none; border-bottom:1px solid rgba(255,255,255,0.05); margin:8px 0;"><div class="stats-row"><span class="stats-label">- 정복한 단어 수</span> <span class="stats-value" style="color:var(--accent-green);">${Object.keys(completedWords).length}개</span></div>`; }
         function renderWeeklyChart() { const container = document.getElementById('weeklyBarChart'); container.innerHTML = ''; const today = new Date(); const dayMap = [6, 0, 1, 2, 3, 4, 5]; const currentDayIdx = dayMap[today.getDay()]; const monDate = new Date(today); monDate.setDate(today.getDate() - currentDayIdx); const dayLabels = ['월','화','수','목','금','토','일']; let maxSec = 1; const weekData = []; for (let i = 0; i < 7; i++) { const targetDate = new Date(monDate); targetDate.setDate(monDate.getDate() + i); const ds = getTodayStr(targetDate); const sec = dailyTime[ds] || 0; if (sec > maxSec) maxSec = sec; weekData.push({ label: dayLabels[i], sec: sec }); } weekData.forEach(data => { const h = Math.max(2, (data.sec / maxSec) * 55); const timeStr = data.sec > 0 ? formatTimeText(data.sec) : ''; container.innerHTML += `<div class="bar-wrapper"><div class="bar-time-label">${timeStr}</div><div class="report-bar" style="height:${h}px;"></div><div style="font-size:10px; color:#fff; font-weight:bold;">${data.label}</div></div>`; }); }
 
-        /* [수정] 완료 목록 렌더링 로직 (깨짐 방지 처리) */
         function openCompletedList() {
             const container = document.getElementById('compListContainer'); container.innerHTML = '';
             Object.keys(completedWords).forEach(wordA => {
