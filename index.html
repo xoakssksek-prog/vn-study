@@ -297,7 +297,7 @@
             const res = await fetch(url); const data = await res.text();
             return data.split('\n').slice(1).map(row => {
                 const cols = row.split('","').map(c => c.replace(/(^"|"$)/g, ''));
-                return { A: cols[0] || '', B: cols[1] || '', C: cols[2] || '', D: cols[3] || '', E: cols[4] || '', F: cols[5] || '' };
+                return { A: cols[0] || '', B: cols[1] || '', C: cols[2] || '', D: cols[3] || '', E: cols[4] || '', F: cols[5] || '', G: cols[6] || '' };
             }).filter(w => w.A.trim() !== '');
         }
 
@@ -312,6 +312,7 @@
             html += '<div style="display: flex; align-items: center; justify-content: space-between;"><button class="arrow-btn" onclick="moveWord(-1)">‹</button><div class="vn" style="font-size:' + vnSize + ';">' + w.A + '</div><button class="arrow-btn" onclick="moveWord(1)">›</button></div>';
             if (w.B) html += '<div class="pron">[' + w.B + ']</div>';
             html += '<div class="kr">' + w.C + '</div>';
+            if (w.G) { html += '<div style="font-size: 18px; color: #cbd5e1; margin-bottom: 15px; line-height: 1.4;">' + w.G + '</div>'; }
             if (w.D) { html += '<div class="ex-box"><div class="ex-vn">' + w.D + '</div>'; if (w.E) html += '<div class="ex-pron">[' + w.E + ']</div>'; html += '<div class="ex-kr">' + w.F + '</div></div>'; }
             html += '</div><div class="bottom-controls">';
             if (!isPlaying) { html += '<button class="play-btn" onclick="startSleepMode()">START</button>'; }
