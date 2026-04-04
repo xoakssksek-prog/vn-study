@@ -347,7 +347,7 @@
             if (words.length === 0) { app.innerHTML = '<div class="card">데이터 로딩 중...</div>'; return; }
             const w = words[savedIndex]; const isCompleted = completedWords[w.A]; const isStarred = starredWords[w.A];
             
-            // ★ 수정 로직: 괄호 하나씩 따로 매칭하는 비탐욕적 정규식 적용 ★
+            // 괄호 하나씩 따로 매칭하는 비탐욕적 정규식 적용 (괄호 부분 흰색 처리)
             const processedE = w.E ? w.E.replace(/(\([^)]+\))/g, '<span style="color: white;">$1</span>') : '';
 
             // ★ 수정된 PC 모드 UI ★
@@ -362,12 +362,13 @@
                 html += `<button class="pc-nav-btn" onclick="moveWord(-1)">‹</button>`;
                 html += `<div class="pc-text-group" onclick="openListModal()" title="목록 열기">`;
                 html += `<span class="pc-vn">${w.A}</span>`;
-                if (w.B) html += `<span class="pc-pron">[${w.B}]</span>`;
+                // [] 제거: 엑셀 텍스트 그대로 표시
+                if (w.B) html += `<span class="pc-pron">${w.B}</span>`;
                 if (w.C) html += `<span class="pc-kr">(${w.C})</span>`;
                 if (w.D) {
                     html += `<span class="pc-ex">${w.D}</span>`;
-                    // E열 처리된 텍스트 적용
-                    if (w.E) html += `<span class="pc-ex-pron">[${processedE}]</span>`;
+                    // [] 제거: E열 처리된 텍스트 적용
+                    if (w.E) html += `<span class="pc-ex-pron">${processedE}</span>`;
                     if (w.F) html += `<span class="pc-ex-kr">(${w.F})</span>`;
                 }
                 html += `</div>`;
@@ -391,13 +392,14 @@
             html += `<button class="star-btn ${isStarred ? 'active' : ''}" onclick="toggleStar()">${isStarred ? '★' : '☆'}</button>`;
             if (isCompleted) html += '<div style="color:var(--accent-gold); font-size:14px; margin-bottom:5px; font-weight:bold;">✅ 마스터한 항목</div>';
             html += '<div style="display: flex; align-items: center; justify-content: space-between;"><button class="arrow-btn" onclick="moveWord(-1)">‹</button><div class="vn" style="font-size:' + vnSize + ';">' + w.A + '</div><button class="arrow-btn" onclick="moveWord(1)">›</button></div>';
-            if (w.B) html += '<div class="pron">[' + w.B + ']</div>';
+            // [] 제거
+            if (w.B) html += '<div class="pron">' + w.B + '</div>';
             html += '<div class="kr">' + w.C + '</div>';
             if (w.G) { html += '<div style="font-size: 18px; color: #cbd5e1; margin-bottom: 15px; line-height: 1.4;">' + w.G + '</div>'; }
             if (w.D) { 
                 html += '<div class="ex-box"><div class="ex-vn">' + w.D + '</div>'; 
-                // E열 처리된 텍스트 적용
-                if (w.E) html += '<div class="ex-pron">[' + processedE + ']</div>'; 
+                // [] 제거
+                if (w.E) html += '<div class="ex-pron">' + processedE + '</div>'; 
                 html += '<div class="ex-kr">' + w.F + '</div></div>'; 
             }
             html += '</div><div class="bottom-controls">';
