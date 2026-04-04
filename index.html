@@ -143,7 +143,7 @@
                 </div>
                 <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
                     <span style="color:var(--accent-green); font-weight:bold;">🌍 발음 지역</span>
-                    <select id="accentType" onchange="saveSettings(); showNotice('🌍 발음 지역이 변경되었습니다.')" style="background:#020617; color:#fff; border:none; padding:4px; border-radius:5px; width: 120px;">
+                    <select id="accentType" onchange="changeAccentType()" style="background:#020617; color:#fff; border:none; padding:4px; border-radius:5px; width: 120px;">
                         <option value="hanoi">북부 (하노이)</option>
                         <option value="hcm">남부 (호치민)</option>
                     </select>
@@ -252,7 +252,6 @@
 
         let savedVoiceRate = localStorage.getItem('vn_voiceRate') || '0.9';
         
-        // 반복 횟수 변수 분리 및 기존 사용자 설정 연동 처리
         let savedWordVnCount = parseInt(localStorage.getItem('vn_wordVnCount') !== null ? localStorage.getItem('vn_wordVnCount') : (localStorage.getItem('vn_wordCount') || '3'));
         let savedWordKrCount = parseInt(localStorage.getItem('vn_wordKrCount') !== null ? localStorage.getItem('vn_wordKrCount') : (localStorage.getItem('vn_wordCount') || '3'));
         let savedExVnCount = parseInt(localStorage.getItem('vn_exVnCount') !== null ? localStorage.getItem('vn_exVnCount') : (localStorage.getItem('vn_sentenceCount') || '1'));
@@ -395,12 +394,29 @@
             if(wasPlaying) startSleepMode();
         }
         
+        // 발음 지역 설정 시 환경 체크 및 공지 로직 추가
+        function changeAccentType() {
+            savedAccent = document.getElementById('accentType').value;
+            if (savedAccent === 'hcm') {
+                let voices = window.speechSynthesis.getVoices();
+                let hasHcm = voices.some(v => v.lang.startsWith('vi') && (v.name.toLowerCase().includes('ho chi minh') || v.name.toLowerCase().includes('south') || v.name.toLowerCase().includes('hue')));
+                
+                if (!hasHcm) {
+                    showNotice("현재 환경에서는 엔진 한계로 불가능하여, 피치/속도 미세 조정으로 대체합니다.");
+                } else {
+                    showNotice("🌍 발음 지역이 남부(호치민)로 변경되었습니다.");
+                }
+            } else {
+                showNotice("🌍 발음 지역이 북부(하노이)로 변경되었습니다.");
+            }
+            saveSettings();
+        }
+        
         function openSettings() { 
             document.getElementById('settingsModal').style.display = 'block'; 
             document.getElementById('appVolume').value = savedAppVolume; 
             document.getElementById('bgmVolume').value = savedBgmVolume; 
             
-            // 분리된 횟수 변수 연동
             document.getElementById('wordVnCountDisplay').innerText = savedWordVnCount; 
             document.getElementById('wordKrCountDisplay').innerText = savedWordKrCount; 
             document.getElementById('exVnCountDisplay').innerText = savedExVnCount; 
@@ -448,7 +464,6 @@
         }
         
         function changeGlobalCount(type, n) { 
-            // 독립된 횟수 카운트 로직 (최대 99회)
             if (type === 'wordVn') { 
                 savedWordVnCount = Math.min(99, Math.max(0, savedWordVnCount + n)); 
                 localStorage.setItem('vn_wordVnCount', savedWordVnCount); 
@@ -550,7 +565,6 @@
                     localStorage.setItem('vn_hit_counts', JSON.stringify(hitCounts)); 
                 } 
                 
-                // 본문 재생 로직 분리 (횟수 적은 언어 먼저 멈춤)
                 let maxWordReps = Math.max(savedWordVnCount, savedWordKrCount);
                 for (; currentWordRep < maxWordReps; currentWordRep++) { 
                     if (!isPlaying || isSkipping) break; 
@@ -574,7 +588,6 @@
                 
                 if (!isPlaying || isSkipping) continue; 
                 
-                // 예문 재생 로직 분리
                 if (w.D && (savedExVnCount > 0 || savedExKrCount > 0)) { 
                     let maxExReps = Math.max(savedExVnCount, savedExKrCount);
                     for (; currentExRep < maxExReps; currentExRep++) { 
@@ -617,18 +630,29 @@
                     
                     const msg = new SpeechSynthesisUtterance(text); 
                     msg.lang = lang; 
+                    let isSimulatedHcm = false; // 대체(시뮬레이션) 로직 작동 여부 플래그
+                    
                     if(lang === 'vi-VN') { 
                         let voices = window.speechSynthesis.getVoices(); 
                         let vnVoices = voices.filter(v => v.lang.startsWith('vi')); 
-                        if(vnVoices.length > 1) { 
+                        if(vnVoices.length > 0) { 
                             if(savedAccent === 'hcm') { 
-                                let hcmVoice = vnVoices.find(v => v.name.toLowerCase().includes('ho chi minh') || v.name.toLowerCase().includes('south')); 
-                                msg.voice = hcmVoice ? hcmVoice : vnVoices[1]; 
+                                // 남부 발음 필터링 스펙트럼 강화
+                                let hcmVoice = vnVoices.find(v => v.name.toLowerCase().includes('ho chi minh') || v.name.toLowerCase().includes('south') || v.name.toLowerCase().includes('hue')); 
+                                if (hcmVoice) {
+                                    msg.voice = hcmVoice; 
+                                } else {
+                                    // 네이티브 엔진 부재 시 기본 엔진 장착 후 플래그 ON
+                                    msg.voice = vnVoices[0];
+                                    isSimulatedHcm = true;
+                                }
                             } else { 
-                                msg.voice = vnVoices[0]; 
+                                let hanoiVoice = vnVoices.find(v => v.name.toLowerCase().includes('ha noi') || v.name.toLowerCase().includes('north'));
+                                msg.voice = hanoiVoice ? hanoiVoice : vnVoices[0]; 
                             } 
                         } 
                     } 
+                    
                     msg.volume = parseFloat(savedAppVolume); 
                     const baseRate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
                     switch(savedVoiceType) { 
@@ -641,6 +665,12 @@
                         default: msg.pitch = 1.0; 
                     } 
                     msg.rate = baseRate; 
+                    
+                    // 엔진 한계 극복: 남부 억양 미세 시뮬레이션 적용
+                    if (isSimulatedHcm) {
+                        msg.pitch = Math.max(0.1, msg.pitch * 0.85); // 15% 톤을 낮춰 남부의 둥근 느낌 구현
+                        msg.rate = Math.max(0.1, msg.rate * 0.95);   // 5% 속도를 늦춰 특유의 여유로운 템포 구현
+                    }
                     
                     let isResolved = false;
                     const safeResolve = () => { if(!isResolved) { isResolved = true; resolve(); } };
