@@ -263,6 +263,13 @@
                 </div>
                 <button class="row-btn btn-outline" style="width:100%; font-size:12px; height:40px; margin-bottom:10px;" onclick="clearAllCache()">🗑️ 전체 캐시 삭제 (초기화)</button>
 
+                <div style="margin-bottom: 10px; font-size:11px; color:var(--text-dim); text-align:left; background:rgba(0,0,0,0.4); padding:10px; border-radius:8px; border:1px solid var(--glass-border);">
+                    <div style="color:#fff; font-weight:bold; margin-bottom:5px;">🛠 디버그 정보 (FPT API)</div>
+                    <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">- 상태: <span id="dbgStatus" style="color:var(--accent-green);">대기 중</span></div>
+                    <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">- URL: <span id="dbgUrl">-</span></div>
+                    <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">- 폴링: <span id="dbgPoll">0</span> 회</div>
+                    <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">- 대기열: <span id="dbgQueue">0</span> 개</div>
+                </div>
             </div>
             <div class="row"><button class="row-btn btn-outline" style="font-size: 12px; color: #aaa;" onclick="exportData()">💾 기록 백업</button><button class="row-btn btn-outline" style="font-size: 12px; color: #aaa;" onclick="importData()">📂 기록 복구</button></div>
         </div>
@@ -401,7 +408,7 @@
 
         // ★ [기능 3] 전체 캐시 삭제
         async function clearAllCache() {
-            if(!confirm('정말 모든 음성 캐시를 삭제하시겠습니까?\\n(다음 재생 시 요금이 발생합니다)')) return;
+            if(!confirm('정말 모든 음성 캐시를 삭제하시겠습니까?\n(다음 재생 시 요금이 발생합니다)')) return;
             try {
                 const db = await initDB();
                 const tx = db.transaction("audioCache", "readwrite");
@@ -641,8 +648,8 @@
                 let maxWordReps = Math.max(savedWordVnCount, savedWordKrCount); 
                 for (; currentWordRep < maxWordReps; currentWordRep++) { 
                     if (!isPlaying || isSkipping) break; 
-                    if (currentWordRep < savedWordVnCount) { await speakText(w.A, 'vi-VN'); if (!isPlaying || isSkipping) break; } 
-                    if (currentWordRep < savedWordKrCount && !savedHideKrWord) { await speakText(w.C, 'ko-KR'); if (!isPlaying || isSkipping) break; } 
+                    if (currentWordRep < savedWordVnCount) { await speakVietnameseFpt(w.A); if (!isPlaying || isSkipping) break; } 
+                    if (currentWordRep < savedWordKrCount && !savedHideKrWord) { await speakKoreanLocal(w.C); if (!isPlaying || isSkipping) break; } 
                     let delayMs = parseInt(savedDelayTime); for(let ms=0; ms<delayMs; ms+=100) { if(!isPlaying || isSkipping) break; await new Promise(r => setTimeout(r, 100)); } 
                 } 
                 if (!isPlaying || isSkipping) continue; 
@@ -650,8 +657,8 @@
                     let maxExReps = Math.max(savedExVnCount, savedExKrCount); 
                     for (; currentExRep < maxExReps; currentExRep++) { 
                         if (!isPlaying || isSkipping) break; 
-                        if (currentExRep < savedExVnCount) { await speakText(w.D, 'vi-VN'); if (!isPlaying || isSkipping) break; } 
-                        if (currentExRep < savedExKrCount && !savedHideKrEx) { await speakText(w.F, 'ko-KR'); if (!isPlaying || isSkipping) break; } 
+                        if (currentExRep < savedExVnCount) { await speakVietnameseFpt(w.D); if (!isPlaying || isSkipping) break; } 
+                        if (currentExRep < savedExKrCount && !savedHideKrEx) { await speakKoreanLocal(w.F); if (!isPlaying || isSkipping) break; } 
                         let delayMs = parseInt(savedDelayTime); for(let ms=0; ms<delayMs; ms+=100) { if(!isPlaying || isSkipping) break; await new Promise(r => setTimeout(r, 100)); } 
                     } 
                 } 
@@ -660,6 +667,38 @@
         }
         
         function stopSleepMode() { isPlaying = false; ttsToken++; window.speechSynthesis.cancel(); cleanupCurrentAudio(); document.getElementById('bgmPlayer').pause(); releaseWakeLock(); renderWord(); }
+
+        // ★ [분리 1] 한국어 전용 재생 로직
+        function speakKoreanLocal(text) { 
+            return new Promise(resolve => {
+                const myToken = ttsToken;
+                window.speechSynthesis.cancel();
+                cleanupCurrentAudio();
+
+                setTimeout(() => {
+                    if (myToken !== ttsToken || !isPlaying || isSkipping) return resolve();
+                    const msg = new SpeechSynthesisUtterance(text); msg.lang = 'ko-KR'; msg.volume = parseFloat(savedAppVolume); msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
+                    
+                    let estimatedTime = Math.max(1500, text.length * 200 + 1000);
+                    let backupTimer = setTimeout(() => { resolve(); }, estimatedTime);
+                    
+                    msg.onend = () => { clearTimeout(backupTimer); setTimeout(resolve, 400); }; 
+                    msg.onerror = () => { clearTimeout(backupTimer); setTimeout(resolve, 400); }; 
+                    
+                    window.speechSynthesis.speak(msg); 
+                    
+                    if (navigator.userAgent.toLowerCase().indexOf('chrome') > -1) {
+                        window.speechSynthesis.pause(); window.speechSynthesis.resume();
+                    }
+                    
+                    const checker = setInterval(() => { 
+                        if (!isPlaying || isSkipping || myToken !== ttsToken) { 
+                            clearInterval(checker); clearTimeout(backupTimer); window.speechSynthesis.cancel(); resolve(); 
+                        } 
+                    }, 50); 
+                }, 100);
+            });
+        }
 
         function playIOSVoice(text, safeResolve, currentToken) { 
             setTimeout(() => {
@@ -723,7 +762,20 @@
             return new Blob([arr], { type: type });
         }
         
-        function speakText(text, lang) { 
+        const pendingTtsRequests = new Map();
+
+        // ★ [디버그 UI 갱신 함수]
+        function updateDebugUI(status, raw, url, poll, cache, voice, queue) {
+            const eStat = document.getElementById('dbgStatus'); if(!eStat) return;
+            if(status !== undefined) eStat.innerText = status;
+            if(raw !== undefined) document.getElementById('dbgRaw').innerText = raw.substring(0, 40) + '...';
+            if(url !== undefined) document.getElementById('dbgUrl').innerText = url.substring(0, 40) + '...';
+            if(poll !== undefined) document.getElementById('dbgPoll').innerText = poll;
+            if(queue !== undefined) document.getElementById('dbgQueue').innerText = queue;
+        }
+
+        // ★ [분리 2] 베트남어 FPT/Google 전용 로직
+        function speakVietnameseFpt(text) { 
             return new Promise(async resolve => { 
                 if(!text || isSkipping || !isPlaying) return resolve(); 
                 let isResolved = false; const safeResolve = () => { 
@@ -739,201 +791,256 @@
                 if (window.speechSynthesis.speaking) {
                     window.speechSynthesis.cancel();
                 }
-
                 cleanupCurrentAudio();
 
-                if (lang === 'ko-KR') { 
-                    setTimeout(() => { 
-                        if(!isPlaying || isSkipping || ttsToken !== myToken) return safeResolve(); 
-                        const msg = new SpeechSynthesisUtterance(text); msg.lang = lang; msg.volume = parseFloat(savedAppVolume); msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
-                        let estimatedTime = Math.max(1500, text.length * 200 + 1000); let backupTimer = setTimeout(() => { safeResolve(); }, estimatedTime); 
-                        msg.onend = () => { clearTimeout(backupTimer); setTimeout(safeResolve, 400); }; 
-                        msg.onerror = () => { clearTimeout(backupTimer); setTimeout(safeResolve, 400); }; 
-                        window.speechSynthesis.speak(msg); 
-                        if (navigator.userAgent.toLowerCase().indexOf('chrome') > -1) { window.speechSynthesis.pause(); window.speechSynthesis.resume(); } 
-                        const checker = setInterval(() => { if (!isPlaying || isSkipping || ttsToken !== myToken) { clearInterval(checker); clearTimeout(backupTimer); window.speechSynthesis.cancel(); safeResolve(); } }, 50); 
-                    }, 100); 
-                } else if (lang === 'vi-VN') { 
-                    if (savedHideVn) { return playIOSVoice(text, safeResolve, myToken); } 
-                    if (monthlyCharCount + text.length > 2950000) { if (!isSkipping && isPlaying) showNotice("🚨 요금 방어 모드 작동 (무료 대체)"); return playIOSVoice(text, safeResolve, myToken); } 
-                    if (!savedUnlockLimit && (monthlyCharCount + text.length > 1950000)) { if (!isSkipping && isPlaying) showNotice("🚨 200만 자 한도 (무료 대체)"); return playIOSVoice(text, safeResolve, myToken); } 
+                if (savedHideVn) { return playIOSVoice(text, safeResolve, myToken); } 
+                if (monthlyCharCount + text.length > 2950000) { if (!isSkipping && isPlaying) showNotice("🚨 요금 방어 모드 작동 (무료 대체)"); return playIOSVoice(text, safeResolve, myToken); } 
+                if (!savedUnlockLimit && (monthlyCharCount + text.length > 1950000)) { if (!isSkipping && isPlaying) showNotice("🚨 200만 자 한도 (무료 대체)"); return playIOSVoice(text, safeResolve, myToken); } 
+                
+                const rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9');
+                const chunks = splitTextIntoChunks(text, 80);
+
+                for (let i = 0; i < chunks.length; i++) {
+                    if (!isPlaying || isSkipping || ttsToken !== myToken) return safeResolve();
                     
-                    const rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9');
-                    const chunks = splitTextIntoChunks(text, 80);
+                    const chunkText = chunks[i];
+                    if (!chunkText) continue;
 
-                    for (let i = 0; i < chunks.length; i++) {
-                        if (!isPlaying || isSkipping || ttsToken !== myToken) return safeResolve();
+                    const normText = normalizeText(chunkText);
+                    const cacheKey = `fpttts:vi:${savedVoiceType}:${rate}:${normText}`;
+                    
+                    let audioBlob = null;
+                    let fallbackDirectUrl = null; // CORS 우회 직접 재생용 URL
+
+                    // ★ 1. Queue 확인 (동일 문장 중복 요청 방지)
+                    if (pendingTtsRequests.has(cacheKey)) {
+                        console.log(`[TTS] Request already in queue. Waiting...`);
+                        try {
+                            audioBlob = await pendingTtsRequests.get(cacheKey);
+                        } catch(e) {
+                            console.error("[TTS] Queued request failed", e);
+                        }
+                    } else {
+                        // 1. 메모리 캐시 
+                        audioBlob = ttsCache.get(cacheKey);
                         
-                        const chunkText = chunks[i];
-                        if (!chunkText) continue;
-
-                        const normText = normalizeText(chunkText);
-                        const cacheKey = `fpttts:vi:${savedVoiceType}:${rate}:${normText}`;
-                        let audioBlob = ttsCache.get(cacheKey);
-
+                        // 2. IndexedDB 영구 캐시
                         if (!audioBlob) {
                             audioBlob = await getFromDB(cacheKey);
                             if (audioBlob) ttsCache.set(cacheKey, audioBlob); 
                         }
 
                         if (audioBlob) {
-                            console.log(`[TTS] cache hit: ${cacheKey}`);
+                            console.log(`[TTS] Cache Hit: ${cacheKey}`);
                             incrementCacheStat('hits');
                             showNotice("✅ 저장된 음성 재생 중 (무료)");
+                            updateDebugUI("캐시 재생", "-", "-", "-", "성공", savedVoiceType, pendingTtsRequests.size);
                         } else {
-                            console.log(`[TTS] cache miss: calling FPT`);
+                            console.log(`[TTS] Cache Miss: Calling API`);
                             incrementCacheStat('misses');
                             incrementCacheStat('newFptCalls');
                             showNotice("⏳ 신규 음성 생성 (과금 가능)");
+                            updateDebugUI("API 요청 중", "-", "-", 0, "대기", savedVoiceType, pendingTtsRequests.size);
 
-                            const controller = new AbortController();
-                            const timeoutId = setTimeout(() => controller.abort(), 15000);
-                            
-                            try { 
-                                if (savedVoiceType.startsWith('fpt-')) {
-                                    const fptVoice = savedVoiceType.replace('fpt-', '');
-                                    let fptSpeed = rate <= 0.6 ? '-1' : (rate >= 1.3 ? '1' : '0');
-                                    const FPT_API_KEY = 'ihF4MZvBf2H7yFQhObOOGkedWANC31je';
-
-                                    const response = await fetch('https://api.fpt.ai/hmi/tts/v5', {
-                                        method: 'POST',
-                                        headers: {
-                                            'api-key': FPT_API_KEY,
-                                            'voice': fptVoice,
-                                            'speed': fptSpeed
-                                        },
-                                        body: chunkText,
-                                        signal: controller.signal
-                                    });
-
-                                    clearTimeout(timeoutId);
-                                    if (!response.ok) { 
-                                        console.error(`[TTS] FPT API Error: ${response.status}`);
-                                        if(response.status === 401 || response.status === 403) showNotice("❌ FPT 인증 실패 (API Key 확인 필요)");
-                                        else showNotice(`❌ FPT 네트워크 오류 (${response.status})`); 
-                                        return safeResolve(); 
-                                    }
-                                    
-                                    const data = await response.json();
-                                    if (!data || !data.audiourl) { 
-                                        console.error(`[TTS] FPT URL missing in response`, data);
-                                        showNotice("❌ FPT 오디오 URL 생성 지연/실패"); 
-                                        return safeResolve(); 
-                                    }
-                                    
-                                    console.log(`[TTS] FPT async url received: ${data.audiourl}`);
-                                    let audioRes = null;
-                                    let retry = 0;
-                                    while(retry < 12) {
-                                        console.log(`[TTS] polling audio url... attempt ${retry + 1}`);
-                                        await new Promise(r => setTimeout(r, 1200)); 
-                                        audioRes = await fetch(data.audiourl);
-                                        if(audioRes.ok) break;
-                                        retry++;
-                                    }
-                                    if(!audioRes || !audioRes.ok) { 
-                                        console.error("[TTS] Audio download failed after polling");
-                                        showNotice("❌ FPT 오디오 다운로드 실패 (404/Timeout)"); 
-                                        return safeResolve(); 
-                                    }
-                                    
-                                    console.log(`[TTS] audio ready, caching blob`);
-                                    audioBlob = await audioRes.blob();
-
-                                } else {
-                                    const GOOGLE_API_KEY = 'AIzaSyCNWYad51NeCEiU7uf6PRyXFUKYur-fDa0'; 
-                                    const requestBody = { input: { text: chunkText }, voice: { languageCode: 'vi-VN', name: savedVoiceType }, audioConfig: { audioEncoding: 'MP3', speakingRate: rate, pitch: 0.0, volumeGainDb: 4.0 } }; 
-                                    
-                                    const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`, { 
-                                        method: 'POST', 
-                                        headers: { 'Content-Type': 'application/json' }, 
-                                        body: JSON.stringify(requestBody),
-                                        signal: controller.signal
-                                    }); 
-                                    
-                                    clearTimeout(timeoutId);
-                                    if (!response.ok) { showNotice("❌ 구글 API 응답 오류"); return safeResolve(); } 
-                                    
-                                    const data = await response.json(); 
-                                    if (!data || !data.audioContent) { showNotice("❌ 구글 API 오디오 데이터 없음"); return safeResolve(); }
-                                    
-                                    audioBlob = base64ToBlob(data.audioContent, 'audio/mp3');
-                                }
-
-                                if(!isPlaying || isSkipping || ttsToken !== myToken) return safeResolve();
-
-                                monthlyCharCount += chunkText.length; localStorage.setItem('vn_monthly_chars', monthlyCharCount); 
+                            const fetchPromise = (async () => {
+                                const controller = new AbortController();
+                                const timeoutId = setTimeout(() => controller.abort(), 20000); // 통합 Timeout 증가
                                 
-                                ttsCache.set(cacheKey, audioBlob);
-                                const isSaved = await saveToDB(cacheKey, audioBlob, normText, savedVoiceType, rate);
-                                if (!isSaved) {
-                                    console.error("[TTS] cache save failed: quota exceeded");
-                                    showNotice("⚠️ 음성 저장 실패: 다음 재생 시 மீண்டும் 과금될 수 있습니다.");
-                                }
+                                try { 
+                                    if (savedVoiceType.startsWith('fpt-')) {
+                                        const fptVoice = savedVoiceType.replace('fpt-', '');
+                                        let fptSpeed = rate <= 0.6 ? '-1' : (rate >= 1.3 ? '1' : '0');
+                                        const FPT_API_KEY = 'ihF4MZvBf2H7yFQhObOOGkedWANC31je';
 
-                            } catch (e) { 
-                                clearTimeout(timeoutId);
-                                if (e.name === 'AbortError') {
-                                    console.error("[TTS] Timeout");
-                                    showNotice("⏳ API 통신 시간 초과");
-                                } else {
-                                    console.error("[TTS] Network Error:", e);
-                                    showNotice("❌ 통신 지연 및 네트워크 오류"); 
-                                }
-                                return safeResolve(); 
-                            } 
-                        }
+                                        const response = await fetch('https://api.fpt.ai/hmi/tts/v5', {
+                                            method: 'POST',
+                                            headers: {
+                                                'api-key': FPT_API_KEY,
+                                                'voice': fptVoice,
+                                                'speed': fptSpeed
+                                            },
+                                            body: chunkText, // Raw Text Body
+                                            signal: controller.signal
+                                        });
 
-                        await new Promise(async (chunkResolve) => {
-                            if(!isPlaying || isSkipping || ttsToken !== myToken) return chunkResolve();
+                                        console.log('[FPT] status:', response.status);
+                                        updateDebugUI(`응답: ${response.status}`);
+                                        
+                                        const rawText = await response.text();
+                                        console.log('[FPT] raw response:', rawText);
+                                        updateDebugUI(undefined, rawText);
 
-                            await new Promise(r => setTimeout(r, 150));
-                            if(!isPlaying || isSkipping || ttsToken !== myToken) return chunkResolve();
+                                        if (!response.ok) { 
+                                            if (response.status === 401 || response.status === 403) throw new Error("FPT 인증 실패 (API Key 오류)");
+                                            throw new Error(`FPT 응답 오류 (${response.status})`);
+                                        }
+                                        
+                                        // ★ 다중 패턴 응답 파싱
+                                        let parsedUrl = "";
+                                        try {
+                                            const data = JSON.parse(rawText);
+                                            parsedUrl = data.audiourl || data.async || data.url || (data.data && data.data.url) || "";
+                                        } catch(e) {
+                                            if (rawText.startsWith('http')) parsedUrl = rawText.trim();
+                                        }
+
+                                        if (!parsedUrl) throw new Error("FPT 응답에 오디오 URL 없음");
+                                        console.log(`[FPT] Extracted URL: ${parsedUrl}`);
+                                        updateDebugUI(undefined, undefined, parsedUrl);
+
+                                        // ★ Polling 로직 도입 (준비 완료까지 대기)
+                                        let finalBlob = null;
+                                        await new Promise(r => setTimeout(r, 1200)); // 초기 여유 대기
+
+                                        for(let pollIdx = 1; pollIdx <= 12; pollIdx++) {
+                                            if (!isPlaying || isSkipping || ttsToken !== myToken) break;
+                                            updateDebugUI(undefined, undefined, undefined, pollIdx);
+                                            console.log(`[FPT] polling attempt ${pollIdx}`);
+
+                                            try {
+                                                const pollRes = await fetch(parsedUrl);
+                                                if (pollRes.status === 200) {
+                                                    const contentType = pollRes.headers.get('content-type') || '';
+                                                    if (contentType.includes('audio') || contentType.includes('mpeg') || contentType.includes('octet-stream')) {
+                                                        finalBlob = await pollRes.blob();
+                                                        if (finalBlob.size > 0) {
+                                                            console.log(`[FPT] Audio ready! Size: ${finalBlob.size}`);
+                                                            break;
+                                                        }
+                                                    }
+                                                } else if (pollRes.status >= 500) {
+                                                    throw new Error(`FPT 서버 내부 오류 (${pollRes.status})`);
+                                                }
+                                            } catch(err) {
+                                                console.log("[FPT] Polling network err:", err);
+                                                // CORS 이슈 등 fetch 실패 시 직접 url을 재생하도록 fallback 세팅
+                                                fallbackDirectUrl = parsedUrl;
+                                            }
+                                            await new Promise(r => setTimeout(r, 1000));
+                                        }
+
+                                        clearTimeout(timeoutId);
+
+                                        if (!finalBlob) {
+                                            if (fallbackDirectUrl) {
+                                                console.warn("[FPT] Blob fetch failed, using fallback URL.");
+                                                showNotice("⚠️ 직접 재생만 가능 / 저장 실패 → 다음 재생 시 과금");
+                                                return null; // blob 없이 return
+                                            }
+                                            throw new Error("FPT 오디오 준비 지연 (타임아웃)");
+                                        }
+                                        return finalBlob;
+
+                                    } else {
+                                        // 구글 클라우드 분기
+                                        const GOOGLE_API_KEY = 'AIzaSyCNWYad51NeCEiU7uf6PRyXFUKYur-fDa0'; 
+                                        const requestBody = { input: { text: chunkText }, voice: { languageCode: 'vi-VN', name: savedVoiceType }, audioConfig: { audioEncoding: 'MP3', speakingRate: rate, pitch: 0.0, volumeGainDb: 4.0 } }; 
+                                        
+                                        const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`, { 
+                                            method: 'POST', 
+                                            headers: { 'Content-Type': 'application/json' }, 
+                                            body: JSON.stringify(requestBody),
+                                            signal: controller.signal
+                                        }); 
+                                        
+                                        clearTimeout(timeoutId);
+                                        if (!response.ok) throw new Error(`구글 API 오류 (${response.status})`);
+                                        
+                                        const data = await response.json(); 
+                                        if (!data || !data.audioContent) throw new Error("구글 API 오디오 데이터 없음");
+                                        
+                                        return base64ToBlob(data.audioContent, 'audio/mp3');
+                                    }
+                                } catch (e) { 
+                                    clearTimeout(timeoutId);
+                                    throw e; 
+                                } 
+                            })();
+
+                            // 큐에 넣기
+                            pendingTtsRequests.set(cacheKey, fetchPromise);
+                            updateDebugUI(undefined, undefined, undefined, undefined, undefined, undefined, pendingTtsRequests.size);
 
                             try {
+                                audioBlob = await fetchPromise;
+                                if (audioBlob) {
+                                    ttsCache.set(cacheKey, audioBlob);
+                                    const isSaved = await saveToDB(cacheKey, audioBlob, normText, savedVoiceType, rate);
+                                    if (!isSaved) {
+                                        console.error("[TTS] cache save failed: DB error");
+                                        showNotice("⚠️ 음성 저장 실패: 다음 재생 시 ફરી 과금될 수 있습니다.");
+                                    }
+                                }
+                            } catch(err) {
+                                console.error("[TTS] Promise chain error:", err);
+                                if (err.name === 'AbortError') showNotice("⏳ API 통신 시간 초과");
+                                else showNotice(`❌ ${err.message}`);
+                                pendingTtsRequests.delete(cacheKey);
+                                return safeResolve(); 
+                            }
+                            pendingTtsRequests.delete(cacheKey);
+                            updateDebugUI(undefined, undefined, undefined, undefined, undefined, undefined, pendingTtsRequests.size);
+                        }
+                    }
+
+                    // ★ [재생 로직]
+                    await new Promise(async (chunkResolve) => {
+                        if(!isPlaying || isSkipping || ttsToken !== myToken) return chunkResolve();
+
+                        await new Promise(r => setTimeout(r, 150)); // OS Ducking 해제 대기
+                        if(!isPlaying || isSkipping || ttsToken !== myToken) return chunkResolve();
+
+                        try {
+                            // CORS 폴백 재생인지, 정상 Blob 재생인지 판별
+                            if (fallbackDirectUrl) {
+                                currentApiAudio = new Audio(fallbackDirectUrl);
+                            } else if (audioBlob) {
                                 currentAudioUrl = URL.createObjectURL(audioBlob);
                                 currentApiAudio = new Audio(currentAudioUrl);
-
-                                currentApiAudio.volume = parseFloat(savedAppVolume);
-                                currentApiAudio.muted = false;
-                                currentApiAudio.playbackRate = 1.0;
-                                currentApiAudio.defaultPlaybackRate = 1.0;
-
-                                currentApiAudio.onended = () => { cleanupCurrentAudio(); chunkResolve(); };
-                                currentApiAudio.onerror = () => { cleanupCurrentAudio(); chunkResolve(); };
-
-                                currentApiAudio.oncanplaythrough = () => {
-                                    if (currentApiAudio) {
-                                        currentApiAudio.volume = parseFloat(savedAppVolume);
-                                        currentApiAudio.muted = false;
-                                    }
-                                };
-
-                                const playPromise = currentApiAudio.play();
-                                if (playPromise !== undefined) {
-                                    playPromise.catch(e => {
-                                        console.error("[TTS] Playback blocked:", e);
-                                        cleanupCurrentAudio();
-                                        chunkResolve();
-                                    });
-                                }
-
-                                const checker = setInterval(() => {
-                                    if (!isPlaying || isSkipping || ttsToken !== myToken) {
-                                        clearInterval(checker);
-                                        cleanupCurrentAudio();
-                                        chunkResolve();
-                                    }
-                                }, 50);
-                            } catch(e) { 
-                                cleanupCurrentAudio();
-                                chunkResolve(); 
+                            } else {
+                                return chunkResolve(); // 재생 불가
                             }
-                        });
-                    }
-                    
-                    safeResolve();
-                } 
+
+                            currentApiAudio.volume = parseFloat(savedAppVolume);
+                            currentApiAudio.muted = false;
+                            currentApiAudio.playbackRate = 1.0;
+                            currentApiAudio.defaultPlaybackRate = 1.0;
+
+                            currentApiAudio.onended = () => { cleanupCurrentAudio(); chunkResolve(); };
+                            currentApiAudio.onerror = () => { cleanupCurrentAudio(); chunkResolve(); };
+
+                            currentApiAudio.oncanplaythrough = () => {
+                                if (currentApiAudio) {
+                                    currentApiAudio.volume = parseFloat(savedAppVolume);
+                                    currentApiAudio.muted = false;
+                                }
+                            };
+
+                            const playPromise = currentApiAudio.play();
+                            if (playPromise !== undefined) {
+                                playPromise.catch(e => {
+                                    console.error("[TTS] 브라우저 재생 차단:", e);
+                                    cleanupCurrentAudio();
+                                    chunkResolve();
+                                });
+                            }
+
+                            const checker = setInterval(() => {
+                                if (!isPlaying || isSkipping || ttsToken !== myToken) {
+                                    clearInterval(checker);
+                                    cleanupCurrentAudio();
+                                    chunkResolve();
+                                }
+                            }, 50);
+                        } catch(e) { 
+                            console.error("[TTS] 재생 설정 중 에러:", e);
+                            cleanupCurrentAudio();
+                            chunkResolve(); 
+                        }
+                    });
+                }
+                
+                safeResolve();
             }); 
         }
         
