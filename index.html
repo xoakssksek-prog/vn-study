@@ -145,7 +145,7 @@
             <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 15px; margin-bottom: 15px;">
                 
                 <div style="margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center; background: rgba(244, 63, 94, 0.15); padding: 12px; border-radius: 10px; border: 1px solid rgba(244, 63, 94, 0.4);">
-                    <span style="color:#f43f5e; font-weight:900; font-size: 14px;">🤫 🇻🇳 무음 모드 (요금 완전 차단)</span>
+                    <span style="color:#f43f5e; font-weight:900; font-size: 14px;">💸 구글 과금 차단 (무료 폰 음성 대체)</span>
                     <input type="checkbox" id="hideVnToggle" style="transform: scale(1.3);" onchange="saveSettings(); notify(this, 'hideVn')">
                 </div>
                 
@@ -228,7 +228,9 @@
                 </div>
                 <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;"><span>🔢 학습 횟수 기록</span><input type="checkbox" id="hitCountToggle" onchange="saveSettings(); notify(this, 'hit')"></div>
                 <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;"><span>🌧️ 수면 유도음</span><select id="sleepSound" onchange="saveSettings(); if(isPlaying) playBackgroundSound();" style="background:#020617; color:#fff; border:none; padding:4px; border-radius:5px;"><option value="none">없음</option><option value="rain">빗소리</option><option value="ocean">파도 소리</option><option value="forest">숲 소리</option><option value="fire">장작 소리</option><option value="camping">캠핑장 소리</option></select></div>
-                <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;"><span>⏰ 타이머</span><select id="sleepTimer" onchange="saveSettings()" style="background:#020617; color:#fff; border:none; padding:4px; border-radius:5px;"><option value="0">OFF</option><option value="60">60분</option><option value="120">120분</option><option value="240">240분</option></select></div>
+                
+                <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;"><span>⏰ 타이머</span><select id="sleepTimer" onchange="saveSettings()" style="background:#020617; color:#fff; border:none; padding:4px; border-radius:5px;"><option value="0">OFF</option><option value="60">60분</option><option value="120">120분</option><option value="240">240분</option><option value="300">300분</option><option value="360">360분</option><option value="420">420분</option><option value="480">480분</option><option value="540">540분</option></select></div>
+                
                 <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;"><span>⏳ 대기 시간</span><select id="delayTime" onchange="saveSettings(); showNotice('⏳ 대기 시간이 변경되었습니다.')" style="background:#020617; color:#fff; border:none; padding:4px; border-radius:5px;"><option value="0">없음</option><option value="1000">1초</option><option value="2000">2초</option><option value="3000">3초</option></select></div>
                 <div style="display:flex; justify-content:space-between; align-items:center;"><span>🗣️ 발음 속도</span><select id="voiceRate" onchange="saveSettings()" style="background:#020617; color:#fff; border:none; padding:4px; border-radius:5px;"><option value="0.6">느림</option><option value="0.9">표준</option><option value="1.3">빠름</option></select></div>
             </div>
@@ -376,7 +378,7 @@
                 case 'hit': msg = isOn ? "🔢 횟수 기록: 단어별 재생 횟수를 기록합니다." : "🚫 기록 중단: 재생 횟수를 더 이상 기록하지 않습니다."; break;
                 case 'krWord': msg = isOn ? "🇰🇷 본문 한글 해제" : "🔊 한글 동시 학습"; break;
                 case 'krEx': msg = isOn ? "🇰🇷 예문 한글 해제" : "🔊 예문 한글 활성"; break;
-                case 'hideVn': msg = isOn ? "🤫 베트남어 음성이 꺼졌습니다. (구글 요금 완전 차단됨)" : "🔊 베트남어 음성이 켜졌습니다. (구글 프리미엄 AI 작동)"; break;
+                case 'hideVn': msg = isOn ? "💸 구글 음성 차단됨 (요금 0원, 폰 기본 음성으로 읽습니다)" : "🔊 구글 프리미엄 AI가 켜졌습니다."; break;
                 case 'unlockLimit': msg = isOn ? "🔓 200만자 락 해제됨 (절대 차단: 300만 자)" : "🔒 200만자 안전 락이 다시 설정되었습니다."; break;
             }
             showNotice(msg);
@@ -844,28 +846,30 @@
                 };
 
                 if (lang === 'ko-KR') {
+                    window.speechSynthesis.cancel(); 
+                    
                     setTimeout(() => {
                         if(!isPlaying || isSkipping) return safeResolve();
-                        
-                        // 🌟 [버그 해결 핵심 1] 잠든 한국어 엔진 강제 기상 및 쓰레기값 초기화
-                        window.speechSynthesis.cancel();
                         
                         const msg = new SpeechSynthesisUtterance(text); 
                         msg.lang = lang; 
                         msg.volume = parseFloat(savedAppVolume); 
                         msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
                         
-                        // 🌟 [버그 해결 핵심 2] 무한 대기 멈춤 방지용 '강제 패스 타이머'
-                        // 글자 길이에 비례하여 시간을 계산하고, 그 시간이 지나도 묵묵부답이면 강제로 통과시킴
                         let estimatedTime = Math.max(1500, text.length * 200 + 1000); 
                         let backupTimer = setTimeout(() => {
-                            safeResolve(); // 브라우저가 에러나서 멈춰도 무조건 다음으로 넘어감
+                            safeResolve(); 
                         }, estimatedTime);
 
                         msg.onend = () => { clearTimeout(backupTimer); safeResolve(); }; 
                         msg.onerror = () => { clearTimeout(backupTimer); safeResolve(); }; 
                         
                         window.speechSynthesis.speak(msg); 
+                        
+                        if (navigator.userAgent.toLowerCase().indexOf('chrome') > -1) {
+                            window.speechSynthesis.pause();
+                            window.speechSynthesis.resume();
+                        }
                         
                         const checker = setInterval(() => {
                             if (!isPlaying || isSkipping) {
@@ -875,20 +879,11 @@
                                 safeResolve();
                             }
                         }, 50);
-                    }, 50); 
+                    }, 100); 
                 } 
                 else if (lang === 'vi-VN') {
                     if (savedHideVn) {
-                        let readingTime = Math.max(1500, text.length * 150); 
-                        let elapsed = 0;
-                        let checker = setInterval(() => {
-                            elapsed += 50;
-                            if (!isPlaying || isSkipping || elapsed >= readingTime) {
-                                clearInterval(checker);
-                                safeResolve();
-                            }
-                        }, 50);
-                        return;
+                        return playIOSVoice(text, safeResolve);
                     }
 
                     if (monthlyCharCount + text.length > 2950000) {
