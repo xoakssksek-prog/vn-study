@@ -360,6 +360,83 @@
             });
         }
 
+        // ==========================================
+        // TTS FIX START: 중앙 Playback Queue (iOS Safari 오디오 엔진 충돌 방지)
+        // ==========================================
+        let playbackQueue = [];
+        let isPlaybackRunning = false;
+        let playbackSessionId = 0;
+
+        function clearPlaybackQueue() {
+            playbackSessionId++;
+            playbackQueue.forEach(t => t.resolve());
+            playbackQueue = [];
+        }
+
+        function enqueuePlayback(playFn) {
+            return new Promise(resolve => {
+                playbackQueue.push({ playFn, resolve, sessionId: playbackSessionId });
+                processPlaybackQueue();
+            });
+        }
+
+        async function processPlaybackQueue() {
+            if (isPlaybackRunning) return;
+            isPlaybackRunning = true;
+
+            while (playbackQueue.length > 0) {
+                const task = playbackQueue.shift();
+                
+                if (task.sessionId !== playbackSessionId || !isPlaying || isSkipping) {
+                    task.resolve();
+                    continue;
+                }
+
+                await new Promise(stepResolve => {
+                    let stepDone = false;
+                    
+                    const safeNext = () => {
+                        if (stepDone) return;
+                        stepDone = true;
+                        clearTimeout(fallbackTimer);
+                        clearInterval(cancelChecker);
+                        
+                        // iOS 엔진 전환 안정화를 위한 딜레이 (교차 재생 충돌 방지 핵심)
+                        setTimeout(() => {
+                            task.resolve();
+                            stepResolve();
+                        }, 250);
+                    };
+
+                    // 무한 대기 방지용 Fallback (15초)
+                    const fallbackTimer = setTimeout(() => {
+                        safeCancelTTS();
+                        stopWebAudio();
+                        safeNext();
+                    }, 15000);
+
+                    // 외부 중단(스킵, 일시정지) 감지
+                    const cancelChecker = setInterval(() => {
+                        if (task.sessionId !== playbackSessionId || !isPlaying || isSkipping) {
+                            safeCancelTTS();
+                            stopWebAudio();
+                            safeNext();
+                        }
+                    }, 50);
+
+                    try {
+                        task.playFn(safeNext, task.sessionId);
+                    } catch(e) {
+                        safeNext();
+                    }
+                });
+            }
+            isPlaybackRunning = false;
+        }
+        // ==========================================
+        // TTS FIX END
+        // ==========================================
+
         async function saveCacheToDB(key, payload) {
             memoryCache.set(key, payload);
             if (!db) return;
@@ -447,8 +524,9 @@
             }
         }
 
-        function playBase64WebAudio(base64Str, token) {
-            return new Promise(async (resolve, reject) => {
+        // TTS FIX START - Playback API Queue 기반 재작성
+        function playBase64WebAudio(base64Str) {
+            return enqueuePlayback(async (safeNext) => {
                 try {
                     if (!audioCtx) {
                         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -459,8 +537,6 @@
                     const arrayBuf = base64ToArrayBuffer(base64Str);
                     
                     audioCtx.decodeAudioData(arrayBuf, (audioBuffer) => {
-                        if (!isPlaying || isSkipping || ttsToken !== token) return resolve();
-
                         stopWebAudio();
                         webAudioSource = audioCtx.createBufferSource();
                         webAudioSource.buffer = audioBuffer;
@@ -473,59 +549,31 @@
 
                         webAudioSource.onended = () => {
                             stopWebAudio();
-                            resolve();
+                            safeNext();
                         };
 
                         webAudioSource.start(0);
-
-                        const fallbackTime = (audioBuffer.duration * 1000) + 1500;
-                        const fallbackTimer = setTimeout(() => {
-                            stopWebAudio();
-                            resolve();
-                        }, fallbackTime);
-
-                        const checker = setInterval(() => {
-                            if (!isPlaying || isSkipping || ttsToken !== token) {
-                                clearInterval(checker);
-                                clearTimeout(fallbackTimer);
-                                stopWebAudio();
-                                resolve();
-                            }
-                        }, 50);
-
                     }, (e) => {
-                        reject(new Error("Audio Decode Failed"));
+                        safeNext();
                     });
                 } catch(e) {
-                    reject(e);
+                    safeNext();
                 }
             });
         }
 
-        function playFallbackUrl(url, token) {
-            return new Promise((resolve) => {
+        function playFallbackUrl(url) {
+            return enqueuePlayback((safeNext) => {
                 const audio = new Audio(url);
                 audio.volume = parseFloat(savedAppVolume);
                 
-                let fallbackTimer;
-                audio.onloadedmetadata = () => {
-                    if (audio.duration && audio.duration > 0 && audio.duration !== Infinity) {
-                        fallbackTimer = setTimeout(() => { audio.pause(); resolve(); }, (audio.duration * 1000) + 2000);
-                    }
-                };
-                audio.onended = () => { clearTimeout(fallbackTimer); resolve(); };
-                audio.onerror = () => { clearTimeout(fallbackTimer); resolve(); };
+                audio.onended = () => safeNext();
+                audio.onerror = () => safeNext();
                 
-                audio.play().catch(() => resolve());
-                
-                const checker = setInterval(() => {
-                    if (!isPlaying || isSkipping || ttsToken !== token) {
-                        clearInterval(checker); clearTimeout(fallbackTimer);
-                        audio.pause(); resolve();
-                    }
-                }, 50);
+                audio.play().catch(() => safeNext());
             });
         }
+        // TTS FIX END
 
         initDB();
         // ==========================================
@@ -662,7 +710,9 @@
             savedIndex = index; localStorage.setItem('vn_index', savedIndex); 
             if (isPlaying) { 
                 isSkipping = true; 
-                ttsToken++; safeCancelTTS(); 
+                ttsToken++; 
+                clearPlaybackQueue(); // TTS FIX
+                safeCancelTTS(); 
                 stopWebAudio(); 
                 currentWordRep = 0; currentExRep = 0; 
             } 
@@ -674,7 +724,7 @@
         function toggleStar() { const w = words[savedIndex]; if (starredWords[w.A]) delete starredWords[w.A]; else starredWords[w.A] = true; localStorage.setItem('vn_starred', JSON.stringify(starredWords)); renderWord(); }
         function toggleComplete() { let w = words[savedIndex]; if (completedWords[w.A]) { delete completedWords[w.A]; } else { completedWords[w.A] = true; showNotice('✅ 암기 끝! 숨김 처리되었습니다.'); moveWord(1); } localStorage.setItem('vn_completed', JSON.stringify(completedWords)); renderWord(); }
         function toggleMainReview() { reviewMode = document.getElementById('mainReviewMode').checked; localStorage.setItem('vn_reviewMode', reviewMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); applyModeFilter(); if(wasPlaying) startSleepMode(); }
-        function toggleMainShuffle() { savedShuffle = document.getElementById('mainShuffleMode').checked; localStorage.setItem('vn_shuffle', savedShuffle); if(isPlaying) { isSkipping = true; ttsToken++; safeCancelTTS(); stopWebAudio(); } renderWord(); }
+        function toggleMainShuffle() { savedShuffle = document.getElementById('mainShuffleMode').checked; localStorage.setItem('vn_shuffle', savedShuffle); if(isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); safeCancelTTS(); stopWebAudio(); } renderWord(); }
         async function changeStudyModeMain(el) { savedStudyMode = el.value; localStorage.setItem('vn_studyMode', savedStudyMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); await loadData(savedStudyMode); if(wasPlaying) startSleepMode(); }
         
         function updateUsageDisplay() { 
@@ -751,15 +801,17 @@
             const p = document.getElementById('bgmPlayer'); 
             if (p) { if (bgmGainNode) { bgmGainNode.gain.value = parseFloat(savedBgmVolume) * 10.0; } else { p.volume = parseFloat(savedBgmVolume); } } 
             
-            if(isPlaying) { isSkipping = true; ttsToken++; safeCancelTTS(); stopWebAudio(); } 
+            if(isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); safeCancelTTS(); stopWebAudio(); } 
         }
 
         function adjustVolume(targetId, amount) { const slider = document.getElementById(targetId); let newVal = parseFloat(slider.value) + amount; if (newVal > 1) newVal = 1; if (newVal < 0) newVal = 0; slider.value = newVal.toFixed(1); saveSettings(); if (targetId === 'appVolume') showNotice('🔊 볼륨이 조절되었습니다.'); else showNotice('🎵 수면 유도음 볼륨이 조절되었습니다.'); }
-        function changeGlobalCount(type, n) { if (type === 'wordVn') { savedWordVnCount = Math.min(99, Math.max(0, savedWordVnCount + n)); localStorage.setItem('vn_wordVnCount', savedWordVnCount); document.getElementById('wordVnCountDisplay').innerText = savedWordVnCount; } else if (type === 'wordKr') { savedWordKrCount = Math.min(99, Math.max(0, savedWordKrCount + n)); localStorage.setItem('vn_wordKrCount', savedWordKrCount); document.getElementById('wordKrCountDisplay').innerText = savedWordKrCount; } else if (type === 'exVn') { savedExVnCount = Math.min(99, Math.max(0, savedExVnCount + n)); localStorage.setItem('vn_exVnCount', savedExVnCount); document.getElementById('exVnCountDisplay').innerText = savedExVnCount; } else if (type === 'exKr') { savedExKrCount = Math.min(99, Math.max(0, savedExKrCount + n)); localStorage.setItem('vn_exKrCount', savedExKrCount); document.getElementById('exKrCountDisplay').innerText = savedExKrCount; } if(isPlaying) { isSkipping = true; ttsToken++; safeCancelTTS(); stopWebAudio(); } }
+        function changeGlobalCount(type, n) { if (type === 'wordVn') { savedWordVnCount = Math.min(99, Math.max(0, savedWordVnCount + n)); localStorage.setItem('vn_wordVnCount', savedWordVnCount); document.getElementById('wordVnCountDisplay').innerText = savedWordVnCount; } else if (type === 'wordKr') { savedWordKrCount = Math.min(99, Math.max(0, savedWordKrCount + n)); localStorage.setItem('vn_wordKrCount', savedWordKrCount); document.getElementById('wordKrCountDisplay').innerText = savedWordKrCount; } else if (type === 'exVn') { savedExVnCount = Math.min(99, Math.max(0, savedExVnCount + n)); localStorage.setItem('vn_exVnCount', savedExVnCount); document.getElementById('exVnCountDisplay').innerText = savedExVnCount; } else if (type === 'exKr') { savedExKrCount = Math.min(99, Math.max(0, savedExKrCount + n)); localStorage.setItem('vn_exKrCount', savedExKrCount); document.getElementById('exKrCountDisplay').innerText = savedExKrCount; } if(isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); safeCancelTTS(); stopWebAudio(); } }
         
         function moveWord(direction) { 
             isSkipping = true; skipDirection = direction; 
-            ttsToken++; safeCancelTTS(); 
+            ttsToken++; 
+            clearPlaybackQueue(); // TTS FIX
+            safeCancelTTS(); 
             stopWebAudio(); 
             if (direction === 1) { advanceIndex(); } else { savedIndex--; if (savedIndex < 0) savedIndex = words.length - 1; } 
             renderWord(); 
@@ -797,7 +849,16 @@
             } 
         }
         
-        function stopSleepMode() { isPlaying = false; ttsToken++; safeCancelTTS(); stopWebAudio(); document.getElementById('bgmPlayer').pause(); releaseWakeLock(); renderWord(); }
+        function stopSleepMode() { 
+            isPlaying = false; 
+            ttsToken++; 
+            clearPlaybackQueue(); // TTS FIX
+            safeCancelTTS(); 
+            stopWebAudio(); 
+            document.getElementById('bgmPlayer').pause(); 
+            releaseWakeLock(); 
+            renderWord(); 
+        }
 
         // 사용한 음성객체를 배열에서 지워주는 청소 함수
         function cleanupUtterance(msg) {
@@ -805,67 +866,38 @@
             if (idx !== -1) window.keepAliveUtterances.splice(idx, 1);
         }
 
+        // TTS FIX START - Playback API Queue 기반 재작성
         function speakKoreanLocal(text) { 
-            return new Promise(resolve => {
-                const myToken = ttsToken;
+            return enqueuePlayback((safeNext) => {
                 stopWebAudio();
-
-                setTimeout(() => {
-                    if (myToken !== ttsToken || !isPlaying || isSkipping) return resolve();
-                    const msg = new SpeechSynthesisUtterance(text); 
-                    
-                    // ★ 아이폰 버그 1: 쓰레기통(GC) 방지용 전역 금고에 담기
-                    window.keepAliveUtterances.push(msg);
-
-                    msg.lang = 'ko-KR'; 
-                    msg.volume = parseFloat(savedAppVolume); 
-                    msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
-                    
-                    let estimatedTime = Math.max(1500, text.length * 250 + 1000);
-                    
-                    // 기존처럼 cancel()을 부르지 않고 얌전하게 다음으로 패스
-                    let backupTimer = setTimeout(() => { 
-                        cleanupUtterance(msg);
-                        resolve(); 
-                    }, estimatedTime);
-                    
-                    msg.onend = () => { 
-                        clearTimeout(backupTimer); 
-                        cleanupUtterance(msg);
-                        setTimeout(() => resolve(), 300); 
-                    }; 
-                    msg.onerror = () => { 
-                        clearTimeout(backupTimer); 
-                        cleanupUtterance(msg);
-                        setTimeout(() => resolve(), 300); 
-                    }; 
-                    
-                    window.speechSynthesis.speak(msg); 
-                    
-                    const checker = setInterval(() => { 
-                        if (!isPlaying || isSkipping || myToken !== ttsToken) { 
-                            clearInterval(checker); clearTimeout(backupTimer); 
-                            safeCancelTTS(); // 스킵할때만 안전한 취소 실행
-                            cleanupUtterance(msg);
-                            resolve(); 
-                        } 
-                    }, 50); 
-                }, 150);
+                const msg = new SpeechSynthesisUtterance(text); 
+                window.keepAliveUtterances.push(msg);
+                msg.lang = 'ko-KR'; 
+                msg.volume = parseFloat(savedAppVolume); 
+                msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
+                
+                msg.onend = () => { 
+                    cleanupUtterance(msg);
+                    safeNext(); 
+                }; 
+                msg.onerror = () => { 
+                    cleanupUtterance(msg);
+                    safeNext(); 
+                }; 
+                
+                window.speechSynthesis.speak(msg); 
             });
         }
 
-        function playIOSVoice(text, safeResolve, currentToken) { 
-            setTimeout(() => {
-                if (currentToken !== ttsToken || !isPlaying || isSkipping) return safeResolve();
+        function playIOSVoice(text) { 
+            return enqueuePlayback((safeNext) => {
                 const msg = new SpeechSynthesisUtterance(text); 
-                
-                // ★ 여기도 똑같이 삭제 방어
                 window.keepAliveUtterances.push(msg);
-
                 msg.lang = 'vi-VN'; 
                 msg.volume = parseFloat(savedAppVolume); 
                 msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
-                let voices = window.speechSynthesis.getVoices(); let vnVoices = voices.filter(v => v.lang.startsWith('vi')); 
+                let voices = window.speechSynthesis.getVoices(); 
+                let vnVoices = voices.filter(v => v.lang.startsWith('vi')); 
                 if(vnVoices.length > 0) { 
                     let isMale = savedVoiceType.includes('-B') || savedVoiceType.includes('-D') || savedVoiceType.includes('minhquang') || savedVoiceType.includes('leminh');
                     let maleVoice = vnVoices.find(v => v.name.toLowerCase().includes('nam') || v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('an'));
@@ -876,37 +908,19 @@
                     else msg.voice = vnVoices[0];
                 } 
                 
-                let estimatedTime = Math.max(1500, text.length * 200 + 1000);
-                
-                // 자연스럽게 넘기기
-                let backupTimer = setTimeout(() => { 
-                    cleanupUtterance(msg);
-                    safeResolve(); 
-                }, estimatedTime);
-                
                 msg.onend = () => { 
-                    clearTimeout(backupTimer); 
                     cleanupUtterance(msg);
-                    setTimeout(safeResolve, 300); 
+                    safeNext(); 
                 }; 
                 msg.onerror = () => { 
-                    clearTimeout(backupTimer); 
                     cleanupUtterance(msg);
-                    setTimeout(safeResolve, 300); 
+                    safeNext(); 
                 }; 
                 
                 window.speechSynthesis.speak(msg); 
-                
-                const checker = setInterval(() => { 
-                    if (!isPlaying || isSkipping || currentToken !== ttsToken) { 
-                        clearInterval(checker); clearTimeout(backupTimer); 
-                        safeCancelTTS();
-                        cleanupUtterance(msg);
-                        safeResolve(); 
-                    } 
-                }, 50); 
-            }, 150);
+            });
         }
+        // TTS FIX END
         
         function updateDebugUI(status, raw, url, poll) {
             try {
@@ -932,8 +946,10 @@
                     stopWebAudio();
 
                     if (savedHideVn) { 
-                        playIOSVoice(text, safeResolve, myToken); 
-                        return;
+                        // TTS FIX START
+                        await playIOSVoice(text); 
+                        return safeResolve();
+                        // TTS FIX END
                     } 
                     
                     const rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9');
@@ -970,7 +986,9 @@
 
                             if (monthlyCharCount + chunkText.length > savedApiLimit) {
                                 updateCacheStatus("월간 한도 초과 (무료 음성 대체)", false);
-                                await new Promise(r => playIOSVoice(chunkText, r, myToken));
+                                // TTS FIX START
+                                await playIOSVoice(chunkText);
+                                // TTS FIX END
                                 i++; 
                                 continue; 
                             }
@@ -1083,14 +1101,18 @@
                             } catch (e) {
                                 updateCacheStatus("API 재생 실패 (무료 폰 음성 대체)", false);
                                 updateDebugUI(`요청 실패`);
-                                await new Promise(r => playIOSVoice(chunkText, r, myToken));
+                                // TTS FIX START
+                                await playIOSVoice(chunkText);
+                                // TTS FIX END
                                 i++; continue; 
                             }
                         }
 
                         if (b64Data) {
                             try {
-                                await playBase64WebAudio(b64Data, myToken);
+                                // TTS FIX START
+                                await playBase64WebAudio(b64Data);
+                                // TTS FIX END
                             } catch(err) {
                                 updateDebugUI("재생 오류 감지");
                                 if (usedCache) {
@@ -1100,7 +1122,9 @@
                                 }
                             }
                         } else if (fallbackUrl) {
-                            await playFallbackUrl(fallbackUrl, myToken);
+                            // TTS FIX START
+                            await playFallbackUrl(fallbackUrl);
+                            // TTS FIX END
                         }
                         
                         if (!retryThisChunk) {
