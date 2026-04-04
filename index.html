@@ -301,7 +301,76 @@
         let currentApiAudio = null; 
         let currentAudioUrl = null; 
         let ttsToken = 0;
+        
         const ttsCache = new Map(); 
+        
+        const dbName = "VietTTSCacheDB";
+        let dbPromise = null;
+
+        function initDB() {
+            if (!dbPromise) {
+                dbPromise = new Promise((resolve, reject) => {
+                    const request = indexedDB.open(dbName, 1);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains("audioCache")) {
+                            db.createObjectStore("audioCache", { keyPath: "cacheKey" });
+                        }
+                    };
+                    request.onsuccess = (e) => resolve(e.target.result);
+                    request.onerror = (e) => reject(e.target.error);
+                });
+            }
+            return dbPromise;
+        }
+
+        async function saveToDB(cacheKey, blob, originalText, voice, speed) {
+            try {
+                const db = await initDB();
+                const tx = db.transaction("audioCache", "readwrite");
+                const store = tx.objectStore("audioCache");
+                store.put({ cacheKey, originalText, voice, speed, audioBlob: blob, createdAt: Date.now(), lastUsedAt: Date.now() });
+            } catch (e) {}
+        }
+
+        async function getFromDB(cacheKey) {
+            try {
+                const db = await initDB();
+                return new Promise((resolve) => {
+                    const tx = db.transaction("audioCache", "readonly");
+                    const req = tx.objectStore("audioCache").get(cacheKey);
+                    req.onsuccess = () => {
+                        if (req.result) {
+                            const updateTx = db.transaction("audioCache", "readwrite");
+                            req.result.lastUsedAt = Date.now();
+                            updateTx.objectStore("audioCache").put(req.result);
+                            resolve(req.result.audioBlob);
+                        } else resolve(null);
+                    };
+                    req.onerror = () => resolve(null);
+                });
+            } catch (e) { return null; }
+        }
+
+        function splitTextIntoChunks(text, maxLength = 80) {
+            if (text.length <= maxLength) return [text];
+            const regex = /[^.!?]+[.!?]+|[^,]+,+|[^;]+;+/g;
+            let chunks = text.match(regex);
+            if (!chunks || chunks.length === 0) chunks = [text]; 
+            
+            const result = [];
+            let currentChunk = "";
+            for (let chunk of chunks) {
+                if ((currentChunk + chunk).length > maxLength && currentChunk.length > 0) {
+                    result.push(currentChunk.trim());
+                    currentChunk = chunk;
+                } else {
+                    currentChunk += chunk;
+                }
+            }
+            if (currentChunk.trim().length > 0) result.push(currentChunk.trim());
+            return result;
+        }
         
         let isPcMode = localStorage.getItem('vn_pc_mode') === 'true';
         let audioCtx; let gainNode; let audioTrack;
@@ -621,141 +690,147 @@
                     if (!savedUnlockLimit && (monthlyCharCount + text.length > 1950000)) { if (!isSkipping && isPlaying) showNotice("🚨 200만 자 한도 (무료 대체)"); return playIOSVoice(text, safeResolve, myToken); } 
                     
                     const rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9');
-                    const cacheKey = `${text}|${savedVoiceType}|${rate}`;
+                    const chunks = splitTextIntoChunks(text, 80);
 
-                    const playAudioBlob = async (blob) => {
-                        if(!isPlaying || isSkipping || ttsToken !== myToken) return safeResolve();
-
-                        await new Promise(r => setTimeout(r, 150));
-                        if(!isPlaying || isSkipping || ttsToken !== myToken) return safeResolve();
-
-                        try {
-                            currentAudioUrl = URL.createObjectURL(blob);
-                            currentApiAudio = new Audio(currentAudioUrl);
-
-                            currentApiAudio.volume = parseFloat(savedAppVolume);
-                            currentApiAudio.muted = false;
-                            currentApiAudio.playbackRate = 1.0;
-                            currentApiAudio.defaultPlaybackRate = 1.0;
-
-                            currentApiAudio.onended = () => { cleanupCurrentAudio(); safeResolve(); };
-                            currentApiAudio.onerror = () => { cleanupCurrentAudio(); safeResolve(); };
-
-                            currentApiAudio.oncanplaythrough = () => {
-                                if (currentApiAudio) {
-                                    currentApiAudio.volume = parseFloat(savedAppVolume);
-                                    currentApiAudio.muted = false;
-                                }
-                            };
-
-                            const playPromise = currentApiAudio.play();
-                            if (playPromise !== undefined) {
-                                playPromise.catch(e => {
-                                    cleanupCurrentAudio();
-                                    safeResolve();
-                                });
-                            }
-
-                            const checker = setInterval(() => {
-                                if (!isPlaying || isSkipping || ttsToken !== myToken) {
-                                    clearInterval(checker);
-                                    cleanupCurrentAudio();
-                                    safeResolve();
-                                }
-                            }, 50);
-                        } catch(e) { 
-                            cleanupCurrentAudio();
-                            safeResolve(); 
-                        }
-                    };
-
-                    if (ttsCache.has(cacheKey)) { 
-                        playAudioBlob(ttsCache.get(cacheKey));
-                        return; 
-                    }
-
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-                    try { 
-                        let audioBlob;
-
-                        if (savedVoiceType.startsWith('fpt-')) {
-                            const fptVoice = savedVoiceType.replace('fpt-', '');
-                            let fptSpeed = rate <= 0.6 ? '-1' : (rate >= 1.3 ? '1' : '0');
-                            const FPT_API_KEY = 'ihF4MZvBf2H7yFQhObOOGkedWANC31je';
-
-                            if(FPT_API_KEY.includes('발급받은')) {
-                                clearTimeout(timeoutId);
-                                showNotice("❌ FPT API 키를 코드에 입력해주세요.");
-                                return safeResolve();
-                            }
-
-                            const response = await fetch('https://api.fpt.ai/hmi/tts/v5', {
-                                method: 'POST',
-                                headers: {
-                                    'api-key': FPT_API_KEY,
-                                    'voice': fptVoice,
-                                    'speed': fptSpeed
-                                },
-                                body: text,
-                                signal: controller.signal
-                            });
-
-                            clearTimeout(timeoutId);
-                            if (!response.ok) { showNotice("❌ FPT API 응답 오류"); return safeResolve(); }
-                            
-                            const data = await response.json();
-                            if (!data || !data.audiourl) { showNotice("❌ FPT 오디오 생성 실패"); return safeResolve(); }
-                            
-                            let audioRes = null;
-                            let retry = 0;
-                            while(retry < 3) {
-                                await new Promise(r => setTimeout(r, 200)); 
-                                audioRes = await fetch(data.audiourl);
-                                if(audioRes.ok) break;
-                                retry++;
-                            }
-                            if(!audioRes || !audioRes.ok) { showNotice("❌ FPT 오디오 파일 다운로드 실패"); return safeResolve(); }
-                            
-                            audioBlob = await audioRes.blob();
-
-                        } else {
-                            const GOOGLE_API_KEY = 'AIzaSyCNWYad51NeCEiU7uf6PRyXFUKYur-fDa0'; 
-                            const requestBody = { input: { text: text }, voice: { languageCode: 'vi-VN', name: savedVoiceType }, audioConfig: { audioEncoding: 'MP3', speakingRate: rate, pitch: 0.0, volumeGainDb: 4.0 } }; 
-                            
-                            const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`, { 
-                                method: 'POST', 
-                                headers: { 'Content-Type': 'application/json' }, 
-                                body: JSON.stringify(requestBody),
-                                signal: controller.signal
-                            }); 
-                            
-                            clearTimeout(timeoutId);
-                            if (!response.ok) { showNotice("❌ 구글 API 응답 오류"); return safeResolve(); } 
-                            
-                            const data = await response.json(); 
-                            if (!data || !data.audioContent) { showNotice("❌ 구글 API 오디오 데이터 없음"); return safeResolve(); }
-                            
-                            audioBlob = base64ToBlob(data.audioContent, 'audio/mp3');
-                        }
-
-                        if(!isPlaying || isSkipping || ttsToken !== myToken) return safeResolve();
-
-                        monthlyCharCount += text.length; localStorage.setItem('vn_monthly_chars', monthlyCharCount); 
+                    for (let i = 0; i < chunks.length; i++) {
+                        if (!isPlaying || isSkipping || ttsToken !== myToken) return safeResolve();
                         
-                        ttsCache.set(cacheKey, audioBlob);
-                        playAudioBlob(audioBlob);
+                        const chunkText = chunks[i];
+                        if (!chunkText) continue;
 
-                    } catch (e) { 
-                        clearTimeout(timeoutId);
-                        if (e.name === 'AbortError') {
-                            showNotice("⏳ 통신 시간 초과");
-                        } else {
-                            showNotice("❌ 통신 지연 및 오류"); 
+                        const cacheKey = `vi|${chunkText}|${savedVoiceType}|${rate}|0`;
+                        let audioBlob = ttsCache.get(cacheKey);
+
+                        if (!audioBlob) {
+                            audioBlob = await getFromDB(cacheKey);
+                            if (audioBlob) ttsCache.set(cacheKey, audioBlob); 
                         }
-                        safeResolve(); 
-                    } 
+
+                        if (!audioBlob) {
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(() => controller.abort(), 10000);
+                            
+                            try { 
+                                if (savedVoiceType.startsWith('fpt-')) {
+                                    const fptVoice = savedVoiceType.replace('fpt-', '');
+                                    let fptSpeed = rate <= 0.6 ? '-1' : (rate >= 1.3 ? '1' : '0');
+                                    const FPT_API_KEY = 'ihF4MZvBf2H7yFQhObOOGkedWANC31je';
+
+                                    const response = await fetch('https://api.fpt.ai/hmi/tts/v5', {
+                                        method: 'POST',
+                                        headers: {
+                                            'api-key': FPT_API_KEY,
+                                            'voice': fptVoice,
+                                            'speed': fptSpeed
+                                        },
+                                        body: chunkText,
+                                        signal: controller.signal
+                                    });
+
+                                    clearTimeout(timeoutId);
+                                    if (!response.ok) { showNotice("❌ FPT API 응답 오류"); return safeResolve(); }
+                                    
+                                    const data = await response.json();
+                                    if (!data || !data.audiourl) { showNotice("❌ FPT 오디오 생성 실패"); return safeResolve(); }
+                                    
+                                    let audioRes = null;
+                                    let retry = 0;
+                                    while(retry < 3) {
+                                        await new Promise(r => setTimeout(r, 200)); 
+                                        audioRes = await fetch(data.audiourl);
+                                        if(audioRes.ok) break;
+                                        retry++;
+                                    }
+                                    if(!audioRes || !audioRes.ok) { showNotice("❌ FPT 오디오 파일 다운로드 실패"); return safeResolve(); }
+                                    
+                                    audioBlob = await audioRes.blob();
+
+                                } else {
+                                    const GOOGLE_API_KEY = 'AIzaSyCNWYad51NeCEiU7uf6PRyXFUKYur-fDa0'; 
+                                    const requestBody = { input: { text: chunkText }, voice: { languageCode: 'vi-VN', name: savedVoiceType }, audioConfig: { audioEncoding: 'MP3', speakingRate: rate, pitch: 0.0, volumeGainDb: 4.0 } }; 
+                                    
+                                    const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`, { 
+                                        method: 'POST', 
+                                        headers: { 'Content-Type': 'application/json' }, 
+                                        body: JSON.stringify(requestBody),
+                                        signal: controller.signal
+                                    }); 
+                                    
+                                    clearTimeout(timeoutId);
+                                    if (!response.ok) { showNotice("❌ 구글 API 응답 오류"); return safeResolve(); } 
+                                    
+                                    const data = await response.json(); 
+                                    if (!data || !data.audioContent) { showNotice("❌ 구글 API 오디오 데이터 없음"); return safeResolve(); }
+                                    
+                                    audioBlob = base64ToBlob(data.audioContent, 'audio/mp3');
+                                }
+
+                                if(!isPlaying || isSkipping || ttsToken !== myToken) return safeResolve();
+
+                                monthlyCharCount += chunkText.length; localStorage.setItem('vn_monthly_chars', monthlyCharCount); 
+                                
+                                ttsCache.set(cacheKey, audioBlob);
+                                await saveToDB(cacheKey, audioBlob, chunkText, savedVoiceType, rate);
+
+                            } catch (e) { 
+                                clearTimeout(timeoutId);
+                                if (e.name === 'AbortError') {
+                                    showNotice("⏳ 통신 시간 초과");
+                                } else {
+                                    showNotice("❌ 통신 지연 및 오류"); 
+                                }
+                                return safeResolve(); 
+                            } 
+                        }
+
+                        await new Promise(async (chunkResolve) => {
+                            if(!isPlaying || isSkipping || ttsToken !== myToken) return chunkResolve();
+
+                            await new Promise(r => setTimeout(r, 150));
+                            if(!isPlaying || isSkipping || ttsToken !== myToken) return chunkResolve();
+
+                            try {
+                                currentAudioUrl = URL.createObjectURL(audioBlob);
+                                currentApiAudio = new Audio(currentAudioUrl);
+
+                                currentApiAudio.volume = parseFloat(savedAppVolume);
+                                currentApiAudio.muted = false;
+                                currentApiAudio.playbackRate = 1.0;
+                                currentApiAudio.defaultPlaybackRate = 1.0;
+
+                                currentApiAudio.onended = () => { cleanupCurrentAudio(); chunkResolve(); };
+                                currentApiAudio.onerror = () => { cleanupCurrentAudio(); chunkResolve(); };
+
+                                currentApiAudio.oncanplaythrough = () => {
+                                    if (currentApiAudio) {
+                                        currentApiAudio.volume = parseFloat(savedAppVolume);
+                                        currentApiAudio.muted = false;
+                                    }
+                                };
+
+                                const playPromise = currentApiAudio.play();
+                                if (playPromise !== undefined) {
+                                    playPromise.catch(e => {
+                                        cleanupCurrentAudio();
+                                        chunkResolve();
+                                    });
+                                }
+
+                                const checker = setInterval(() => {
+                                    if (!isPlaying || isSkipping || ttsToken !== myToken) {
+                                        clearInterval(checker);
+                                        cleanupCurrentAudio();
+                                        chunkResolve();
+                                    }
+                                }, 50);
+                            } catch(e) { 
+                                cleanupCurrentAudio();
+                                chunkResolve(); 
+                            }
+                        });
+                    }
+                    
+                    safeResolve();
                 } 
             }); 
         }
