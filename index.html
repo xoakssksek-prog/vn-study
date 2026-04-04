@@ -98,20 +98,23 @@
         .vol-slider { -webkit-appearance: none; width: 120px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 5px; outline: none; }
         .vol-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--accent-gold); border-radius: 50%; cursor: pointer; box-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
         
-        .pc-bar-container { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100dvh; background: #0f172a; padding: 0 15px; box-sizing: border-box; border-top: 2px solid var(--accent-green); }
-        .pc-text-group { display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; overflow: hidden; white-space: nowrap; padding: 0 15px; }
-        .pc-vn { color: var(--accent-green); font-weight: 800; font-size: 20px; }
-        .pc-pron { color: var(--accent-gold); font-size: 15px; font-weight: bold; opacity: 0.9; }
-        .pc-kr { color: #fff; font-size: 16px; font-weight: bold; }
-        .pc-ex { color: var(--accent-green); font-size: 18px; margin-left: 15px; border-left: 2px solid rgba(255,255,255,0.2); padding-left: 15px; font-weight: bold; opacity: 0.9; }
-        .pc-ex-pron { color: var(--accent-gold); font-size: 14px; font-weight: bold; opacity: 0.9; }
-        .pc-ex-kr { color: var(--text-dim); font-size: 15px; }
-        .pc-btn { border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-weight: bold; font-size: 14px; flex-shrink: 0; transition: 0.2s; }
+        /* PC 모드 스타일 */
+        .pc-bar-container { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100dvh; background: #0f172a; padding: 0 10px; box-sizing: border-box; border-top: 2px solid var(--accent-green); }
+        .pc-btn-group { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+        .pc-text-group { display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; overflow: hidden; white-space: nowrap; padding: 0 10px; }
+        .pc-vn { color: var(--accent-green); font-weight: 800; font-size: 19px; }
+        .pc-pron { color: var(--accent-gold); font-size: 14px; font-weight: bold; opacity: 0.9; }
+        .pc-kr { color: #fff; font-size: 15px; font-weight: bold; }
+        .pc-ex { color: var(--accent-green); font-size: 17px; margin-left: 10px; border-left: 2px solid rgba(255,255,255,0.2); padding-left: 10px; font-weight: bold; opacity: 0.9; }
+        .pc-ex-pron { color: var(--accent-gold); font-size: 13px; font-weight: bold; opacity: 0.9; }
+        .pc-ex-kr { color: var(--text-dim); font-size: 14px; }
+        .pc-btn { border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-weight: bold; font-size: 12px; flex-shrink: 0; transition: 0.2s; }
         .pc-btn.start { background: var(--accent-green); color: #000; }
         .pc-btn.stop { background: var(--accent-red); color: #fff; }
-        .pc-btn.mode { background: rgba(255,255,255,0.1); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.2); }
-        .pc-btn.mode:hover { background: rgba(255,255,255,0.2); color: #fff; }
-
+        .pc-btn.mode { background: rgba(255,255,255,0.1); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1); }
+        .pc-btn.nav { background: #1e293b; color: var(--accent-gold); font-size: 16px; padding: 4px 10px; border: 1px solid rgba(255,255,255,0.05); }
+        .pc-btn.hide { background: var(--accent-gold); color: #451a03; }
+        
         .cheer-box { background: rgba(251, 191, 36, 0.1); border: 1px dashed var(--accent-gold); padding: 12px; border-radius: 15px; text-align: center; margin-bottom: 15px; color: var(--accent-gold); font-size: 14px; font-weight: 800; line-height: 1.4; }
     </style>
 </head>
@@ -312,20 +315,18 @@
 
         let savedVoiceRate = localStorage.getItem('vn_voiceRate') || '0.9';
         
-        // ★ 최초 접속 초기값 설정 ★
         let savedWordVnCount = localStorage.getItem('vn_wordVnCount') !== null ? parseInt(localStorage.getItem('vn_wordVnCount')) : 5;
         let savedWordKrCount = localStorage.getItem('vn_wordKrCount') !== null ? parseInt(localStorage.getItem('vn_wordKrCount')) : 2;
         let savedExVnCount = localStorage.getItem('vn_exVnCount') !== null ? parseInt(localStorage.getItem('vn_exVnCount')) : 1;
         let savedExKrCount = localStorage.getItem('vn_exKrCount') !== null ? parseInt(localStorage.getItem('vn_exKrCount')) : 1;
 
-        let savedTimer = localStorage.getItem('vn_timer') || '240'; // 기본 240분
+        let savedTimer = localStorage.getItem('vn_timer') || '240';
         let savedShuffle = localStorage.getItem('vn_shuffle') === 'true';
         let savedStudyMode = localStorage.getItem('vn_studyMode') || '단어'; 
         let savedDelayTime = localStorage.getItem('vn_delayTime') || '1000';
         let savedHideKrWord = localStorage.getItem('vn_hideKrWord') === 'true';
         let savedHideKrEx = localStorage.getItem('vn_hideKrEx') === 'true';
         
-        // ★ 요금 차단 기본값: 최초 접속 시 true(체크됨) ★
         let savedHideVn = localStorage.getItem('vn_hideVn') !== null ? (localStorage.getItem('vn_hideVn') === 'true') : true;
         let savedUnlockLimit = localStorage.getItem('vn_unlockLimit') === 'true';
         
@@ -384,7 +385,7 @@
                 case 'hit': msg = isOn ? "🔢 횟수 기록: 단어별 재생 횟수를 기록합니다." : "🚫 기록 중단: 재생 횟수를 더 이상 기록하지 않습니다."; break;
                 case 'krWord': msg = isOn ? "🇰🇷 본문 한글 해제" : "🔊 한글 동시 학습"; break;
                 case 'krEx': msg = isOn ? "🇰🇷 예문 한글 해제" : "🔊 예문 한글 활성"; break;
-                case 'hideVn': msg = isOn ? "💸 구글 음성 차단됨 (요금 0원, 폰 기본 음성으로 읽습니다)" : "🔊 구글 프리미엄 AI가 켜졌습니다."; break;
+                case 'hideVn': msg = isOn ? "💸 구글 음성 차단됨 (무료 폰 음성 대체)" : "🔊 구글 프리미엄 AI가 켜졌습니다."; break;
                 case 'unlockLimit': msg = isOn ? "🔓 200만자 락 해제됨 (절대 차단: 300만 자)" : "🔒 200만자 안전 락이 다시 설정되었습니다."; break;
             }
             showNotice(msg);
@@ -423,26 +424,42 @@
             if (words.length === 0) { app.innerHTML = '<div class="card">데이터 로딩 중...</div>'; return; }
             const w = words[savedIndex]; const isCompleted = completedWords[w.A]; const isStarred = starredWords[w.A];
             
+            // ★ 수정된 PC 모드 UI ★
             if (isPcMode) {
                 let html = `<div class="pc-bar-container">`;
+                
+                // 왼쪽 조작 그룹
+                html += `<div class="pc-btn-group">`;
                 html += `<button class="pc-btn mode" onclick="togglePcMode()">📱 일반 모드</button>`;
+                html += `<button class="pc-btn nav" onclick="moveWord(-1)">‹</button>`;
+                html += `<button class="pc-btn nav" onclick="moveWord(1)">›</button>`;
+                html += `<button class="pc-btn hide" onclick="toggleComplete()">✅ 암기 끝</button>`;
+                html += `</div>`;
+                
+                // 중앙 텍스트 그룹
                 html += `<div class="pc-text-group" onclick="openListModal()" style="cursor:pointer;" title="목록 열기">`;
                 html += `<span class="pc-vn">${w.A}</span>`;
-                if (w.B) html += `<span class="pc-pron" style="margin-left:6px;">[${w.B}]</span>`;
-                if (w.C) html += `<span class="pc-kr" style="margin-left:6px;">(${w.C})</span>`;
+                if (w.B) html += `<span class="pc-pron">[${w.B}]</span>`;
+                if (w.C) html += `<span class="pc-kr">(${w.C})</span>`;
                 if (w.D) {
                     html += `<span class="pc-ex">${w.D}</span>`;
-                    if (w.E) html += `<span class="pc-ex-pron" style="margin-left:6px;">[${w.E}]</span>`;
-                    if (w.F) html += `<span class="pc-ex-kr" style="margin-left:6px;">(${w.F})</span>`;
+                    if (w.E) html += `<span class="pc-ex-pron">[${w.E}]</span>`;
+                    if (w.F) html += `<span class="pc-ex-kr">(${w.F})</span>`;
                 }
                 html += `</div>`;
-                if (!isPlaying) { html += `<button class="pc-btn start" onclick="startSleepMode()">▶ 시작</button>`; }
-                else { html += `<button class="pc-btn stop" onclick="stopSleepMode()">⏸ 멈춤</button>`; }
+                
+                // 오른쪽 시작/정지 버튼
+                if (!isPlaying) {
+                    html += `<button class="pc-btn start" onclick="startSleepMode()">▶ 시작</button>`;
+                } else {
+                    html += `<button class="pc-btn stop" onclick="stopSleepMode()">⏸ 멈춤</button>`;
+                }
                 html += `</div>`;
                 app.innerHTML = html;
                 return; 
             }
 
+            // 일반 모드 UI
             let vnSize = w.A.length > 15 ? '34px' : (w.A.length > 8 ? '44px' : '52px');
             let html = '<div class="card">';
             html += `<div class="status" style="cursor:pointer; display:inline-block; margin:0 auto 10px auto; padding:6px 15px; background:rgba(255,255,255,0.05); border-radius:20px; font-size:12px; color:var(--accent-gold); border: 1px solid var(--glass-border);" onclick="openListModal()">` + (reviewMode ? '⭐ REVIEW' : 'MODE: ' + savedStudyMode) + ' | ' + (savedIndex + 1) + '/' + words.length + ' 🔍 </div><div class="content-wrap">';
@@ -501,7 +518,19 @@
         async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
         function releaseWakeLock() { if (wakeLock) { wakeLock.release(); wakeLock = null; } }
         function toggleStar() { const w = words[savedIndex]; if (starredWords[w.A]) delete starredWords[w.A]; else starredWords[w.A] = true; localStorage.setItem('vn_starred', JSON.stringify(starredWords)); renderWord(); }
-        function toggleComplete() { let w = words[savedIndex]; if (completedWords[w.A]) { delete completedWords[w.A]; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); renderWord(); } else { completedWords[w.A] = true; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); moveWord(1); } }
+        
+        function toggleComplete() { 
+            let w = words[savedIndex]; 
+            if (completedWords[w.A]) { 
+                delete completedWords[w.A]; 
+            } else { 
+                completedWords[w.A] = true; 
+                showNotice('✅ 암기 완료! 목록에서 숨깁니다.');
+                moveWord(1); 
+            } 
+            localStorage.setItem('vn_completed', JSON.stringify(completedWords)); 
+            renderWord(); 
+        }
         
         function toggleMainReview() { reviewMode = document.getElementById('mainReviewMode').checked; localStorage.setItem('vn_reviewMode', reviewMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); applyModeFilter(); if(wasPlaying) startSleepMode(); }
         function toggleMainShuffle() { savedShuffle = document.getElementById('mainShuffleMode').checked; localStorage.setItem('vn_shuffle', savedShuffle); if(isPlaying) { isSkipping = true; window.speechSynthesis.cancel(); if (currentApiAudio) { currentApiAudio.pause(); currentApiAudio = null; } } renderWord(); }
