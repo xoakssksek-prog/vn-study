@@ -97,6 +97,20 @@
         .count-ctrl-btn { background: var(--accent-green); color: #000; border: none; width: 28px; height: 28px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .vol-slider { -webkit-appearance: none; width: 120px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 5px; outline: none; }
         .vol-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--accent-gold); border-radius: 50%; cursor: pointer; box-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+        
+        .pc-bar-container { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100dvh; background: #0f172a; padding: 0 15px; box-sizing: border-box; border-top: 2px solid var(--accent-green); }
+        .pc-text-group { display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; overflow: hidden; white-space: nowrap; padding: 0 15px; }
+        .pc-vn { color: var(--accent-green); font-weight: 800; font-size: 20px; }
+        .pc-pron { color: var(--accent-gold); font-size: 15px; font-weight: bold; opacity: 0.9; }
+        .pc-kr { color: #fff; font-size: 16px; font-weight: bold; }
+        .pc-ex { color: var(--accent-green); font-size: 18px; margin-left: 15px; border-left: 2px solid rgba(255,255,255,0.2); padding-left: 15px; font-weight: bold; opacity: 0.9; }
+        .pc-ex-pron { color: var(--accent-gold); font-size: 14px; font-weight: bold; opacity: 0.9; }
+        .pc-ex-kr { color: var(--text-dim); font-size: 15px; }
+        .pc-btn { border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-weight: bold; font-size: 14px; flex-shrink: 0; transition: 0.2s; }
+        .pc-btn.start { background: var(--accent-green); color: #000; }
+        .pc-btn.stop { background: var(--accent-red); color: #fff; }
+        .pc-btn.mode { background: rgba(255,255,255,0.1); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.2); }
+        .pc-btn.mode:hover { background: rgba(255,255,255,0.2); color: #fff; }
     </style>
 </head>
 <body>
@@ -265,6 +279,9 @@
         let masterWordList = [];
         let currentApiAudio = null; 
 
+        // PC 모드 상태 변수
+        let isPcMode = localStorage.getItem('vn_pc_mode') === 'true';
+
         let audioCtx;
         let gainNode;
         let audioTrack;
@@ -311,9 +328,9 @@
         let savedFadeOut = localStorage.getItem('vn_fade_out') === 'true';
         let savedHitCountToggle = localStorage.getItem('vn_hit_count_toggle') === 'true';
         
-        let savedVoiceType = localStorage.getItem('vn_voiceType') || 'vi-VN-Wavenet-A';
+        let savedVoiceType = localStorage.getItem('vn_voiceType') || 'vi-VN-Wavenet-C';
         if (!savedVoiceType.startsWith('vi-VN')) {
-            savedVoiceType = 'vi-VN-Wavenet-A';
+            savedVoiceType = 'vi-VN-Wavenet-C';
             localStorage.setItem('vn_voiceType', savedVoiceType);
         }
 
@@ -388,14 +405,50 @@
             }).filter(w => w.A.trim() !== '');
         }
 
+        function togglePcMode() {
+            isPcMode = !isPcMode;
+            localStorage.setItem('vn_pc_mode', isPcMode);
+            renderWord();
+        }
+
         function renderWord() {
             const app = document.getElementById('app');
             if (words.length === 0) { app.innerHTML = '<div class="card">데이터 로딩 중...</div>'; return; }
             const w = words[savedIndex]; const isCompleted = completedWords[w.A]; const isStarred = starredWords[w.A];
+            
+            // ★ 수정된 PC 모드 UI 렌더링 (모든 엑셀 열 포함) ★
+            if (isPcMode) {
+                let html = `<div class="pc-bar-container">`;
+                html += `<button class="pc-btn mode" onclick="togglePcMode()">📱 일반 모드</button>`;
+                
+                html += `<div class="pc-text-group" onclick="openListModal()" style="cursor:pointer;" title="목록 열기">`;
+                // 단어 영역
+                html += `<span class="pc-vn">${w.A}</span>`;
+                if (w.B) html += `<span class="pc-pron" style="margin-left:6px;">[${w.B}]</span>`;
+                if (w.C) html += `<span class="pc-kr" style="margin-left:6px;">(${w.C})</span>`;
+                
+                // 예문 영역 (예문이 있을 때만 가로선으로 구분하여 표시)
+                if (w.D) {
+                    html += `<span class="pc-ex">${w.D}</span>`;
+                    if (w.E) html += `<span class="pc-ex-pron" style="margin-left:6px;">[${w.E}]</span>`;
+                    if (w.F) html += `<span class="pc-ex-kr" style="margin-left:6px;">(${w.F})</span>`;
+                }
+                html += `</div>`;
+                
+                if (!isPlaying) {
+                    html += `<button class="pc-btn start" onclick="startSleepMode()">▶ 시작</button>`;
+                } else {
+                    html += `<button class="pc-btn stop" onclick="stopSleepMode()">⏸ 멈춤</button>`;
+                }
+                html += `</div>`;
+                app.innerHTML = html;
+                return; 
+            }
+
+            // 일반 모드 UI 렌더링
             let vnSize = w.A.length > 15 ? '34px' : (w.A.length > 8 ? '44px' : '52px');
             let html = '<div class="card">';
             
-            // ★ 리스트 점프 모달 호출용 클릭 이벤트 및 UI 스타일 추가 ★
             html += `<div class="status" style="cursor:pointer; display:inline-block; margin:0 auto 10px auto; padding:6px 15px; background:rgba(255,255,255,0.05); border-radius:20px; font-size:12px; color:var(--accent-gold); border: 1px solid var(--glass-border);" onclick="openListModal()">` + (reviewMode ? '⭐ REVIEW' : 'MODE: ' + savedStudyMode) + ' | ' + (savedIndex + 1) + '/' + words.length + ' 🔍 </div><div class="content-wrap">';
             
             html += `<button class="star-btn ${isStarred ? 'active' : ''}" onclick="toggleStar()">${isStarred ? '★' : '☆'}</button>`;
@@ -413,11 +466,14 @@
             html += `</select></div><div class="row">`;
             if (!isPlaying) { html += `<button class="row-btn btn-outline" style="color:var(--accent-gold);" onclick="openCompletedList()">📋 완료 목록 보기</button>`; }
             else { html += `<button class="row-btn btn-outline" style="color:var(--accent-gold);" onclick="toggleBlackout()">💡 저전력 모드</button>`; }
-            html += `<button class="row-btn btn-outline" onclick="openSettings()">⚙️ 설정</button></div><div class="quick-settings"><label><input type="checkbox" id="mainReviewMode" ${reviewMode ? 'checked' : ''} onchange="toggleMainReview(); notify(this, 'review')"> ⭐ 별표 복습</label><label><input type="checkbox" id="mainShuffleMode" ${savedShuffle ? 'checked' : ''} onchange="toggleMainShuffle(); notify(this, 'shuffle')"> 🔀 랜덤 재생</label></div></div></div>`;
+            html += `<button class="row-btn btn-outline" onclick="openSettings()">⚙️ 설정</button></div>`;
+            
+            html += `<div class="quick-settings"><label><input type="checkbox" id="mainReviewMode" ${reviewMode ? 'checked' : ''} onchange="toggleMainReview(); notify(this, 'review')"> ⭐ 별표 복습</label><label><input type="checkbox" id="mainShuffleMode" ${savedShuffle ? 'checked' : ''} onchange="toggleMainShuffle(); notify(this, 'shuffle')"> 🔀 랜덤 재생</label>`;
+            html += `<button onclick="togglePcMode()" style="background:none; border:none; color:#cbd5e1; cursor:pointer; font-weight:bold; font-size:13px; display:flex; align-items:center; gap:5px;">💻 PC 모드</button></div></div></div>`;
+            
             app.innerHTML = html;
         }
 
-        // ★ 초고속 리스트 팝업 및 이동 함수 모음 ★
         function openListModal() {
             const container = document.getElementById('listContainer');
             let html = '';
@@ -432,7 +488,6 @@
             container.innerHTML = html;
             document.getElementById('listModal').style.display = 'block';
             
-            // 팝업 열 때 현재 위치로 자동 스크롤
             setTimeout(() => {
                 const activeEl = container.children[savedIndex];
                 if(activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
