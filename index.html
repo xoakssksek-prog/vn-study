@@ -330,8 +330,37 @@
 
         let audioCtx = null;
         let webAudioSource = null;
-        
         window.keepAliveUtterances = [];
+
+        // ==========================================
+        // TTS FIX START: iOS Safari 오디오 자동재생 엔진 잠금 해제
+        // ==========================================
+        let audioUnlocked = false;
+
+        function unlockIOSAudio() {
+            if (audioUnlocked) return;
+            try {
+                if (!audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    audioCtx = new AudioContext();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                
+                // Web Audio API 강제 기상 (동기적으로 실행되어야 아이폰이 허용함)
+                const buffer = audioCtx.createBuffer(1, 1, 22050);
+                const source = audioCtx.createBufferSource();
+                source.buffer = buffer;
+                source.connect(audioCtx.destination);
+                source.start(0);
+
+                audioUnlocked = true;
+                updateDebugUI("오디오 엔진 잠금 해제 완료");
+            } catch(e) {}
+        }
+        // TTS FIX END
+        // ==========================================
 
         function safeCancelTTS() {
             window.speechSynthesis.cancel();
@@ -523,7 +552,10 @@
 
                     const arrayBuf = base64ToArrayBuffer(base64Str);
                     
-                    audioCtx.decodeAudioData(arrayBuf, (audioBuffer) => {
+                    // TTS FIX START: Safari 메모리 참조 버그 방지를 위해 slice 사용
+                    const safeBuffer = arrayBuf.slice(0);
+                    
+                    audioCtx.decodeAudioData(safeBuffer, (audioBuffer) => {
                         stopWebAudio();
                         webAudioSource = audioCtx.createBufferSource();
                         webAudioSource.buffer = audioBuffer;
@@ -541,9 +573,13 @@
 
                         webAudioSource.start(0);
                     }, (e) => {
+                        updateDebugUI("디코딩 에러 (캐시 손상 우려)");
                         safeNext();
                     });
+                    // TTS FIX END
+
                 } catch(e) {
+                    updateDebugUI("Web Audio 재생 에러");
                     safeNext();
                 }
             });
@@ -692,6 +728,9 @@
         function closeListModal() { document.getElementById('listModal').style.display = 'none'; }
         
         function jumpToWord(index) { 
+            // TTS FIX: 클릭 이벤트에 연결하여 아이폰 오디오 강제 잠금 해제
+            unlockIOSAudio(); 
+            
             savedIndex = index; localStorage.setItem('vn_index', savedIndex); 
             if (isPlaying) { 
                 isSkipping = true; 
@@ -710,7 +749,13 @@
         function toggleComplete() { let w = words[savedIndex]; if (completedWords[w.A]) { delete completedWords[w.A]; } else { completedWords[w.A] = true; showNotice('✅ 암기 끝! 숨김 처리되었습니다.'); moveWord(1); } localStorage.setItem('vn_completed', JSON.stringify(completedWords)); renderWord(); }
         function toggleMainReview() { reviewMode = document.getElementById('mainReviewMode').checked; localStorage.setItem('vn_reviewMode', reviewMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); applyModeFilter(); if(wasPlaying) startSleepMode(); }
         function toggleMainShuffle() { savedShuffle = document.getElementById('mainShuffleMode').checked; localStorage.setItem('vn_shuffle', savedShuffle); if(isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); safeCancelTTS(); stopWebAudio(); } renderWord(); }
-        async function changeStudyModeMain(el) { savedStudyMode = el.value; localStorage.setItem('vn_studyMode', savedStudyMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); await loadData(savedStudyMode); if(wasPlaying) startSleepMode(); }
+        
+        async function changeStudyModeMain(el) { 
+            // TTS FIX: 클릭 이벤트에 연결하여 아이폰 오디오 강제 잠금 해제
+            unlockIOSAudio(); 
+            
+            savedStudyMode = el.value; localStorage.setItem('vn_studyMode', savedStudyMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); await loadData(savedStudyMode); if(wasPlaying) startSleepMode(); 
+        }
         
         function updateUsageDisplay() { 
             const el = document.getElementById('monthlyUsageDisplay');
@@ -793,6 +838,9 @@
         function changeGlobalCount(type, n) { if (type === 'wordVn') { savedWordVnCount = Math.min(99, Math.max(0, savedWordVnCount + n)); localStorage.setItem('vn_wordVnCount', savedWordVnCount); document.getElementById('wordVnCountDisplay').innerText = savedWordVnCount; } else if (type === 'wordKr') { savedWordKrCount = Math.min(99, Math.max(0, savedWordKrCount + n)); localStorage.setItem('vn_wordKrCount', savedWordKrCount); document.getElementById('wordKrCountDisplay').innerText = savedWordKrCount; } else if (type === 'exVn') { savedExVnCount = Math.min(99, Math.max(0, savedExVnCount + n)); localStorage.setItem('vn_exVnCount', savedExVnCount); document.getElementById('exVnCountDisplay').innerText = savedExVnCount; } else if (type === 'exKr') { savedExKrCount = Math.min(99, Math.max(0, savedExKrCount + n)); localStorage.setItem('vn_exKrCount', savedExKrCount); document.getElementById('exKrCountDisplay').innerText = savedExKrCount; } if(isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); safeCancelTTS(); stopWebAudio(); } }
         
         function moveWord(direction) { 
+            // TTS FIX: 클릭 이벤트에 연결하여 아이폰 오디오 강제 잠금 해제
+            unlockIOSAudio();
+
             isSkipping = true; skipDirection = direction; 
             ttsToken++; 
             clearPlaybackQueue();
@@ -805,6 +853,9 @@
         function playBackgroundSound() { const p = document.getElementById('bgmPlayer'); if (savedSleepSound === 'none') { p.pause(); return; } const s = { rain: 'https://actions.google.com/sounds/v1/weather/light_rain.ogg', ocean: 'https://actions.google.com/sounds/v1/water/waves_crashing_on_rock_beach.ogg', forest: 'https://actions.google.com/sounds/v1/ambiences/jungle_atmosphere_night.ogg', fire: 'https://actions.google.com/sounds/v1/ambiences/fire.ogg', camping: 'https://actions.google.com/sounds/v1/ambiences/outdoor_summer_ambience.ogg' }; p.src = s[savedSleepSound]; if (!audioCtx) { try { const AudioContext = window.AudioContext || window.webkitAudioContext; audioCtx = new AudioContext(); bgmTrack = audioCtx.createMediaElementSource(p); bgmGainNode = audioCtx.createGain(); bgmTrack.connect(bgmGainNode).connect(audioCtx.destination); } catch(e) {} } if (audioCtx && audioCtx.state === 'suspended') { audioCtx.resume(); } if(bgmGainNode) { bgmGainNode.gain.value = parseFloat(savedBgmVolume) * 10.0; } else { p.volume = parseFloat(savedBgmVolume); } p.play().catch(e => {}); }
 
         async function startSleepMode() { 
+            // TTS FIX: 재생 버튼 클릭 이벤트에 동기적으로 연결하여 아이폰 오디오 엔진 탈취
+            unlockIOSAudio(); 
+
             if (isPlaying) return; isPlaying = true; requestWakeLock(); playBackgroundSound(); startTime = Date.now(); 
             
             if (sleepTimerId) clearTimeout(sleepTimerId); const timerVal = parseInt(savedTimer); if (timerVal > 0) sleepTimerId = setTimeout(() => stopSleepMode(), timerVal * 60 * 1000); 
@@ -850,9 +901,6 @@
             if (idx !== -1) window.keepAliveUtterances.splice(idx, 1);
         }
 
-        // ==========================================
-        // 🇰🇷 KOREAN TTS FIX START - 한국어 음성도 캐싱/Web Audio API로 통일
-        // ==========================================
         function speakKoreanLocal(text) { 
             return new Promise(async resolve => { 
                 let isResolved = false; 
@@ -867,7 +915,6 @@
                     stopWebAudio();
 
                     if (savedHideVn) { 
-                        // 무료 폰 음성 모드일 때는 기존처럼 iOS 내장 엔진 사용
                         return enqueuePlayback((safeNext) => {
                             const msg = new SpeechSynthesisUtterance(text); 
                             window.keepAliveUtterances.push(msg);
@@ -880,7 +927,6 @@
                         }).then(safeResolve);
                     } 
                     
-                    // 프리미엄 모드: 구글 클라우드 TTS 한국어 프리미엄 음성 사용 및 캐싱
                     const rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9');
                     const chunks = splitTextIntoChunks(text, 80);
                     
@@ -1018,9 +1064,6 @@
                 window.speechSynthesis.speak(msg); 
             });
         }
-        // ==========================================
-        // 🇰🇷 KOREAN TTS FIX END
-        // ==========================================
         
         function updateDebugUI(status, raw, url, poll) {
             try {
