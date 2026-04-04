@@ -150,8 +150,42 @@
                 </div>
                 <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;"><span style="color:var(--accent-red);">🔋 배터리 20% 보호</span><input type="checkbox" id="batteryProtect" onchange="saveSettings(); notify(this, 'battery')"></div>
                 <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;"><span style="color:var(--accent-gold);">📉 점진적 볼륨 감소</span><input type="checkbox" id="fadeOutToggle" onchange="saveSettings(); notify(this, 'fade')"></div>
-                <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;"><span>🔁 본문 반복 횟수</span><div style="display:flex; align-items:center; gap:10px;"><label style="font-size: 11px; color: var(--accent-gold); cursor:pointer;"><input type="checkbox" id="hideKrWord" onchange="saveSettings(); notify(this, 'krWord')"> KR OFF</label><button class="count-ctrl-btn" onclick="changeGlobalCount('word', -1)">-</button><span id="wordCountDisplay" style="min-width:25px; text-align:center;">3</span><button class="count-ctrl-btn" onclick="changeGlobalCount('word', 1)">+</button></div></div>
-                <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;"><span>🔁 예문 반복 횟수</span><div style="display:flex; align-items:center; gap:10px;"><label style="font-size: 11px; color: var(--accent-gold); cursor:pointer;"><input type="checkbox" id="hideKrEx" onchange="saveSettings(); notify(this, 'krEx')"> KR OFF</label><button class="count-ctrl-btn" onclick="changeGlobalCount('sentence', -1)">-</button><span id="sentenceCountDisplay" style="min-width:25px; text-align:center;">1</span><button class="count-ctrl-btn" onclick="changeGlobalCount('sentence', 1)">+</button></div></div>
+                
+                <div style="margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size: 13px;">🔁 본문 🇻🇳 반복</span>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <button class="count-ctrl-btn" onclick="changeGlobalCount('wordVn', -1)">-</button>
+                        <span id="wordVnCountDisplay" style="min-width:25px; text-align:center;">3</span>
+                        <button class="count-ctrl-btn" onclick="changeGlobalCount('wordVn', 1)">+</button>
+                    </div>
+                </div>
+                <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size: 13px;">🔁 본문 🇰🇷 반복</span>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <label style="font-size: 11px; color: var(--accent-gold); cursor:pointer;"><input type="checkbox" id="hideKrWord" onchange="saveSettings(); notify(this, 'krWord')"> KR OFF</label>
+                        <button class="count-ctrl-btn" onclick="changeGlobalCount('wordKr', -1)">-</button>
+                        <span id="wordKrCountDisplay" style="min-width:25px; text-align:center;">3</span>
+                        <button class="count-ctrl-btn" onclick="changeGlobalCount('wordKr', 1)">+</button>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size: 13px;">🔁 예문 🇻🇳 반복</span>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <button class="count-ctrl-btn" onclick="changeGlobalCount('exVn', -1)">-</button>
+                        <span id="exVnCountDisplay" style="min-width:25px; text-align:center;">1</span>
+                        <button class="count-ctrl-btn" onclick="changeGlobalCount('exVn', 1)">+</button>
+                    </div>
+                </div>
+                <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size: 13px;">🔁 예문 🇰🇷 반복</span>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <label style="font-size: 11px; color: var(--accent-gold); cursor:pointer;"><input type="checkbox" id="hideKrEx" onchange="saveSettings(); notify(this, 'krEx')"> KR OFF</label>
+                        <button class="count-ctrl-btn" onclick="changeGlobalCount('exKr', -1)">-</button>
+                        <span id="exKrCountDisplay" style="min-width:25px; text-align:center;">1</span>
+                        <button class="count-ctrl-btn" onclick="changeGlobalCount('exKr', 1)">+</button>
+                    </div>
+                </div>
                 <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;"><span>🔢 학습 횟수 기록</span><input type="checkbox" id="hitCountToggle" onchange="saveSettings(); notify(this, 'hit')"></div>
                 <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;"><span>🌧️ 수면 유도음</span><select id="sleepSound" onchange="saveSettings(); if(isPlaying) playBackgroundSound();" style="background:#020617; color:#fff; border:none; padding:4px; border-radius:5px;"><option value="none">없음</option><option value="rain">빗소리</option><option value="ocean">파도 소리</option><option value="forest">숲 소리</option><option value="fire">장작 소리</option><option value="camping">캠핑장 소리</option></select></div>
                 <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;"><span>⏰ 타이머</span><select id="sleepTimer" onchange="saveSettings()" style="background:#020617; color:#fff; border:none; padding:4px; border-radius:5px;"><option value="0">OFF</option><option value="60">60분</option><option value="120">120분</option><option value="240">240분</option></select></div>
@@ -217,8 +251,13 @@
         } catch(e) {}
 
         let savedVoiceRate = localStorage.getItem('vn_voiceRate') || '0.9';
-        let savedWordCount = parseInt(localStorage.getItem('vn_wordCount') || '3');
-        let savedSentenceCount = parseInt(localStorage.getItem('vn_sentenceCount') || '1');
+        
+        // 반복 횟수 변수 분리 및 기존 사용자 설정 연동 처리
+        let savedWordVnCount = parseInt(localStorage.getItem('vn_wordVnCount') !== null ? localStorage.getItem('vn_wordVnCount') : (localStorage.getItem('vn_wordCount') || '3'));
+        let savedWordKrCount = parseInt(localStorage.getItem('vn_wordKrCount') !== null ? localStorage.getItem('vn_wordKrCount') : (localStorage.getItem('vn_wordCount') || '3'));
+        let savedExVnCount = parseInt(localStorage.getItem('vn_exVnCount') !== null ? localStorage.getItem('vn_exVnCount') : (localStorage.getItem('vn_sentenceCount') || '1'));
+        let savedExKrCount = parseInt(localStorage.getItem('vn_exKrCount') !== null ? localStorage.getItem('vn_exKrCount') : (localStorage.getItem('vn_sentenceCount') || '1'));
+
         let savedTimer = localStorage.getItem('vn_timer') || '0';
         let savedShuffle = localStorage.getItem('vn_shuffle') === 'true';
         let savedStudyMode = localStorage.getItem('vn_studyMode') || '단어'; 
@@ -356,7 +395,30 @@
             if(wasPlaying) startSleepMode();
         }
         
-        function openSettings() { document.getElementById('settingsModal').style.display = 'block'; document.getElementById('appVolume').value = savedAppVolume; document.getElementById('bgmVolume').value = savedBgmVolume; document.getElementById('wordCountDisplay').innerText = savedWordCount; document.getElementById('sentenceCountDisplay').innerText = savedSentenceCount; document.getElementById('fadeOutToggle').checked = savedFadeOut; document.getElementById('hitCountToggle').checked = savedHitCountToggle; document.getElementById('batteryProtect').checked = savedBatteryProtect; document.getElementById('sleepSound').value = savedSleepSound; document.getElementById('sleepTimer').value = savedTimer; document.getElementById('hideKrWord').checked = savedHideKrWord; document.getElementById('hideKrEx').checked = savedHideKrEx; document.getElementById('delayTime').value = savedDelayTime; document.getElementById('voiceRate').value = localStorage.getItem('vn_voiceRate') || '0.9'; document.getElementById('voiceType').value = savedVoiceType; document.getElementById('accentType').value = savedAccent; }
+        function openSettings() { 
+            document.getElementById('settingsModal').style.display = 'block'; 
+            document.getElementById('appVolume').value = savedAppVolume; 
+            document.getElementById('bgmVolume').value = savedBgmVolume; 
+            
+            // 분리된 횟수 변수 연동
+            document.getElementById('wordVnCountDisplay').innerText = savedWordVnCount; 
+            document.getElementById('wordKrCountDisplay').innerText = savedWordKrCount; 
+            document.getElementById('exVnCountDisplay').innerText = savedExVnCount; 
+            document.getElementById('exKrCountDisplay').innerText = savedExKrCount; 
+
+            document.getElementById('fadeOutToggle').checked = savedFadeOut; 
+            document.getElementById('hitCountToggle').checked = savedHitCountToggle; 
+            document.getElementById('batteryProtect').checked = savedBatteryProtect; 
+            document.getElementById('sleepSound').value = savedSleepSound; 
+            document.getElementById('sleepTimer').value = savedTimer; 
+            document.getElementById('hideKrWord').checked = savedHideKrWord; 
+            document.getElementById('hideKrEx').checked = savedHideKrEx; 
+            document.getElementById('delayTime').value = savedDelayTime; 
+            document.getElementById('voiceRate').value = localStorage.getItem('vn_voiceRate') || '0.9'; 
+            document.getElementById('voiceType').value = savedVoiceType; 
+            document.getElementById('accentType').value = savedAccent; 
+        }
+        
         function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; renderWord(); }
         
         function saveSettings() { 
@@ -386,11 +448,27 @@
         }
         
         function changeGlobalCount(type, n) { 
-            if (type === 'word') savedWordCount = Math.max(0, savedWordCount + n); 
-            else savedSentenceCount = Math.max(0, savedSentenceCount + n); 
-            localStorage.setItem('vn_wordCount', savedWordCount); 
-            localStorage.setItem('vn_sentenceCount', savedSentenceCount); 
-            document.getElementById(type + 'CountDisplay').innerText = (type === 'word' ? savedWordCount : savedSentenceCount); 
+            // 독립된 횟수 카운트 로직 (최대 99회)
+            if (type === 'wordVn') { 
+                savedWordVnCount = Math.min(99, Math.max(0, savedWordVnCount + n)); 
+                localStorage.setItem('vn_wordVnCount', savedWordVnCount); 
+                document.getElementById('wordVnCountDisplay').innerText = savedWordVnCount; 
+            }
+            else if (type === 'wordKr') { 
+                savedWordKrCount = Math.min(99, Math.max(0, savedWordKrCount + n)); 
+                localStorage.setItem('vn_wordKrCount', savedWordKrCount); 
+                document.getElementById('wordKrCountDisplay').innerText = savedWordKrCount; 
+            }
+            else if (type === 'exVn') { 
+                savedExVnCount = Math.min(99, Math.max(0, savedExVnCount + n)); 
+                localStorage.setItem('vn_exVnCount', savedExVnCount); 
+                document.getElementById('exVnCountDisplay').innerText = savedExVnCount; 
+            }
+            else if (type === 'exKr') { 
+                savedExKrCount = Math.min(99, Math.max(0, savedExKrCount + n)); 
+                localStorage.setItem('vn_exKrCount', savedExKrCount); 
+                document.getElementById('exKrCountDisplay').innerText = savedExKrCount; 
+            }
             if(isPlaying) { isSkipping = true; window.speechSynthesis.cancel(); }
         }
         
@@ -404,7 +482,6 @@
             const p = document.getElementById('bgmPlayer'); 
             if (savedSleepSound === 'none') { p.pause(); return; } 
             
-            // 핵심 수정: 확실하게 접속 가능한 구글 서버의 정확한 오디오 주소로 전면 교체!
             const s = { 
                 rain: 'https://actions.google.com/sounds/v1/weather/light_rain.ogg', 
                 ocean: 'https://actions.google.com/sounds/v1/water/waves_crashing_on_rock_beach.ogg', 
@@ -473,12 +550,20 @@
                     localStorage.setItem('vn_hit_counts', JSON.stringify(hitCounts)); 
                 } 
                 
-                for (; currentWordRep < savedWordCount; currentWordRep++) { 
+                // 본문 재생 로직 분리 (횟수 적은 언어 먼저 멈춤)
+                let maxWordReps = Math.max(savedWordVnCount, savedWordKrCount);
+                for (; currentWordRep < maxWordReps; currentWordRep++) { 
                     if (!isPlaying || isSkipping) break; 
-                    await speakText(w.A, 'vi-VN'); 
-                    if (!isPlaying || isSkipping) break; 
-                    if (!savedHideKrWord) await speakText(w.C, 'ko-KR'); 
-                    if (!isPlaying || isSkipping) break; 
+                    
+                    if (currentWordRep < savedWordVnCount) {
+                        await speakText(w.A, 'vi-VN'); 
+                        if (!isPlaying || isSkipping) break; 
+                    }
+                    
+                    if (currentWordRep < savedWordKrCount && !savedHideKrWord) {
+                        await speakText(w.C, 'ko-KR'); 
+                        if (!isPlaying || isSkipping) break; 
+                    }
                     
                     let delayMs = parseInt(savedDelayTime);
                     for(let ms=0; ms<delayMs; ms+=100) {
@@ -489,13 +574,21 @@
                 
                 if (!isPlaying || isSkipping) continue; 
                 
-                if (w.D && savedSentenceCount > 0) { 
-                    for (; currentExRep < savedSentenceCount; currentExRep++) { 
+                // 예문 재생 로직 분리
+                if (w.D && (savedExVnCount > 0 || savedExKrCount > 0)) { 
+                    let maxExReps = Math.max(savedExVnCount, savedExKrCount);
+                    for (; currentExRep < maxExReps; currentExRep++) { 
                         if (!isPlaying || isSkipping) break; 
-                        await speakText(w.D, 'vi-VN'); 
-                        if (!isPlaying || isSkipping) break; 
-                        if (!savedHideKrEx) await speakText(w.F, 'ko-KR'); 
-                        if (!isPlaying || isSkipping) break; 
+                        
+                        if (currentExRep < savedExVnCount) {
+                            await speakText(w.D, 'vi-VN'); 
+                            if (!isPlaying || isSkipping) break; 
+                        }
+                        
+                        if (currentExRep < savedExKrCount && !savedHideKrEx) {
+                            await speakText(w.F, 'ko-KR'); 
+                            if (!isPlaying || isSkipping) break; 
+                        }
                         
                         let delayMs = parseInt(savedDelayTime);
                         for(let ms=0; ms<delayMs; ms+=100) {
