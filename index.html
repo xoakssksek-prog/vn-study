@@ -110,6 +110,16 @@
 
     <div id="app" style="height: 100%;"></div>
 
+    <div id="listModal" class="modal">
+        <div class="modal-content" style="max-width: 550px; height: 80vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <h3 style="margin:0; font-size:18px; color:var(--accent-gold);">전체 항목 리스트</h3>
+                <button class="close-btn" onclick="closeListModal()">닫기</button>
+            </div>
+            <div id="listContainer" style="flex: 1; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 10px;"></div>
+        </div>
+    </div>
+
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <div style="font-size: 11px; color: #ffffff; text-align: center; margin-bottom: 5px; opacity: 0.9; font-weight: bold;">명여사님 오늘도 화이팅</div>
@@ -163,6 +173,7 @@
                         <option value="vi-VN-Wavenet-D">호치민 남성 (Wavenet D)</option>
                     </select>
                 </div>
+
                 <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;"><span style="color:var(--accent-red);">🔋 배터리 20% 보호</span><input type="checkbox" id="batteryProtect" onchange="saveSettings(); notify(this, 'battery')"></div>
                 <div style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;"><span style="color:var(--accent-gold);">📉 점진적 볼륨 감소</span><input type="checkbox" id="fadeOutToggle" onchange="saveSettings(); notify(this, 'fade')"></div>
                 
@@ -258,7 +269,6 @@
         let gainNode;
         let audioTrack;
 
-        // 월간 구글 요금 자동 차단 카운터 변수 세팅
         let monthlyCharCount = 0;
         let currentMonthStr = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
         
@@ -301,7 +311,6 @@
         let savedFadeOut = localStorage.getItem('vn_fade_out') === 'true';
         let savedHitCountToggle = localStorage.getItem('vn_hit_count_toggle') === 'true';
         
-        // 구글 진짜 목소리로 세팅 업데이트 (기존 가짜 데이터가 있으면 안전하게 하노이 기본형으로 덮어씀)
         let savedVoiceType = localStorage.getItem('vn_voiceType') || 'vi-VN-Wavenet-A';
         if (!savedVoiceType.startsWith('vi-VN')) {
             savedVoiceType = 'vi-VN-Wavenet-A';
@@ -384,7 +393,11 @@
             if (words.length === 0) { app.innerHTML = '<div class="card">데이터 로딩 중...</div>'; return; }
             const w = words[savedIndex]; const isCompleted = completedWords[w.A]; const isStarred = starredWords[w.A];
             let vnSize = w.A.length > 15 ? '34px' : (w.A.length > 8 ? '44px' : '52px');
-            let html = '<div class="card"><div class="status">' + (reviewMode ? '⭐ REVIEW' : 'MODE: ' + savedStudyMode) + ' | ' + (savedIndex + 1) + '/' + words.length + '</div><div class="content-wrap">';
+            let html = '<div class="card">';
+            
+            // ★ 리스트 점프 모달 호출용 클릭 이벤트 및 UI 스타일 추가 ★
+            html += `<div class="status" style="cursor:pointer; display:inline-block; margin:0 auto 10px auto; padding:6px 15px; background:rgba(255,255,255,0.05); border-radius:20px; font-size:12px; color:var(--accent-gold); border: 1px solid var(--glass-border);" onclick="openListModal()">` + (reviewMode ? '⭐ REVIEW' : 'MODE: ' + savedStudyMode) + ' | ' + (savedIndex + 1) + '/' + words.length + ' 🔍 </div><div class="content-wrap">';
+            
             html += `<button class="star-btn ${isStarred ? 'active' : ''}" onclick="toggleStar()">${isStarred ? '★' : '☆'}</button>`;
             if (isCompleted) html += '<div style="color:var(--accent-gold); font-size:14px; margin-bottom:5px; font-weight:bold;">✅ 마스터한 항목</div>';
             html += '<div style="display: flex; align-items: center; justify-content: space-between;"><button class="arrow-btn" onclick="moveWord(-1)">‹</button><div class="vn" style="font-size:' + vnSize + ';">' + w.A + '</div><button class="arrow-btn" onclick="moveWord(1)">›</button></div>';
@@ -402,6 +415,49 @@
             else { html += `<button class="row-btn btn-outline" style="color:var(--accent-gold);" onclick="toggleBlackout()">💡 저전력 모드</button>`; }
             html += `<button class="row-btn btn-outline" onclick="openSettings()">⚙️ 설정</button></div><div class="quick-settings"><label><input type="checkbox" id="mainReviewMode" ${reviewMode ? 'checked' : ''} onchange="toggleMainReview(); notify(this, 'review')"> ⭐ 별표 복습</label><label><input type="checkbox" id="mainShuffleMode" ${savedShuffle ? 'checked' : ''} onchange="toggleMainShuffle(); notify(this, 'shuffle')"> 🔀 랜덤 재생</label></div></div></div>`;
             app.innerHTML = html;
+        }
+
+        // ★ 초고속 리스트 팝업 및 이동 함수 모음 ★
+        function openListModal() {
+            const container = document.getElementById('listContainer');
+            let html = '';
+            words.forEach((w, idx) => {
+                const isCurrent = idx === savedIndex;
+                html += `<div onclick="jumpToWord(${idx})" style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; cursor: pointer; background: ${isCurrent ? 'rgba(16, 185, 129, 0.2)' : 'transparent'};">
+                    <div style="width: 40px; color: var(--accent-gold); font-size: 12px;">${idx + 1}</div>
+                    <div style="flex: 1; color: var(--accent-green); font-weight: bold; font-size: 14px;">${w.A}</div>
+                    <div style="flex: 1; color: #cbd5e1; font-size: 12px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${w.C}</div>
+                </div>`;
+            });
+            container.innerHTML = html;
+            document.getElementById('listModal').style.display = 'block';
+            
+            // 팝업 열 때 현재 위치로 자동 스크롤
+            setTimeout(() => {
+                const activeEl = container.children[savedIndex];
+                if(activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 50);
+        }
+
+        function closeListModal() {
+            document.getElementById('listModal').style.display = 'none';
+        }
+
+        function jumpToWord(index) {
+            savedIndex = index;
+            localStorage.setItem('vn_index', savedIndex);
+            
+            if (isPlaying) {
+                isSkipping = true;
+                window.speechSynthesis.cancel();
+                if (currentApiAudio) { currentApiAudio.pause(); currentApiAudio = null; }
+                currentWordRep = 0; 
+                currentExRep = 0;
+            }
+            
+            closeListModal();
+            renderWord();
+            showNotice(`${index + 1}번째 항목으로 이동했습니다.`);
         }
 
         async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
@@ -697,14 +753,12 @@
             renderWord(); 
         }
 
-        // 아이폰 기본(무료) 엔진으로 강제 락커백시키는 스마트 함수
         function playIOSVoice(text, safeResolve) {
             const msg = new SpeechSynthesisUtterance(text); 
             msg.lang = 'vi-VN'; 
             msg.volume = parseFloat(savedAppVolume);
             msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9');
             
-            // 호치민을 골랐었으면 아이폰 내부에서라도 최대한 남부 발음을 1순위로 찾음
             let voices = window.speechSynthesis.getVoices(); 
             let vnVoices = voices.filter(v => v.lang.startsWith('vi')); 
             if(vnVoices.length > 0) { 
@@ -762,7 +816,6 @@
                     }, 20); 
                 } 
                 else if (lang === 'vi-VN') {
-                    // ★★★ [절대 방어선 1] 무음 모드 (데이터 100% 차단) ★★★
                     if (savedHideVn) {
                         let readingTime = Math.max(1500, text.length * 150); 
                         let elapsed = 0;
@@ -776,7 +829,6 @@
                         return;
                     }
 
-                    // ★★★ [절대 방어선 2] 300만 자 최후의 차단 (요금 폭탄 절대 방어) ★★★
                     if (monthlyCharCount + text.length > 2950000) {
                         if (!isSkipping && isPlaying && monthlyCharCount <= 2950000 + text.length) {
                             showNotice("🚨 절대 한도(300만 자) 도달! 요금 방어를 위해 아이폰 기본 음성으로 대체됩니다.");
@@ -784,7 +836,6 @@
                         return playIOSVoice(text, safeResolve);
                     }
 
-                    // ★★★ [절대 방어선 3] 200만 자 1차 차단 (락 해제 안 했을 경우) ★★★
                     if (!savedUnlockLimit && (monthlyCharCount + text.length > 1950000)) {
                         if (!isSkipping && isPlaying && monthlyCharCount <= 1950000 + text.length) {
                             showNotice("이번 달 200만 자 한도 도달! (설정에서 락을 풀 수 있습니다) 기본 음성으로 대체됩니다.");
@@ -792,7 +843,6 @@
                         return playIOSVoice(text, safeResolve);
                     }
 
-                    // 아래부터는 구글 클라우드 API 작동 로직 (차단선 미도달 시 작동)
                     const API_KEY = 'AIzaSyCNWYad51NeCEiU7uf6PRyXFUKYur-fDa0'; 
                     
                     const requestBody = {
@@ -813,11 +863,9 @@
                         });
 
                         if (!response.ok) {
-                            // 인터넷이 끊겼거나 구글 서버가 아플 때를 위한 대비책
                             return playIOSVoice(text, safeResolve);
                         }
 
-                        // 완벽히 송출 성공 시에만 글자 수 100% 안전 차감
                         monthlyCharCount += text.length;
                         localStorage.setItem('vn_monthly_chars', monthlyCharCount);
 
