@@ -331,13 +331,10 @@
         let audioCtx = null;
         let webAudioSource = null;
         
-        // ★ 아이폰 버그 1번 조치: 쓰레기통(GC) 방지용 전역 금고
         window.keepAliveUtterances = [];
 
-        // ★ 아이폰 버그 2번 조치: 안전한 Cancel 함수 
         function safeCancelTTS() {
             window.speechSynthesis.cancel();
-            // 취소 후 0.05초 뒤에 억지로 이어서(resume) 버그 우회
             setTimeout(() => window.speechSynthesis.resume(), 50);
         }
 
@@ -360,9 +357,6 @@
             });
         }
 
-        // ==========================================
-        // TTS FIX START: 중앙 Playback Queue (iOS Safari 오디오 엔진 충돌 방지)
-        // ==========================================
         let playbackQueue = [];
         let isPlaybackRunning = false;
         let playbackSessionId = 0;
@@ -401,21 +395,18 @@
                         clearTimeout(fallbackTimer);
                         clearInterval(cancelChecker);
                         
-                        // iOS 엔진 전환 안정화를 위한 딜레이 (교차 재생 충돌 방지 핵심)
                         setTimeout(() => {
                             task.resolve();
                             stepResolve();
                         }, 250);
                     };
 
-                    // 무한 대기 방지용 Fallback (15초)
                     const fallbackTimer = setTimeout(() => {
                         safeCancelTTS();
                         stopWebAudio();
                         safeNext();
                     }, 15000);
 
-                    // 외부 중단(스킵, 일시정지) 감지
                     const cancelChecker = setInterval(() => {
                         if (task.sessionId !== playbackSessionId || !isPlaying || isSkipping) {
                             safeCancelTTS();
@@ -433,9 +424,6 @@
             }
             isPlaybackRunning = false;
         }
-        // ==========================================
-        // TTS FIX END
-        // ==========================================
 
         async function saveCacheToDB(key, payload) {
             memoryCache.set(key, payload);
@@ -524,7 +512,6 @@
             }
         }
 
-        // TTS FIX START - Playback API Queue 기반 재작성
         function playBase64WebAudio(base64Str) {
             return enqueuePlayback(async (safeNext) => {
                 try {
@@ -573,9 +560,7 @@
                 audio.play().catch(() => safeNext());
             });
         }
-        // TTS FIX END
 
-        initDB();
         // ==========================================
 
         function normalizeText(t) { return t.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim(); }
@@ -711,7 +696,7 @@
             if (isPlaying) { 
                 isSkipping = true; 
                 ttsToken++; 
-                clearPlaybackQueue(); // TTS FIX
+                clearPlaybackQueue();
                 safeCancelTTS(); 
                 stopWebAudio(); 
                 currentWordRep = 0; currentExRep = 0; 
@@ -810,7 +795,7 @@
         function moveWord(direction) { 
             isSkipping = true; skipDirection = direction; 
             ttsToken++; 
-            clearPlaybackQueue(); // TTS FIX
+            clearPlaybackQueue();
             safeCancelTTS(); 
             stopWebAudio(); 
             if (direction === 1) { advanceIndex(); } else { savedIndex--; if (savedIndex < 0) savedIndex = words.length - 1; } 
@@ -852,7 +837,7 @@
         function stopSleepMode() { 
             isPlaying = false; 
             ttsToken++; 
-            clearPlaybackQueue(); // TTS FIX
+            clearPlaybackQueue();
             safeCancelTTS(); 
             stopWebAudio(); 
             document.getElementById('bgmPlayer').pause(); 
@@ -860,33 +845,146 @@
             renderWord(); 
         }
 
-        // 사용한 음성객체를 배열에서 지워주는 청소 함수
         function cleanupUtterance(msg) {
             const idx = window.keepAliveUtterances.indexOf(msg);
             if (idx !== -1) window.keepAliveUtterances.splice(idx, 1);
         }
 
-        // TTS FIX START - Playback API Queue 기반 재작성
+        // ==========================================
+        // 🇰🇷 KOREAN TTS FIX START - 한국어 음성도 캐싱/Web Audio API로 통일
+        // ==========================================
         function speakKoreanLocal(text) { 
-            return enqueuePlayback((safeNext) => {
-                stopWebAudio();
-                const msg = new SpeechSynthesisUtterance(text); 
-                window.keepAliveUtterances.push(msg);
-                msg.lang = 'ko-KR'; 
-                msg.volume = parseFloat(savedAppVolume); 
-                msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
+            return new Promise(async resolve => { 
+                let isResolved = false; 
+                const safeResolve = () => { if(!isResolved) { isResolved = true; resolve(); } }; 
                 
-                msg.onend = () => { 
-                    cleanupUtterance(msg);
-                    safeNext(); 
-                }; 
-                msg.onerror = () => { 
-                    cleanupUtterance(msg);
-                    safeNext(); 
-                }; 
-                
-                window.speechSynthesis.speak(msg); 
-            });
+                try {
+                    if(!text || isSkipping || !isPlaying) return safeResolve(); 
+                    
+                    ttsToken++;
+                    const myToken = ttsToken;
+
+                    stopWebAudio();
+
+                    if (savedHideVn) { 
+                        // 무료 폰 음성 모드일 때는 기존처럼 iOS 내장 엔진 사용
+                        return enqueuePlayback((safeNext) => {
+                            const msg = new SpeechSynthesisUtterance(text); 
+                            window.keepAliveUtterances.push(msg);
+                            msg.lang = 'ko-KR'; 
+                            msg.volume = parseFloat(savedAppVolume); 
+                            msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
+                            msg.onend = () => { cleanupUtterance(msg); safeNext(); }; 
+                            msg.onerror = () => { cleanupUtterance(msg); safeNext(); }; 
+                            window.speechSynthesis.speak(msg); 
+                        }).then(safeResolve);
+                    } 
+                    
+                    // 프리미엄 모드: 구글 클라우드 TTS 한국어 프리미엄 음성 사용 및 캐싱
+                    const rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9');
+                    const chunks = splitTextIntoChunks(text, 80);
+                    
+                    let i = 0;
+                    while (i < chunks.length) {
+                        if (!isPlaying || isSkipping || ttsToken !== myToken) return safeResolve();
+                        
+                        const chunkText = chunks[i];
+                        if (!chunkText) { i++; continue; }
+                        
+                        const cacheKey = getAudioCacheKey('google_kr', normalizeText(chunkText), 'ko-KR', 'ko-KR-Wavenet-A', rate, 0);
+                        let b64Data = null;
+                        let usedCache = false;
+                        let retryThisChunk = false;
+
+                        const cachedPayload = await getCacheFromDB(cacheKey);
+
+                        if (cachedPayload) {
+                            usedCache = true;
+                            updateCacheStatus("🇰🇷 무료 재생 (캐시 사용)", true);
+                            if (cachedPayload.type === 'base64') b64Data = cachedPayload.data;
+                        } else {
+                            usedCache = false;
+
+                            if (monthlyCharCount + chunkText.length > savedApiLimit) {
+                                updateCacheStatus("월간 한도 초과 (한국어 무료 폰 음성)", false);
+                                await enqueuePlayback((safeNext) => {
+                                    const msg = new SpeechSynthesisUtterance(chunkText); 
+                                    msg.lang = 'ko-KR'; 
+                                    msg.volume = parseFloat(savedAppVolume); 
+                                    msg.rate = rate; 
+                                    msg.onend = () => safeNext(); 
+                                    msg.onerror = () => safeNext(); 
+                                    window.speechSynthesis.speak(msg); 
+                                });
+                                i++; continue; 
+                            }
+
+                            updateCacheStatus("🇰🇷 유료 API 생성 중...", false);
+                            
+                            try {
+                                const controller = new AbortController();
+                                const timeoutId = setTimeout(() => controller.abort(), 12000);
+                                
+                                const GOOGLE_API_KEY = 'AIzaSyCNWYad51NeCEiU7uf6PRyXFUKYur-fDa0'; 
+                                const requestBody = { 
+                                    input: { text: chunkText }, 
+                                    voice: { languageCode: 'ko-KR', name: 'ko-KR-Wavenet-A' }, 
+                                    audioConfig: { audioEncoding: 'MP3', speakingRate: rate, pitch: 0.0, volumeGainDb: 4.0 } 
+                                }; 
+                                
+                                const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`, { 
+                                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                                    body: JSON.stringify(requestBody), signal: controller.signal
+                                }); 
+                                clearTimeout(timeoutId);
+                                if (!response.ok) throw new Error(`구글 API 오류`);
+                                
+                                const data = await response.json(); 
+                                if (!data || !data.audioContent) throw new Error("구글 오디오 없음");
+                                
+                                b64Data = data.audioContent;
+                                if (b64Data.length > 100) {
+                                    await saveCacheToDB(cacheKey, { type: 'base64', data: b64Data, mime: 'audio/mp3' });
+                                    monthlyCharCount += chunkText.length;
+                                    localStorage.setItem('vn_monthly_chars', monthlyCharCount.toString());
+                                    updateUsageDisplay();
+                                }
+                            } catch (e) {
+                                updateCacheStatus("API 실패 (한국어 무료 폰 음성)", false);
+                                await enqueuePlayback((safeNext) => {
+                                    const msg = new SpeechSynthesisUtterance(chunkText); 
+                                    msg.lang = 'ko-KR'; 
+                                    msg.volume = parseFloat(savedAppVolume); 
+                                    msg.rate = rate; 
+                                    msg.onend = () => safeNext(); 
+                                    msg.onerror = () => safeNext(); 
+                                    window.speechSynthesis.speak(msg); 
+                                });
+                                i++; continue; 
+                            }
+                        }
+
+                        if (b64Data) {
+                            try {
+                                await playBase64WebAudio(b64Data);
+                            } catch(err) {
+                                if (usedCache) {
+                                    await deleteCacheFromDB(cacheKey);
+                                    retryThisChunk = true;
+                                }
+                            }
+                        }
+                        
+                        if (!retryThisChunk) {
+                            i++;
+                        }
+                    }
+                    
+                    safeResolve();
+                } catch(globalError) {
+                    safeResolve(); 
+                }
+            }); 
         }
 
         function playIOSVoice(text) { 
@@ -920,7 +1018,9 @@
                 window.speechSynthesis.speak(msg); 
             });
         }
-        // TTS FIX END
+        // ==========================================
+        // 🇰🇷 KOREAN TTS FIX END
+        // ==========================================
         
         function updateDebugUI(status, raw, url, poll) {
             try {
@@ -946,10 +1046,8 @@
                     stopWebAudio();
 
                     if (savedHideVn) { 
-                        // TTS FIX START
                         await playIOSVoice(text); 
                         return safeResolve();
-                        // TTS FIX END
                     } 
                     
                     const rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9');
@@ -986,9 +1084,7 @@
 
                             if (monthlyCharCount + chunkText.length > savedApiLimit) {
                                 updateCacheStatus("월간 한도 초과 (무료 음성 대체)", false);
-                                // TTS FIX START
                                 await playIOSVoice(chunkText);
-                                // TTS FIX END
                                 i++; 
                                 continue; 
                             }
@@ -1101,18 +1197,14 @@
                             } catch (e) {
                                 updateCacheStatus("API 재생 실패 (무료 폰 음성 대체)", false);
                                 updateDebugUI(`요청 실패`);
-                                // TTS FIX START
                                 await playIOSVoice(chunkText);
-                                // TTS FIX END
                                 i++; continue; 
                             }
                         }
 
                         if (b64Data) {
                             try {
-                                // TTS FIX START
                                 await playBase64WebAudio(b64Data);
-                                // TTS FIX END
                             } catch(err) {
                                 updateDebugUI("재생 오류 감지");
                                 if (usedCache) {
@@ -1122,9 +1214,7 @@
                                 }
                             }
                         } else if (fallbackUrl) {
-                            // TTS FIX START
                             await playFallbackUrl(fallbackUrl);
-                            // TTS FIX END
                         }
                         
                         if (!retryThisChunk) {
