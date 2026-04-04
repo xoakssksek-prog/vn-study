@@ -237,6 +237,7 @@
         let currentWordRep = 0; let currentExRep = 0; let currentPlayingIndex = -1;
         
         let masterWordList = [];
+        let currentApiAudio = null; // API 오디오 객체를 관리하기 위한 변수
 
         let audioCtx;
         let gainNode;
@@ -381,7 +382,11 @@
         function toggleMainShuffle() { 
             savedShuffle = document.getElementById('mainShuffleMode').checked; 
             localStorage.setItem('vn_shuffle', savedShuffle); 
-            if(isPlaying) { isSkipping = true; window.speechSynthesis.cancel(); }
+            if(isPlaying) { 
+                isSkipping = true; 
+                window.speechSynthesis.cancel(); 
+                if (currentApiAudio) { currentApiAudio.pause(); currentApiAudio = null; }
+            }
             renderWord(); 
         }
         async function changeStudyModeMain(el) { 
@@ -394,20 +399,12 @@
             if(wasPlaying) startSleepMode();
         }
         
-        // 발음 지역 설정 시 환경 체크 및 공지 로직 추가
         function changeAccentType() {
             savedAccent = document.getElementById('accentType').value;
             if (savedAccent === 'hcm') {
-                let voices = window.speechSynthesis.getVoices();
-                let hasHcm = voices.some(v => v.lang.startsWith('vi') && (v.name.toLowerCase().includes('ho chi minh') || v.name.toLowerCase().includes('south') || v.name.toLowerCase().includes('hue')));
-                
-                if (!hasHcm) {
-                    showNotice("현재 환경에서는 엔진 한계로 불가능하여, 피치/속도 미세 조정으로 대체합니다.");
-                } else {
-                    showNotice("🌍 발음 지역이 남부(호치민)로 변경되었습니다.");
-                }
+                showNotice("🌍 발음 지역이 남부(호치민) 프리미엄 AI로 변경되었습니다.");
             } else {
-                showNotice("🌍 발음 지역이 북부(하노이)로 변경되었습니다.");
+                showNotice("🌍 발음 지역이 북부(하노이) 프리미엄 AI로 변경되었습니다.");
             }
             saveSettings();
         }
@@ -449,7 +446,11 @@
                     p.volume = parseFloat(savedBgmVolume);
                 }
             } 
-            if(isPlaying) { isSkipping = true; window.speechSynthesis.cancel(); }
+            if(isPlaying) { 
+                isSkipping = true; 
+                window.speechSynthesis.cancel(); 
+                if (currentApiAudio) { currentApiAudio.pause(); currentApiAudio = null; }
+            }
         }
 
         function adjustVolume(targetId, amount) {
@@ -484,11 +485,17 @@
                 localStorage.setItem('vn_exKrCount', savedExKrCount); 
                 document.getElementById('exKrCountDisplay').innerText = savedExKrCount; 
             }
-            if(isPlaying) { isSkipping = true; window.speechSynthesis.cancel(); }
+            if(isPlaying) { 
+                isSkipping = true; 
+                window.speechSynthesis.cancel(); 
+                if (currentApiAudio) { currentApiAudio.pause(); currentApiAudio = null; }
+            }
         }
         
         function moveWord(direction) { 
-            isSkipping = true; skipDirection = direction; window.speechSynthesis.cancel(); 
+            isSkipping = true; skipDirection = direction; 
+            window.speechSynthesis.cancel(); 
+            if (currentApiAudio) { currentApiAudio.pause(); currentApiAudio = null; }
             if (direction === 1) { advanceIndex(); } else { savedIndex--; if (savedIndex < 0) savedIndex = words.length - 1; } 
             renderWord(); 
         }
@@ -619,74 +626,134 @@
             } 
         }
         
-        function stopSleepMode() { isPlaying = false; window.speechSynthesis.cancel(); document.getElementById('bgmPlayer').pause(); releaseWakeLock(); renderWord(); }
+        function stopSleepMode() { 
+            isPlaying = false; 
+            window.speechSynthesis.cancel(); 
+            if (currentApiAudio) {
+                currentApiAudio.pause();
+                currentApiAudio = null;
+            }
+            document.getElementById('bgmPlayer').pause(); 
+            releaseWakeLock(); 
+            renderWord(); 
+        }
         
         function speakText(text, lang) { 
-            return new Promise(resolve => { 
+            return new Promise(async resolve => { 
                 if(!text || isSkipping || !isPlaying) return resolve(); 
                 
-                setTimeout(() => {
-                    if(!isPlaying || isSkipping) return resolve();
-                    
-                    const msg = new SpeechSynthesisUtterance(text); 
-                    msg.lang = lang; 
-                    let isSimulatedHcm = false; // 대체(시뮬레이션) 로직 작동 여부 플래그
-                    
-                    if(lang === 'vi-VN') { 
-                        let voices = window.speechSynthesis.getVoices(); 
-                        let vnVoices = voices.filter(v => v.lang.startsWith('vi')); 
-                        if(vnVoices.length > 0) { 
-                            if(savedAccent === 'hcm') { 
-                                // 남부 발음 필터링 스펙트럼 강화
-                                let hcmVoice = vnVoices.find(v => v.name.toLowerCase().includes('ho chi minh') || v.name.toLowerCase().includes('south') || v.name.toLowerCase().includes('hue')); 
-                                if (hcmVoice) {
-                                    msg.voice = hcmVoice; 
-                                } else {
-                                    // 네이티브 엔진 부재 시 기본 엔진 장착 후 플래그 ON
-                                    msg.voice = vnVoices[0];
-                                    isSimulatedHcm = true;
-                                }
-                            } else { 
-                                let hanoiVoice = vnVoices.find(v => v.name.toLowerCase().includes('ha noi') || v.name.toLowerCase().includes('north'));
-                                msg.voice = hanoiVoice ? hanoiVoice : vnVoices[0]; 
-                            } 
-                        } 
-                    } 
-                    
-                    msg.volume = parseFloat(savedAppVolume); 
-                    const baseRate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
-                    switch(savedVoiceType) { 
-                        case 'male': msg.pitch = 0.55; break; 
-                        case 'child': msg.pitch = 1.85; break; 
-                        case 'grandma': msg.pitch = 1.45; break; 
-                        case 'grandpa': msg.pitch = 0.35; break; 
-                        case 'soft': msg.pitch = 0.95; break; 
-                        case 'clear': msg.pitch = 1.25; break; 
-                        default: msg.pitch = 1.0; 
-                    } 
-                    msg.rate = baseRate; 
-                    
-                    // 엔진 한계 극복: 남부 억양 미세 시뮬레이션 적용
-                    if (isSimulatedHcm) {
-                        msg.pitch = Math.max(0.1, msg.pitch * 0.85); // 15% 톤을 낮춰 남부의 둥근 느낌 구현
-                        msg.rate = Math.max(0.1, msg.rate * 0.95);   // 5% 속도를 늦춰 특유의 여유로운 템포 구현
+                let isResolved = false;
+                const safeResolve = () => {
+                    if(!isResolved) {
+                        isResolved = true;
+                        resolve();
                     }
-                    
-                    let isResolved = false;
-                    const safeResolve = () => { if(!isResolved) { isResolved = true; resolve(); } };
-                    msg.onend = safeResolve; 
-                    msg.onerror = safeResolve; 
-                    window.speechSynthesis.speak(msg); 
-                    
-                    const checker = setInterval(() => {
-                        if (!isPlaying || isSkipping) {
-                            clearInterval(checker);
-                            window.speechSynthesis.cancel();
-                            safeResolve();
-                        }
-                    }, 50);
+                };
 
-                }, 20); 
+                // 한국어는 빠르고 비용 없는 아이폰 기본 엔진 계속 사용
+                if (lang === 'ko-KR') {
+                    setTimeout(() => {
+                        if(!isPlaying || isSkipping) return safeResolve();
+                        
+                        const msg = new SpeechSynthesisUtterance(text); 
+                        msg.lang = lang; 
+                        msg.volume = parseFloat(savedAppVolume); 
+                        msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
+                        
+                        msg.onend = safeResolve; 
+                        msg.onerror = safeResolve; 
+                        window.speechSynthesis.speak(msg); 
+                        
+                        const checker = setInterval(() => {
+                            if (!isPlaying || isSkipping) {
+                                clearInterval(checker);
+                                window.speechSynthesis.cancel();
+                                safeResolve();
+                            }
+                        }, 50);
+                    }, 20); 
+                } 
+                // 베트남어는 무조건 구글 클라우드 원어민 AI 사용
+                else if (lang === 'vi-VN') {
+                    const API_KEY = 'AIzaSyCNWYad51NeCEiU7uf6PRyXFUKYur-fDa0'; // 명희님이 발급받으신 키
+                    
+                    let voiceName = 'vi-VN-Wavenet-A'; // 기본: 하노이 여성
+                    if (savedAccent === 'hcm') {
+                        // 구글 클라우드 남부(호치민) AI 음성 매핑
+                        voiceName = (savedVoiceType === 'male' || savedVoiceType === 'grandpa') ? 'vi-VN-Wavenet-B' : 'vi-VN-Wavenet-C';
+                    } else {
+                        // 구글 클라우드 북부(하노이) AI 음성 매핑
+                        voiceName = (savedVoiceType === 'male' || savedVoiceType === 'grandpa') ? 'vi-VN-Wavenet-D' : 'vi-VN-Wavenet-A';
+                    }
+
+                    let speakingRate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
+                    let pitch = 0;
+
+                    // 목소리 스타일 반영 (구글 엔진에 맞게 수치 조절)
+                    if (savedVoiceType === 'male') pitch = -2.0; 
+                    if (savedVoiceType === 'child') pitch = 6.0; 
+                    if (savedVoiceType === 'grandma') { pitch = 2.0; speakingRate *= 0.8; } 
+                    if (savedVoiceType === 'grandpa') { pitch = -6.0; speakingRate *= 0.8; } 
+                    if (savedVoiceType === 'soft') pitch = 1.0; 
+                    if (savedVoiceType === 'clear') pitch = 2.0;
+
+                    const requestBody = {
+                        input: { text: text },
+                        voice: { languageCode: 'vi-VN', name: voiceName },
+                        audioConfig: {
+                            audioEncoding: 'MP3',
+                            speakingRate: speakingRate,
+                            pitch: pitch
+                        }
+                    };
+
+                    try {
+                        const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${API_KEY}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(requestBody)
+                        });
+
+                        if (!response.ok) {
+                            console.error("구글 엔진 접속 오류, 임시로 폰 기본 엔진 작동");
+                            const msg = new SpeechSynthesisUtterance(text); 
+                            msg.lang = 'vi-VN'; 
+                            msg.onend = safeResolve; 
+                            msg.onerror = safeResolve; 
+                            window.speechSynthesis.speak(msg);
+                            return;
+                        }
+
+                        const data = await response.json();
+                        
+                        if (currentApiAudio) {
+                            currentApiAudio.pause();
+                            currentApiAudio = null;
+                        }
+
+                        currentApiAudio = new Audio("data:audio/mp3;base64," + data.audioContent);
+                        currentApiAudio.volume = parseFloat(savedAppVolume);
+                        currentApiAudio.onended = safeResolve;
+                        currentApiAudio.onerror = safeResolve;
+
+                        const checker = setInterval(() => {
+                            if (!isPlaying || isSkipping) {
+                                clearInterval(checker);
+                                if (currentApiAudio) {
+                                    currentApiAudio.pause();
+                                    currentApiAudio = null;
+                                }
+                                safeResolve();
+                            }
+                        }, 50);
+
+                        await currentApiAudio.play();
+
+                    } catch (e) {
+                        console.error("오디오 불러오기 실패", e);
+                        safeResolve();
+                    }
+                }
             }); 
         }
         
