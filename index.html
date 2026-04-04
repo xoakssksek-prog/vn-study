@@ -119,6 +119,12 @@
             </div>
             <button class="btn-gold row-btn" style="width:100%; margin-bottom:15px;" onclick="openCalendar()">📊 학습 리포트 보기</button>
             <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 15px; margin-bottom: 15px;">
+                
+                <div style="margin-bottom: 18px; display:flex; justify-content:space-between; align-items:center; background: rgba(244, 63, 94, 0.15); padding: 12px; border-radius: 10px; border: 1px solid rgba(244, 63, 94, 0.4);">
+                    <span style="color:#f43f5e; font-weight:900; font-size: 14px;">🤫 🇻🇳 무음 모드 (요금 100% 차단)</span>
+                    <input type="checkbox" id="hideVnToggle" style="transform: scale(1.3);" onchange="saveSettings(); notify(this, 'hideVn')">
+                </div>
+
                 <div style="margin-bottom: 18px; display:flex; justify-content:space-between; align-items:center;">
                     <span style="color:var(--accent-gold); font-weight:bold;">🔊 어플 단독 볼륨</span>
                     <div style="display:flex; align-items:center; gap:8px;">
@@ -237,7 +243,7 @@
         let currentWordRep = 0; let currentExRep = 0; let currentPlayingIndex = -1;
         
         let masterWordList = [];
-        let currentApiAudio = null; // API 오디오 객체를 관리하기 위한 변수
+        let currentApiAudio = null; 
 
         let audioCtx;
         let gainNode;
@@ -264,6 +270,10 @@
         let savedDelayTime = localStorage.getItem('vn_delayTime') || '1000';
         let savedHideKrWord = localStorage.getItem('vn_hideKrWord') === 'true';
         let savedHideKrEx = localStorage.getItem('vn_hideKrEx') === 'true';
+        
+        // 새로 추가된 🇻🇳 베트남어 무음(요금 차단) 변수
+        let savedHideVn = localStorage.getItem('vn_hideVn') === 'true';
+        
         let reviewMode = localStorage.getItem('vn_reviewMode') === 'true';
         let savedBatteryProtect = localStorage.getItem('vn_batteryProtect') === 'true';
         let savedSleepSound = localStorage.getItem('vn_sleepSound') || 'none';
@@ -314,6 +324,8 @@
                 case 'hit': msg = isOn ? "🔢 횟수 기록: 단어별 재생 횟수를 기록합니다." : "🚫 기록 중단: 재생 횟수를 더 이상 기록하지 않습니다."; break;
                 case 'krWord': msg = isOn ? "🇰🇷 본문 한글 해제" : "🔊 한글 동시 학습"; break;
                 case 'krEx': msg = isOn ? "🇰🇷 예문 한글 해제" : "🔊 예문 한글 활성"; break;
+                // 무음 모드 알림 추가
+                case 'hideVn': msg = isOn ? "🤫 베트남어 음성이 꺼졌습니다. (구글 요금 완전 차단됨)" : "🔊 베트남어 음성이 켜졌습니다. (구글 AI 작동)"; break;
             }
             showNotice(msg);
         }
@@ -419,6 +431,8 @@
             document.getElementById('exVnCountDisplay').innerText = savedExVnCount; 
             document.getElementById('exKrCountDisplay').innerText = savedExKrCount; 
 
+            // 설정창 열 때 체크박스 상태 연동
+            document.getElementById('hideVnToggle').checked = savedHideVn;
             document.getElementById('fadeOutToggle').checked = savedFadeOut; 
             document.getElementById('hitCountToggle').checked = savedHitCountToggle; 
             document.getElementById('batteryProtect').checked = savedBatteryProtect; 
@@ -435,7 +449,25 @@
         function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; renderWord(); }
         
         function saveSettings() { 
-            savedAppVolume = document.getElementById('appVolume').value; savedBgmVolume = document.getElementById('bgmVolume').value; savedTimer = document.getElementById('sleepTimer').value; savedHideKrWord = document.getElementById('hideKrWord').checked; savedHideKrEx = document.getElementById('hideKrEx').checked; savedBatteryProtect = document.getElementById('batteryProtect').checked; savedSleepSound = document.getElementById('sleepSound').value; savedFadeOut = document.getElementById('fadeOutToggle').checked; savedHitCountToggle = document.getElementById('hitCountToggle').checked; savedDelayTime = document.getElementById('delayTime').value; let vr = document.getElementById('voiceRate').value; savedVoiceType = document.getElementById('voiceType').value; savedAccent = document.getElementById('accentType').value; 
+            savedAppVolume = document.getElementById('appVolume').value; 
+            savedBgmVolume = document.getElementById('bgmVolume').value; 
+            savedTimer = document.getElementById('sleepTimer').value; 
+            savedHideKrWord = document.getElementById('hideKrWord').checked; 
+            savedHideKrEx = document.getElementById('hideKrEx').checked; 
+            
+            // 무음 모드 설정 저장
+            savedHideVn = document.getElementById('hideVnToggle').checked;
+            localStorage.setItem('vn_hideVn', savedHideVn);
+            
+            savedBatteryProtect = document.getElementById('batteryProtect').checked; 
+            savedSleepSound = document.getElementById('sleepSound').value; 
+            savedFadeOut = document.getElementById('fadeOutToggle').checked; 
+            savedHitCountToggle = document.getElementById('hitCountToggle').checked; 
+            savedDelayTime = document.getElementById('delayTime').value; 
+            let vr = document.getElementById('voiceRate').value; 
+            savedVoiceType = document.getElementById('voiceType').value; 
+            savedAccent = document.getElementById('accentType').value; 
+            
             localStorage.setItem('vn_app_volume', savedAppVolume); localStorage.setItem('vn_bgm_volume', savedBgmVolume); localStorage.setItem('vn_timer', savedTimer); localStorage.setItem('vn_hideKrWord', savedHideKrWord); localStorage.setItem('vn_hideKrEx', savedHideKrEx); localStorage.setItem('vn_batteryProtect', savedBatteryProtect); localStorage.setItem('vn_sleepSound', savedSleepSound); localStorage.setItem('vn_fade_out', savedFadeOut); localStorage.setItem('vn_hit_count_toggle', savedHitCountToggle); localStorage.setItem('vn_delayTime', savedDelayTime); localStorage.setItem('vn_voiceRate', vr); localStorage.setItem('vn_voiceType', savedVoiceType); localStorage.setItem('vn_accent', savedAccent); 
             
             const p = document.getElementById('bgmPlayer'); 
@@ -650,7 +682,6 @@
                     }
                 };
 
-                // 한국어는 빠르고 비용 없는 아이폰 기본 엔진 계속 사용
                 if (lang === 'ko-KR') {
                     setTimeout(() => {
                         if(!isPlaying || isSkipping) return safeResolve();
@@ -673,23 +704,35 @@
                         }, 50);
                     }, 20); 
                 } 
-                // 베트남어는 무조건 구글 클라우드 원어민 AI 사용
                 else if (lang === 'vi-VN') {
-                    const API_KEY = 'AIzaSyCNWYad51NeCEiU7uf6PRyXFUKYur-fDa0'; // 명희님이 발급받으신 키
+                    // ★★★ [절대 방어선] 요금 차단 모드 켜짐 확인 ★★★
+                    if (savedHideVn) {
+                        // 눈으로 읽을 수 있도록 글자 수에 비례한 인공 지연 시간 부여
+                        let readingTime = Math.max(1500, text.length * 150); 
+                        let elapsed = 0;
+                        let checker = setInterval(() => {
+                            elapsed += 50;
+                            if (!isPlaying || isSkipping || elapsed >= readingTime) {
+                                clearInterval(checker);
+                                safeResolve();
+                            }
+                        }, 50);
+                        return; // 여기서 함수를 100% 강제 종료시켜 구글 서버 접속 코드가 단 1줄도 실행되지 않게 완벽하게 방어함.
+                    }
+
+                    // 아래부터는 구글 클라우드 API 작동 로직 (무음 체크 해제 시에만 실행됨)
+                    const API_KEY = 'AIzaSyCNWYad51NeCEiU7uf6PRyXFUKYur-fDa0'; 
                     
-                    let voiceName = 'vi-VN-Wavenet-A'; // 기본: 하노이 여성
+                    let voiceName = 'vi-VN-Wavenet-A'; 
                     if (savedAccent === 'hcm') {
-                        // 구글 클라우드 남부(호치민) AI 음성 매핑
                         voiceName = (savedVoiceType === 'male' || savedVoiceType === 'grandpa') ? 'vi-VN-Wavenet-B' : 'vi-VN-Wavenet-C';
                     } else {
-                        // 구글 클라우드 북부(하노이) AI 음성 매핑
                         voiceName = (savedVoiceType === 'male' || savedVoiceType === 'grandpa') ? 'vi-VN-Wavenet-D' : 'vi-VN-Wavenet-A';
                     }
 
                     let speakingRate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
                     let pitch = 0;
 
-                    // 목소리 스타일 반영 (구글 엔진에 맞게 수치 조절)
                     if (savedVoiceType === 'male') pitch = -2.0; 
                     if (savedVoiceType === 'child') pitch = 6.0; 
                     if (savedVoiceType === 'grandma') { pitch = 2.0; speakingRate *= 0.8; } 
@@ -715,7 +758,6 @@
                         });
 
                         if (!response.ok) {
-                            console.error("구글 엔진 접속 오류, 임시로 폰 기본 엔진 작동");
                             const msg = new SpeechSynthesisUtterance(text); 
                             msg.lang = 'vi-VN'; 
                             msg.onend = safeResolve; 
@@ -750,7 +792,6 @@
                         await currentApiAudio.play();
 
                     } catch (e) {
-                        console.error("오디오 불러오기 실패", e);
                         safeResolve();
                     }
                 }
