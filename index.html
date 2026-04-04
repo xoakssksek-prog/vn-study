@@ -429,7 +429,6 @@
             }
         }
 
-        // ★ 조치 1: 유료 생성 시 알림 함수 추가
         function showPaidToast() {
             const t = document.getElementById('paidToast');
             if(t) {
@@ -566,7 +565,6 @@
         let savedHideKrEx = localStorage.getItem('vn_hideKrEx') === 'true';
         let savedHideVn = localStorage.getItem('vn_hideVn') !== null ? (localStorage.getItem('vn_hideVn') === 'true') : true;
         
-        // ★ 조치 2: 월간 한도 설정 로드
         let savedApiLimit = parseInt(localStorage.getItem('vn_apiLimit') || '2000000');
 
         let reviewMode = localStorage.getItem('vn_reviewMode') === 'true';
@@ -669,7 +667,6 @@
         function toggleMainShuffle() { savedShuffle = document.getElementById('mainShuffleMode').checked; localStorage.setItem('vn_shuffle', savedShuffle); if(isPlaying) { isSkipping = true; ttsToken++; window.speechSynthesis.cancel(); stopWebAudio(); } renderWord(); }
         async function changeStudyModeMain(el) { savedStudyMode = el.value; localStorage.setItem('vn_studyMode', savedStudyMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); await loadData(savedStudyMode); if(wasPlaying) startSleepMode(); }
         
-        // ★ 조치 4: 실시간 업데이트 및 한도 표시 로직 수정
         function updateUsageDisplay() { 
             const el = document.getElementById('monthlyUsageDisplay');
             const maxEl = document.getElementById('maxLimitDisplay');
@@ -763,6 +760,12 @@
         async function startSleepMode() { 
             if (isPlaying) return; isPlaying = true; requestWakeLock(); playBackgroundSound(); startTime = Date.now(); 
             
+            // ★ 조치 2: 아이폰 한글(TTS) 묵음 버그 해결을 위해 강제 권한 획득
+            // 이전의 공격적인 cancel()은 버그를 유발하므로 삭제하고 얌전하게 공백을 읽게 합니다.
+            let unlockMsg = new SpeechSynthesisUtterance(' ');
+            unlockMsg.volume = 0;
+            window.speechSynthesis.speak(unlockMsg);
+
             if (sleepTimerId) clearTimeout(sleepTimerId); const timerVal = parseInt(savedTimer); if (timerVal > 0) sleepTimerId = setTimeout(() => stopSleepMode(), timerVal * 60 * 1000); 
             while (isPlaying) { 
                 if (savedIndex >= words.length) savedIndex = 0; localStorage.setItem('vn_index', savedIndex); isSkipping = false; renderWord(); const w = words[savedIndex]; 
@@ -795,7 +798,8 @@
         function speakKoreanLocal(text) { 
             return new Promise(resolve => {
                 const myToken = ttsToken;
-                window.speechSynthesis.cancel();
+                
+                // ★ 조치 1: 여기서 cancel()을 하면 아이폰 15 이상에서 TTS 엔진이 먹통이 됨 (제거완료)
                 stopWebAudio();
 
                 setTimeout(() => {
@@ -803,7 +807,8 @@
                     const msg = new SpeechSynthesisUtterance(text); msg.lang = 'ko-KR'; msg.volume = parseFloat(savedAppVolume); msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
                     
                     let estimatedTime = Math.max(1500, text.length * 200 + 1000);
-                    let backupTimer = setTimeout(() => { resolve(); }, estimatedTime);
+                    // 스킵 시에만 cancel 작동하도록 보완
+                    let backupTimer = setTimeout(() => { window.speechSynthesis.cancel(); resolve(); }, estimatedTime);
                     
                     msg.onend = () => { 
                         clearTimeout(backupTimer); 
@@ -821,7 +826,7 @@
                             clearInterval(checker); clearTimeout(backupTimer); window.speechSynthesis.cancel(); resolve(); 
                         } 
                     }, 50); 
-                }, 100);
+                }, 150); // 여유시간 살짝 증가
             });
         }
 
@@ -841,7 +846,7 @@
                 } 
                 
                 let estimatedTime = Math.max(1500, text.length * 200 + 1000);
-                let backupTimer = setTimeout(() => { safeResolve(); }, estimatedTime);
+                let backupTimer = setTimeout(() => { window.speechSynthesis.cancel(); safeResolve(); }, estimatedTime);
                 
                 msg.onend = () => { clearTimeout(backupTimer); setTimeout(safeResolve, 300); }; 
                 msg.onerror = () => { clearTimeout(backupTimer); setTimeout(safeResolve, 300); }; 
@@ -853,7 +858,7 @@
                         clearInterval(checker); clearTimeout(backupTimer); window.speechSynthesis.cancel(); safeResolve(); 
                     } 
                 }, 50); 
-            }, 100);
+            }, 150);
         }
         
         function updateDebugUI(status, raw, url, poll) {
@@ -877,10 +882,9 @@
                     ttsToken++;
                     const myToken = ttsToken;
 
-                    if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+                    // Web Audio만 중지하고 TTS는 건드리지 않음
                     stopWebAudio();
 
-                    // 사용자가 수동으로 차단했으면 처음부터 무료 음성으로
                     if (savedHideVn) { 
                         playIOSVoice(text, safeResolve, myToken); 
                         return;
@@ -918,17 +922,15 @@
                         } else {
                             usedCache = false;
 
-                            // ★ 조치 3: 캐시가 없어서 새로 과금해야 할 때, 한도가 초과됐는지 체크
                             if (monthlyCharCount + chunkText.length > savedApiLimit) {
                                 updateCacheStatus("월간 한도 초과 (무료 음성 대체)", false);
                                 await new Promise(r => playIOSVoice(chunkText, r, myToken));
                                 i++; 
-                                continue; // 무료 음성으로 읽었으니 다음 조각으로 넘어감
+                                continue; 
                             }
 
-                            // 한도 이내이므로 유료 API 호출 진행
                             updateCacheStatus("유료 요청 가능 (API 새로 생성 중...)", false);
-                            showPaidToast(); // 화면에 1초짜리 알림 표시
+                            showPaidToast(); 
                             
                             newFptCalls++;
                             const eHit = document.getElementById('cacheMissCount');
@@ -992,7 +994,6 @@
                                         b64Data = await blobToBase64(audioBlob);
                                         await saveCacheToDB(cacheKey, { type: 'base64', data: b64Data, mime: audioBlob.type || 'audio/mp3' });
                                         
-                                        // ★ 조치 4: 성공적으로 받아왔을 때만 글자 수 실시간 차감
                                         monthlyCharCount += chunkText.length;
                                         localStorage.setItem('vn_monthly_chars', monthlyCharCount.toString());
                                         updateUsageDisplay();
@@ -1026,7 +1027,6 @@
                                     if (b64Data.length > 100) {
                                         await saveCacheToDB(cacheKey, { type: 'base64', data: b64Data, mime: 'audio/mp3' });
                                         
-                                        // ★ 조치 4: 성공적으로 받아왔을 때만 글자 수 실시간 차감
                                         monthlyCharCount += chunkText.length;
                                         localStorage.setItem('vn_monthly_chars', monthlyCharCount.toString());
                                         updateUsageDisplay();
