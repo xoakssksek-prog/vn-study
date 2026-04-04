@@ -279,7 +279,6 @@
         let masterWordList = [];
         let currentApiAudio = null; 
 
-        // PC 모드 상태 변수
         let isPcMode = localStorage.getItem('vn_pc_mode') === 'true';
 
         let audioCtx;
@@ -416,18 +415,15 @@
             if (words.length === 0) { app.innerHTML = '<div class="card">데이터 로딩 중...</div>'; return; }
             const w = words[savedIndex]; const isCompleted = completedWords[w.A]; const isStarred = starredWords[w.A];
             
-            // ★ 수정된 PC 모드 UI 렌더링 (모든 엑셀 열 포함) ★
             if (isPcMode) {
                 let html = `<div class="pc-bar-container">`;
                 html += `<button class="pc-btn mode" onclick="togglePcMode()">📱 일반 모드</button>`;
                 
                 html += `<div class="pc-text-group" onclick="openListModal()" style="cursor:pointer;" title="목록 열기">`;
-                // 단어 영역
                 html += `<span class="pc-vn">${w.A}</span>`;
                 if (w.B) html += `<span class="pc-pron" style="margin-left:6px;">[${w.B}]</span>`;
                 if (w.C) html += `<span class="pc-kr" style="margin-left:6px;">(${w.C})</span>`;
                 
-                // 예문 영역 (예문이 있을 때만 가로선으로 구분하여 표시)
                 if (w.D) {
                     html += `<span class="pc-ex">${w.D}</span>`;
                     if (w.E) html += `<span class="pc-ex-pron" style="margin-left:6px;">[${w.E}]</span>`;
@@ -445,7 +441,6 @@
                 return; 
             }
 
-            // 일반 모드 UI 렌더링
             let vnSize = w.A.length > 15 ? '34px' : (w.A.length > 8 ? '44px' : '52px');
             let html = '<div class="card">';
             
@@ -852,23 +847,35 @@
                     setTimeout(() => {
                         if(!isPlaying || isSkipping) return safeResolve();
                         
+                        // 🌟 [버그 해결 핵심 1] 잠든 한국어 엔진 강제 기상 및 쓰레기값 초기화
+                        window.speechSynthesis.cancel();
+                        
                         const msg = new SpeechSynthesisUtterance(text); 
                         msg.lang = lang; 
                         msg.volume = parseFloat(savedAppVolume); 
                         msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
                         
-                        msg.onend = safeResolve; 
-                        msg.onerror = safeResolve; 
+                        // 🌟 [버그 해결 핵심 2] 무한 대기 멈춤 방지용 '강제 패스 타이머'
+                        // 글자 길이에 비례하여 시간을 계산하고, 그 시간이 지나도 묵묵부답이면 강제로 통과시킴
+                        let estimatedTime = Math.max(1500, text.length * 200 + 1000); 
+                        let backupTimer = setTimeout(() => {
+                            safeResolve(); // 브라우저가 에러나서 멈춰도 무조건 다음으로 넘어감
+                        }, estimatedTime);
+
+                        msg.onend = () => { clearTimeout(backupTimer); safeResolve(); }; 
+                        msg.onerror = () => { clearTimeout(backupTimer); safeResolve(); }; 
+                        
                         window.speechSynthesis.speak(msg); 
                         
                         const checker = setInterval(() => {
                             if (!isPlaying || isSkipping) {
                                 clearInterval(checker);
+                                clearTimeout(backupTimer);
                                 window.speechSynthesis.cancel();
                                 safeResolve();
                             }
                         }, 50);
-                    }, 20); 
+                    }, 50); 
                 } 
                 else if (lang === 'vi-VN') {
                     if (savedHideVn) {
