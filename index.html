@@ -263,7 +263,7 @@
 
                 <hr style="border:none; border-bottom:1px solid rgba(255,255,255,0.1); margin:15px 0;">
                 <div style="margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="color:var(--accent-gold); font-weight:bold;">🗄️ 엔진: 순수 HTML5 Audio API (iOS 버그 방어)</span>
+                    <span style="color:var(--accent-gold); font-weight:bold;">🗄️ 엔진: 순수 HTML5 Audio API</span>
                     <div style="font-size:11px; color:var(--text-dim); text-align:right;">
                         신규 호출: <span id="cacheMissCount" style="color:var(--accent-red);">0</span>회
                     </div>
@@ -326,8 +326,6 @@
         let newFptCalls = 0;
 
         window.keepAliveUtterances = [];
-
-        // 🍎 iOS BUG FIX START: Web Audio API 관련 코드 전부 삭제 (HTML5 Audio 엔진으로 일원화)
         let activeHtmlAudio = null;
 
         function stopActiveAudio() {
@@ -339,13 +337,7 @@
                 } catch(e) {}
                 activeHtmlAudio = null;
             }
-            safeCancelTTS();
-        }
-        // 🍎 iOS BUG FIX END
-
-        function safeCancelTTS() {
             window.speechSynthesis.cancel();
-            setTimeout(() => window.speechSynthesis.resume(), 50);
         }
 
         const dbName = "VnStudyAudioDB";
@@ -365,72 +357,6 @@
                 req.onsuccess = (e) => { db = e.target.result; resolve(); };
                 req.onerror = (e) => { resolve(); };
             });
-        }
-
-        let playbackQueue = [];
-        let isPlaybackRunning = false;
-        let playbackSessionId = 0;
-
-        function clearPlaybackQueue() {
-            playbackSessionId++;
-            playbackQueue.forEach(t => t.resolve());
-            playbackQueue = [];
-        }
-
-        function enqueuePlayback(playFn) {
-            return new Promise(resolve => {
-                playbackQueue.push({ playFn, resolve, sessionId: playbackSessionId });
-                processPlaybackQueue();
-            });
-        }
-
-        async function processPlaybackQueue() {
-            if (isPlaybackRunning) return;
-            isPlaybackRunning = true;
-
-            while (playbackQueue.length > 0) {
-                const task = playbackQueue.shift();
-                
-                if (task.sessionId !== playbackSessionId || !isPlaying || isSkipping) {
-                    task.resolve();
-                    continue;
-                }
-
-                await new Promise(stepResolve => {
-                    let stepDone = false;
-                    
-                    const safeNext = () => {
-                        if (stepDone) return;
-                        stepDone = true;
-                        clearTimeout(fallbackTimer);
-                        clearInterval(cancelChecker);
-                        
-                        setTimeout(() => {
-                            task.resolve();
-                            stepResolve();
-                        }, 250);
-                    };
-
-                    const fallbackTimer = setTimeout(() => {
-                        stopActiveAudio();
-                        safeNext();
-                    }, 15000);
-
-                    const cancelChecker = setInterval(() => {
-                        if (task.sessionId !== playbackSessionId || !isPlaying || isSkipping) {
-                            stopActiveAudio();
-                            safeNext();
-                        }
-                    }, 50);
-
-                    try {
-                        task.playFn(safeNext, task.sessionId);
-                    } catch(e) {
-                        safeNext();
-                    }
-                });
-            }
-            isPlaybackRunning = false;
         }
 
         async function saveCacheToDB(key, payload) {
@@ -493,9 +419,9 @@
             }
         }
 
-        // 🍎 iOS BUG FIX START: 순수 HTML5 Audio 엔진으로 완벽 대체
         function playBase64HtmlAudio(base64Str) {
-            return enqueuePlayback((safeNext) => {
+            return new Promise((resolve) => {
+                if (!isPlaying || isSkipping) return resolve();
                 try {
                     stopActiveAudio();
                     const binaryString = window.atob(base64Str);
@@ -513,40 +439,40 @@
                     activeHtmlAudio.onended = () => {
                         URL.revokeObjectURL(url);
                         activeHtmlAudio = null;
-                        safeNext();
+                        resolve();
                     };
                     
                     activeHtmlAudio.onerror = () => {
                         URL.revokeObjectURL(url);
                         activeHtmlAudio = null;
-                        safeNext();
+                        resolve();
                     };
 
                     activeHtmlAudio.play().catch(() => {
                         URL.revokeObjectURL(url);
                         activeHtmlAudio = null;
-                        safeNext();
+                        resolve();
                     });
                 } catch(e) {
-                    safeNext();
+                    resolve();
                 }
             });
         }
 
         function playFallbackUrl(url) {
-            return enqueuePlayback((safeNext) => {
+            return new Promise((resolve) => {
+                if (!isPlaying || isSkipping) return resolve();
                 stopActiveAudio();
                 
                 activeHtmlAudio = new Audio(url);
                 activeHtmlAudio.volume = parseFloat(savedAppVolume);
                 
-                activeHtmlAudio.onended = () => { activeHtmlAudio = null; safeNext(); };
-                activeHtmlAudio.onerror = () => { activeHtmlAudio = null; safeNext(); };
+                activeHtmlAudio.onended = () => { activeHtmlAudio = null; resolve(); };
+                activeHtmlAudio.onerror = () => { activeHtmlAudio = null; resolve(); };
                 
-                activeHtmlAudio.play().catch(() => { activeHtmlAudio = null; safeNext(); });
+                activeHtmlAudio.play().catch(() => { activeHtmlAudio = null; resolve(); });
             });
         }
-        // 🍎 iOS BUG FIX END
 
         function normalizeText(t) { return t.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim(); }
         function splitTextIntoChunks(text, maxLength = 80) {
@@ -677,7 +603,7 @@
         
         function jumpToWord(index) { 
             savedIndex = index; localStorage.setItem('vn_index', savedIndex); 
-            if (isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); stopActiveAudio(); currentWordRep = 0; currentExRep = 0; } 
+            if (isPlaying) { isSkipping = true; ttsToken++; stopActiveAudio(); currentWordRep = 0; currentExRep = 0; } 
             closeListModal(); renderWord(); showNotice(`${index + 1}번째 항목으로 이동했습니다.`); 
         }
         
@@ -686,7 +612,7 @@
         function toggleStar() { const w = words[savedIndex]; if (starredWords[w.A]) delete starredWords[w.A]; else starredWords[w.A] = true; localStorage.setItem('vn_starred', JSON.stringify(starredWords)); renderWord(); }
         function toggleComplete() { let w = words[savedIndex]; if (completedWords[w.A]) { delete completedWords[w.A]; } else { completedWords[w.A] = true; showNotice('✅ 암기 끝! 숨김 처리되었습니다.'); moveWord(1); } localStorage.setItem('vn_completed', JSON.stringify(completedWords)); renderWord(); }
         function toggleMainReview() { reviewMode = document.getElementById('mainReviewMode').checked; localStorage.setItem('vn_reviewMode', reviewMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); applyModeFilter(); if(wasPlaying) startSleepMode(); }
-        function toggleMainShuffle() { savedShuffle = document.getElementById('mainShuffleMode').checked; localStorage.setItem('vn_shuffle', savedShuffle); if(isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); stopActiveAudio(); } renderWord(); }
+        function toggleMainShuffle() { savedShuffle = document.getElementById('mainShuffleMode').checked; localStorage.setItem('vn_shuffle', savedShuffle); if(isPlaying) { isSkipping = true; ttsToken++; stopActiveAudio(); } renderWord(); }
         
         async function changeStudyModeMain(el) { savedStudyMode = el.value; localStorage.setItem('vn_studyMode', savedStudyMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); await loadData(savedStudyMode); if(wasPlaying) startSleepMode(); }
         
@@ -726,7 +652,7 @@
             savedDelayTime = document.getElementById('delayTime').value; let vr = document.getElementById('voiceRate').value; 
             savedVoiceType = document.getElementById('voiceType').value; localStorage.setItem('vn_app_volume', savedAppVolume); 
             localStorage.setItem('vn_bgm_volume', savedBgmVolume); localStorage.setItem('vn_timer', savedTimer); 
-            localStorage.setItem('vn_hideKrWord', savedHideKrWord); localStorage.setItem('vn_hideKrEx', savedHideKrEx); 
+            localStorage.setItem('vn_hideKrWord', localStorage.setItem('vn_hideKrEx', savedHideKrEx)); 
             localStorage.setItem('vn_batteryProtect', savedBatteryProtect); localStorage.setItem('vn_sleepSound', savedSleepSound); 
             localStorage.setItem('vn_fade_out', savedFadeOut); localStorage.setItem('vn_hit_count_toggle', savedHitCountToggle); 
             localStorage.setItem('vn_delayTime', savedDelayTime); localStorage.setItem('vn_voiceRate', vr); 
@@ -734,15 +660,15 @@
             
             const p = document.getElementById('bgmPlayer'); 
             if (p) { p.volume = parseFloat(savedBgmVolume); } 
-            if(isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); stopActiveAudio(); } 
+            if(isPlaying) { isSkipping = true; ttsToken++; stopActiveAudio(); } 
         }
 
         function adjustVolume(targetId, amount) { const slider = document.getElementById(targetId); let newVal = parseFloat(slider.value) + amount; if (newVal > 1) newVal = 1; if (newVal < 0) newVal = 0; slider.value = newVal.toFixed(1); saveSettings(); if (targetId === 'appVolume') showNotice('🔊 볼륨이 조절되었습니다.'); else showNotice('🎵 수면 유도음 볼륨이 조절되었습니다.'); }
-        function changeGlobalCount(type, n) { if (type === 'wordVn') { savedWordVnCount = Math.min(99, Math.max(0, savedWordVnCount + n)); localStorage.setItem('vn_wordVnCount', savedWordVnCount); document.getElementById('wordVnCountDisplay').innerText = savedWordVnCount; } else if (type === 'wordKr') { savedWordKrCount = Math.min(99, Math.max(0, savedWordKrCount + n)); localStorage.setItem('vn_wordKrCount', savedWordKrCount); document.getElementById('wordKrCountDisplay').innerText = savedWordKrCount; } else if (type === 'exVn') { savedExVnCount = Math.min(99, Math.max(0, savedExVnCount + n)); localStorage.setItem('vn_exVnCount', savedExVnCount); document.getElementById('exVnCountDisplay').innerText = savedExVnCount; } else if (type === 'exKr') { savedExKrCount = Math.min(99, Math.max(0, savedExKrCount + n)); localStorage.setItem('vn_exKrCount', savedExKrCount); document.getElementById('exKrCountDisplay').innerText = savedExKrCount; } if(isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); stopActiveAudio(); } }
+        function changeGlobalCount(type, n) { if (type === 'wordVn') { savedWordVnCount = Math.min(99, Math.max(0, savedWordVnCount + n)); localStorage.setItem('vn_wordVnCount', savedWordVnCount); document.getElementById('wordVnCountDisplay').innerText = savedWordVnCount; } else if (type === 'wordKr') { savedWordKrCount = Math.min(99, Math.max(0, savedWordKrCount + n)); localStorage.setItem('vn_wordKrCount', savedWordKrCount); document.getElementById('wordKrCountDisplay').innerText = savedWordKrCount; } else if (type === 'exVn') { savedExVnCount = Math.min(99, Math.max(0, savedExVnCount + n)); localStorage.setItem('vn_exVnCount', savedExVnCount); document.getElementById('exVnCountDisplay').innerText = savedExVnCount; } else if (type === 'exKr') { savedExKrCount = Math.min(99, Math.max(0, savedExKrCount + n)); localStorage.setItem('vn_exKrCount', savedExKrCount); document.getElementById('exKrCountDisplay').innerText = savedExKrCount; } if(isPlaying) { isSkipping = true; ttsToken++; stopActiveAudio(); } }
         
         function moveWord(direction) { 
             isSkipping = true; skipDirection = direction; 
-            ttsToken++; clearPlaybackQueue(); stopActiveAudio(); 
+            ttsToken++; stopActiveAudio(); 
             if (direction === 1) { advanceIndex(); } else { savedIndex--; if (savedIndex < 0) savedIndex = words.length - 1; } 
             renderWord(); 
         }
@@ -763,21 +689,19 @@
         }
 
         // ==========================================
-        // ⏱️ RHYTHM FIX START: 강제 리듬 방어 (어떤 에러가 나도 순서와 박자를 무조건 지킴)
+        // 🔒 물리 락(Lock) 함수: 어떤 에러가 발생해도 정해진 시간 동안 코드를 물리적으로 멈춤
         // ==========================================
-        async function enforceRhythmDelay(text, startTime) {
-            if (!isPlaying || isSkipping) return;
+        async function waitPhysically(text) {
             const rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9');
-            // 문장 길이에 비례하여 반드시 지나가야 하는 최소 대기 시간 계산
+            // 글자당 약 150ms 할당, 최소 1초 대기 (사파리 광속 스킵 완벽 방어)
             const estMs = Math.max(1000, (text.length * 150) / rate + 500); 
+            const startTime = Date.now();
             
             while (Date.now() - startTime < estMs) {
-                if (!isPlaying || isSkipping) break;
+                if (!isPlaying || isSkipping) break; // 사용자가 일시정지나 스킵을 눌렀을 때만 강제 대기 취소
                 await new Promise(r => setTimeout(r, 50));
             }
         }
-        // ==========================================
-        // ⏱️ RHYTHM FIX END
         // ==========================================
 
         async function startSleepMode() { 
@@ -795,18 +719,16 @@
                     if (!isPlaying || isSkipping) break; 
                     
                     if (currentWordRep < savedWordVnCount) { 
-                        let st = Date.now();
-                        await speakVietnameseFpt(w.A); 
-                        // ⏱️ RHYTHM FIX: 베트남어가 iOS 버그로 인해 0초만에 끝나버려도 여기서 시간 끌기
-                        await enforceRhythmDelay(w.A, st);
+                        speakVietnameseFpt(w.A); 
+                        await waitPhysically(w.A); // 물리 락 적용 (베트남어)
                         if (!isPlaying || isSkipping) break; 
+                        await new Promise(r => setTimeout(r, 200)); // 엔진 전환을 위한 숨 고르기
                     } 
                     if (currentWordRep < savedWordKrCount && !savedHideKrWord) { 
-                        let st = Date.now();
-                        await speakKoreanLocal(w.C); 
-                        // ⏱️ RHYTHM FIX: 한국어가 iOS 버그로 인해 0초만에 끝나버려도 여기서 시간 끌기
-                        await enforceRhythmDelay(w.C, st);
+                        speakKoreanLocal(w.C); 
+                        await waitPhysically(w.C); // 물리 락 적용 (한국어)
                         if (!isPlaying || isSkipping) break; 
+                        await new Promise(r => setTimeout(r, 200)); // 엔진 전환을 위한 숨 고르기
                     } 
                     let delayMs = parseInt(savedDelayTime); for(let ms=0; ms<delayMs; ms+=100) { if(!isPlaying || isSkipping) break; await new Promise(r => setTimeout(r, 100)); } 
                 } 
@@ -818,16 +740,16 @@
                         if (!isPlaying || isSkipping) break; 
                         
                         if (currentExRep < savedExVnCount) { 
-                            let st = Date.now();
-                            await speakVietnameseFpt(w.D); 
-                            await enforceRhythmDelay(w.D, st);
+                            speakVietnameseFpt(w.D); 
+                            await waitPhysically(w.D); // 예문 베트남어 물리 락
                             if (!isPlaying || isSkipping) break; 
+                            await new Promise(r => setTimeout(r, 200));
                         } 
                         if (currentExRep < savedExKrCount && !savedHideKrEx) { 
-                            let st = Date.now();
-                            await speakKoreanLocal(w.F); 
-                            await enforceRhythmDelay(w.F, st);
+                            speakKoreanLocal(w.F); 
+                            await waitPhysically(w.F); // 예문 한국어 물리 락
                             if (!isPlaying || isSkipping) break; 
+                            await new Promise(r => setTimeout(r, 200));
                         } 
                         let delayMs = parseInt(savedDelayTime); for(let ms=0; ms<delayMs; ms+=100) { if(!isPlaying || isSkipping) break; await new Promise(r => setTimeout(r, 100)); } 
                     } 
@@ -837,45 +759,58 @@
         }
         
         function stopSleepMode() { 
-            isPlaying = false; ttsToken++; clearPlaybackQueue(); stopActiveAudio(); 
+            isPlaying = false; ttsToken++; stopActiveAudio(); 
             document.getElementById('bgmPlayer').pause(); releaseWakeLock(); renderWord(); 
         }
 
-        function cleanupUtterance(msg) {
-            const idx = window.keepAliveUtterances.indexOf(msg);
-            if (idx !== -1) window.keepAliveUtterances.splice(idx, 1);
-        }
-
+        // ==========================================
+        // 🇰🇷 KOREAN TTS: 함수 내부에서 락(Lock)을 걸어 순서 꼬임 원천 차단
+        // ==========================================
         function speakKoreanLocal(text) { 
-            return enqueuePlayback((safeNext) => {
-                if(!text || isSkipping || !isPlaying) return safeNext(); 
-                stopActiveAudio(); 
-                const msg = new SpeechSynthesisUtterance(text); 
-                window.keepAliveUtterances.push(msg); 
-                msg.lang = 'ko-KR'; msg.volume = parseFloat(savedAppVolume); msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
-                msg.onend = () => { cleanupUtterance(msg); safeNext(); }; 
-                msg.onerror = () => { cleanupUtterance(msg); safeNext(); }; 
-                window.speechSynthesis.speak(msg); 
-            });
+            if(!text || isSkipping || !isPlaying) return; 
+            
+            stopActiveAudio(); 
+            window.speechSynthesis.cancel(); // 무조건 이전 찌꺼기 날림
+            
+            const msg = new SpeechSynthesisUtterance(text); 
+            window.keepAliveUtterances.push(msg); // 아이폰 사파리 GC 버그 방지
+            
+            msg.lang = 'ko-KR'; 
+            msg.volume = parseFloat(savedAppVolume); 
+            msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
+            
+            msg.onend = () => { 
+                const idx = window.keepAliveUtterances.indexOf(msg);
+                if (idx !== -1) window.keepAliveUtterances.splice(idx, 1);
+            }; 
+            msg.onerror = msg.onend;
+            
+            window.speechSynthesis.speak(msg); 
         }
+        // ==========================================
 
         function playIOSVoice(text) { 
-            return enqueuePlayback((safeNext) => {
-                stopActiveAudio();
-                const msg = new SpeechSynthesisUtterance(text); 
-                window.keepAliveUtterances.push(msg);
-                msg.lang = 'vi-VN'; msg.volume = parseFloat(savedAppVolume); msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
-                let voices = window.speechSynthesis.getVoices(); let vnVoices = voices.filter(v => v.lang.startsWith('vi')); 
-                if(vnVoices.length > 0) { 
-                    let isMale = savedVoiceType.includes('-B') || savedVoiceType.includes('-D') || savedVoiceType.includes('minhquang') || savedVoiceType.includes('leminh');
-                    let maleVoice = vnVoices.find(v => v.name.toLowerCase().includes('nam') || v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('an'));
-                    let femaleVoice = vnVoices.find(v => v.name.toLowerCase().includes('nu') || v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('mai') || v.name.toLowerCase().includes('linh'));
-                    if (isMale && maleVoice) msg.voice = maleVoice; else if (!isMale && femaleVoice) msg.voice = femaleVoice; else msg.voice = vnVoices[0];
-                } 
-                msg.onend = () => { cleanupUtterance(msg); safeNext(); }; 
-                msg.onerror = () => { cleanupUtterance(msg); safeNext(); }; 
-                window.speechSynthesis.speak(msg); 
-            });
+            if(!text || isSkipping || !isPlaying) return; 
+            stopActiveAudio();
+            window.speechSynthesis.cancel();
+            
+            const msg = new SpeechSynthesisUtterance(text); 
+            window.keepAliveUtterances.push(msg);
+            msg.lang = 'vi-VN'; msg.volume = parseFloat(savedAppVolume); msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
+            let voices = window.speechSynthesis.getVoices(); let vnVoices = voices.filter(v => v.lang.startsWith('vi')); 
+            if(vnVoices.length > 0) { 
+                let isMale = savedVoiceType.includes('-B') || savedVoiceType.includes('-D') || savedVoiceType.includes('minhquang') || savedVoiceType.includes('leminh');
+                let maleVoice = vnVoices.find(v => v.name.toLowerCase().includes('nam') || v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('an'));
+                let femaleVoice = vnVoices.find(v => v.name.toLowerCase().includes('nu') || v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('mai') || v.name.toLowerCase().includes('linh'));
+                if (isMale && maleVoice) msg.voice = maleVoice; else if (!isMale && femaleVoice) msg.voice = femaleVoice; else msg.voice = vnVoices[0];
+            } 
+            
+            msg.onend = () => { 
+                const idx = window.keepAliveUtterances.indexOf(msg);
+                if (idx !== -1) window.keepAliveUtterances.splice(idx, 1);
+            }; 
+            msg.onerror = msg.onend;
+            window.speechSynthesis.speak(msg); 
         }
         
         function updateDebugUI(status, raw, url, poll) {
@@ -886,119 +821,116 @@
             } catch(e) {}
         }
 
-        function speakVietnameseFpt(text) { 
-            return new Promise(async resolve => { 
-                let isResolved = false; 
-                const safeResolve = () => { if(!isResolved) { isResolved = true; resolve(); } }; 
+        async function speakVietnameseFpt(text) { 
+            try {
+                if(!text || isSkipping || !isPlaying) return; 
+                ttsToken++; const myToken = ttsToken; stopActiveAudio();
+
+                if (savedHideVn) { 
+                    playIOSVoice(text); 
+                    return; 
+                } 
                 
-                try {
-                    if(!text || isSkipping || !isPlaying) return safeResolve(); 
-                    ttsToken++; const myToken = ttsToken; stopActiveAudio();
+                const rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9');
+                const chunks = splitTextIntoChunks(text, 80);
+                const provider = savedVoiceType.startsWith('fpt-') ? 'fpt' : 'google';
 
-                    if (savedHideVn) { await playIOSVoice(text); return safeResolve(); } 
+                let i = 0;
+                while (i < chunks.length) {
+                    if (!isPlaying || isSkipping || ttsToken !== myToken) return;
                     
-                    const rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9');
-                    const chunks = splitTextIntoChunks(text, 80);
-                    const provider = savedVoiceType.startsWith('fpt-') ? 'fpt' : 'google';
+                    const chunkText = chunks[i];
+                    if (!chunkText) { i++; continue; }
+                    
+                    const cacheKey = getAudioCacheKey(provider, normalizeText(chunkText), 'vi-VN', savedVoiceType, rate, 0);
+                    let b64Data = null; let fallbackUrl = null; let usedCache = false; let retryThisChunk = false;
+                    const cachedPayload = await getCacheFromDB(cacheKey);
 
-                    let i = 0;
-                    while (i < chunks.length) {
-                        if (!isPlaying || isSkipping || ttsToken !== myToken) return safeResolve();
-                        
-                        const chunkText = chunks[i];
-                        if (!chunkText) { i++; continue; }
-                        
-                        const cacheKey = getAudioCacheKey(provider, normalizeText(chunkText), 'vi-VN', savedVoiceType, rate, 0);
-                        let b64Data = null; let fallbackUrl = null; let usedCache = false; let retryThisChunk = false;
-                        const cachedPayload = await getCacheFromDB(cacheKey);
-
-                        if (cachedPayload) {
-                            usedCache = true; updateCacheStatus("무료 재생 (캐시 사용, API 호출 없음)", true);
-                            if (cachedPayload.type === 'base64') { b64Data = cachedPayload.data; } else if (cachedPayload.type === 'url') { fallbackUrl = cachedPayload.data; }
-                            updateDebugUI("캐시 로드 완료", "-", "-", 0);
-                        } else {
-                            usedCache = false;
-                            if (monthlyCharCount + chunkText.length > savedApiLimit) {
-                                updateCacheStatus("월간 한도 초과 (무료 음성 대체)", false); await playIOSVoice(chunkText); i++; continue; 
-                            }
-
-                            updateCacheStatus("유료 요청 가능 (API 새로 생성 중...)", false); showPaidToast(); 
-                            newFptCalls++; const eHit = document.getElementById('cacheMissCount'); if(eHit) eHit.innerText = newFptCalls;
-                            updateDebugUI("API 요청 시작", "-", "-", 0);
-
-                            try {
-                                const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 12000);
-                                if (provider === 'fpt') {
-                                    const fptVoice = savedVoiceType.replace('fpt-', ''); let fptSpeed = rate <= 0.6 ? '-1' : (rate >= 1.3 ? '1' : '0');
-                                    const FPT_API_KEY = 'ihF4MZvBf2H7yFQhObOOGkedWANC31je';
-                                    const response = await fetch('https://api.fpt.ai/hmi/tts/v5', { method: 'POST', headers: { 'api-key': FPT_API_KEY, 'voice': fptVoice, 'speed': fptSpeed }, body: chunkText, signal: controller.signal });
-                                    const rawText = await response.text();
-                                    if (!response.ok) throw new Error(`FPT 응답 오류 (${response.status})`);
-                                    
-                                    let parsedUrl = "";
-                                    try { const data = JSON.parse(rawText); parsedUrl = data.audiourl || data.async || data.url || (data.data && data.data.url) || ""; } catch(e) { if (rawText.startsWith('http')) parsedUrl = rawText.trim(); }
-                                    if (!parsedUrl) throw new Error("FPT URL 없음");
-                                    
-                                    updateDebugUI("오디오 처리 중", "-", parsedUrl);
-                                    let audioBlob = null; fallbackUrl = parsedUrl;
-
-                                    for(let pollIdx = 1; pollIdx <= 5; pollIdx++) {
-                                        if (!isPlaying || isSkipping || ttsToken !== myToken) break;
-                                        updateDebugUI(undefined, undefined, undefined, pollIdx);
-                                        try {
-                                            const pollRes = await fetch(parsedUrl);
-                                            if (pollRes.status === 200) {
-                                                const contentType = pollRes.headers.get('content-type') || '';
-                                                if (contentType.includes('audio') || contentType.includes('mpeg') || contentType.includes('octet-stream')) {
-                                                    const tempBlob = await pollRes.blob();
-                                                    if (tempBlob && tempBlob.size > 500) { audioBlob = tempBlob; break; }
-                                                }
-                                            }
-                                        } catch(err) { break; }
-                                        await new Promise(r => setTimeout(r, 800));
-                                    }
-                                    clearTimeout(timeoutId);
-
-                                    if (audioBlob && audioBlob.size > 0) {
-                                        b64Data = await blobToBase64(audioBlob); await saveCacheToDB(cacheKey, { type: 'base64', data: b64Data, mime: audioBlob.type || 'audio/mp3' });
-                                        monthlyCharCount += chunkText.length; localStorage.setItem('vn_monthly_chars', monthlyCharCount.toString()); updateUsageDisplay();
-                                    } else if (fallbackUrl) {
-                                        await saveCacheToDB(cacheKey, { type: 'url', data: fallbackUrl });
-                                        monthlyCharCount += chunkText.length; localStorage.setItem('vn_monthly_chars', monthlyCharCount.toString()); updateUsageDisplay();
-                                    } else { throw new Error("오디오 데이터가 비어있습니다."); }
-                                    updateCacheStatus("유료 1회 생성 완료 → 다음부터 무료(캐시)", true);
-
-                                } else {
-                                    const GOOGLE_API_KEY = 'AIzaSyCNWYad51NeCEiU7uf6PRyXFUKYur-fDa0'; 
-                                    const requestBody = { input: { text: chunkText }, voice: { languageCode: 'vi-VN', name: savedVoiceType }, audioConfig: { audioEncoding: 'MP3', speakingRate: rate, pitch: 0.0, volumeGainDb: 4.0 } }; 
-                                    const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody), signal: controller.signal }); 
-                                    clearTimeout(timeoutId);
-                                    if (!response.ok) throw new Error(`구글 API 오류`);
-                                    const data = await response.json(); 
-                                    if (!data || !data.audioContent) throw new Error("구글 오디오 없음");
-                                    b64Data = data.audioContent;
-                                    if (b64Data.length > 100) { await saveCacheToDB(cacheKey, { type: 'base64', data: b64Data, mime: 'audio/mp3' }); monthlyCharCount += chunkText.length; localStorage.setItem('vn_monthly_chars', monthlyCharCount.toString()); updateUsageDisplay(); }
-                                    updateCacheStatus("유료 1회 생성 완료 → 다음부터 무료(캐시)", true);
-                                }
-
-                            } catch (e) {
-                                updateCacheStatus("API 재생 실패 (무료 폰 음성 대체)", false); updateDebugUI(`요청 실패`);
-                                await playIOSVoice(chunkText); i++; continue; 
-                            }
+                    if (cachedPayload) {
+                        usedCache = true; updateCacheStatus("무료 재생 (캐시 사용, API 호출 없음)", true);
+                        if (cachedPayload.type === 'base64') { b64Data = cachedPayload.data; } else if (cachedPayload.type === 'url') { fallbackUrl = cachedPayload.data; }
+                        updateDebugUI("캐시 로드 완료", "-", "-", 0);
+                    } else {
+                        usedCache = false;
+                        if (monthlyCharCount + chunkText.length > savedApiLimit) {
+                            updateCacheStatus("월간 한도 초과 (무료 음성 대체)", false); playIOSVoice(chunkText); i++; continue; 
                         }
 
-                        if (b64Data) {
-                            try { await playBase64HtmlAudio(b64Data); } catch(err) {
-                                updateDebugUI("재생 오류 감지");
-                                if (usedCache) { updateCacheStatus("손상된 캐시 초기화 → 자가 치유 중", false); await deleteCacheFromDB(cacheKey); retryThisChunk = true; }
+                        updateCacheStatus("유료 요청 가능 (API 새로 생성 중...)", false); showPaidToast(); 
+                        newFptCalls++; const eHit = document.getElementById('cacheMissCount'); if(eHit) eHit.innerText = newFptCalls;
+                        updateDebugUI("API 요청 시작", "-", "-", 0);
+
+                        try {
+                            const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 12000);
+                            if (provider === 'fpt') {
+                                const fptVoice = savedVoiceType.replace('fpt-', ''); let fptSpeed = rate <= 0.6 ? '-1' : (rate >= 1.3 ? '1' : '0');
+                                const FPT_API_KEY = 'ihF4MZvBf2H7yFQhObOOGkedWANC31je';
+                                const response = await fetch('https://api.fpt.ai/hmi/tts/v5', { method: 'POST', headers: { 'api-key': FPT_API_KEY, 'voice': fptVoice, 'speed': fptSpeed }, body: chunkText, signal: controller.signal });
+                                const rawText = await response.text();
+                                if (!response.ok) throw new Error(`FPT 응답 오류 (${response.status})`);
+                                
+                                let parsedUrl = "";
+                                try { const data = JSON.parse(rawText); parsedUrl = data.audiourl || data.async || data.url || (data.data && data.data.url) || ""; } catch(e) { if (rawText.startsWith('http')) parsedUrl = rawText.trim(); }
+                                if (!parsedUrl) throw new Error("FPT URL 없음");
+                                
+                                updateDebugUI("오디오 처리 중", "-", parsedUrl);
+                                let audioBlob = null; fallbackUrl = parsedUrl;
+
+                                for(let pollIdx = 1; pollIdx <= 5; pollIdx++) {
+                                    if (!isPlaying || isSkipping || ttsToken !== myToken) break;
+                                    updateDebugUI(undefined, undefined, undefined, pollIdx);
+                                    try {
+                                        const pollRes = await fetch(parsedUrl);
+                                        if (pollRes.status === 200) {
+                                            const contentType = pollRes.headers.get('content-type') || '';
+                                            if (contentType.includes('audio') || contentType.includes('mpeg') || contentType.includes('octet-stream')) {
+                                                const tempBlob = await pollRes.blob();
+                                                if (tempBlob && tempBlob.size > 500) { audioBlob = tempBlob; break; }
+                                            }
+                                        }
+                                    } catch(err) { break; }
+                                    await new Promise(r => setTimeout(r, 800));
+                                }
+                                clearTimeout(timeoutId);
+
+                                if (audioBlob && audioBlob.size > 0) {
+                                    b64Data = await blobToBase64(audioBlob); await saveCacheToDB(cacheKey, { type: 'base64', data: b64Data, mime: audioBlob.type || 'audio/mp3' });
+                                    monthlyCharCount += chunkText.length; localStorage.setItem('vn_monthly_chars', monthlyCharCount.toString()); updateUsageDisplay();
+                                } else if (fallbackUrl) {
+                                    await saveCacheToDB(cacheKey, { type: 'url', data: fallbackUrl });
+                                    monthlyCharCount += chunkText.length; localStorage.setItem('vn_monthly_chars', monthlyCharCount.toString()); updateUsageDisplay();
+                                } else { throw new Error("오디오 데이터가 비어있습니다."); }
+                                updateCacheStatus("유료 1회 생성 완료 → 다음부터 무료(캐시)", true);
+
+                            } else {
+                                const GOOGLE_API_KEY = 'AIzaSyCNWYad51NeCEiU7uf6PRyXFUKYur-fDa0'; 
+                                const requestBody = { input: { text: chunkText }, voice: { languageCode: 'vi-VN', name: savedVoiceType }, audioConfig: { audioEncoding: 'MP3', speakingRate: rate, pitch: 0.0, volumeGainDb: 4.0 } }; 
+                                const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody), signal: controller.signal }); 
+                                clearTimeout(timeoutId);
+                                if (!response.ok) throw new Error(`구글 API 오류`);
+                                const data = await response.json(); 
+                                if (!data || !data.audioContent) throw new Error("구글 오디오 없음");
+                                b64Data = data.audioContent;
+                                if (b64Data.length > 100) { await saveCacheToDB(cacheKey, { type: 'base64', data: b64Data, mime: 'audio/mp3' }); monthlyCharCount += chunkText.length; localStorage.setItem('vn_monthly_chars', monthlyCharCount.toString()); updateUsageDisplay(); }
+                                updateCacheStatus("유료 1회 생성 완료 → 다음부터 무료(캐시)", true);
                             }
-                        } else if (fallbackUrl) { await playFallbackUrl(fallbackUrl); }
-                        
-                        if (!retryThisChunk) { i++; }
+
+                        } catch (e) {
+                            updateCacheStatus("API 재생 실패 (무료 폰 음성 대체)", false); updateDebugUI(`요청 실패`);
+                            playIOSVoice(chunkText); i++; continue; 
+                        }
                     }
-                    safeResolve();
-                } catch(globalError) { safeResolve(); }
-            }); 
+
+                    if (b64Data) {
+                        try { await playBase64HtmlAudio(b64Data); } catch(err) {
+                            updateDebugUI("재생 오류 감지");
+                            if (usedCache) { updateCacheStatus("손상된 캐시 초기화 → 자가 치유 중", false); await deleteCacheFromDB(cacheKey); retryThisChunk = true; }
+                        }
+                    } else if (fallbackUrl) { await playFallbackUrl(fallbackUrl); }
+                    
+                    if (!retryThisChunk) { i++; }
+                }
+            } catch(globalError) {}
         }
         
         function advanceIndex() { if (savedShuffle && !isSkipping) savedIndex = Math.floor(Math.random() * words.length); else savedIndex++; if (savedIndex >= words.length) savedIndex = 0; }
