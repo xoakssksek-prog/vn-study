@@ -327,6 +327,38 @@
         let newFptCalls = 0;
 
         window.keepAliveUtterances = [];
+        let isAudioUnlocked = false; // 동기화 잠금 해제 상태 변수
+
+        // ==========================================
+        // 🚨 [추가된 핵심 코드] 터치 순간 엔진 동기식 강제 기상
+        // ==========================================
+        function initAudioEngineSynchronously() {
+            if (isAudioUnlocked) return;
+            try {
+                const ttsPlayer = document.getElementById('ttsPlayer');
+                const bgmPlayer = document.getElementById('bgmPlayer');
+                const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+                
+                // 1. HTML5 Audio 강제 해제 (비동기 없이 즉시)
+                ttsPlayer.src = silentWav;
+                ttsPlayer.play().catch(() => {});
+                ttsPlayer.pause();
+                
+                bgmPlayer.src = silentWav;
+                bgmPlayer.play().catch(() => {});
+                bgmPlayer.pause();
+
+                // 2. TTS(웹 음성 합성) 강제 해제
+                window.speechSynthesis.cancel();
+                const silentMsg = new SpeechSynthesisUtterance(' ');
+                silentMsg.volume = 0; // 소리 없이 엔진만 깨움
+                silentMsg.rate = 2.0;
+                window.speechSynthesis.speak(silentMsg);
+
+                isAudioUnlocked = true;
+            } catch(e) {}
+        }
+        // ==========================================
 
         function stopActiveAudio() {
             const ttsPlayer = document.getElementById('ttsPlayer');
@@ -567,7 +599,8 @@
                 if (w.D) { html += `<span class="pc-ex">${w.D}</span>`; if (w.E) html += `<span class="pc-ex-pron">[${w.E}]</span>`; if (w.F) html += `<span class="pc-ex-kr">(${w.F})</span>`; }
                 html += `</div><button class="pc-nav-btn" onclick="moveWord(1)">›</button></div>`;
                 html += `<div class="pc-side-group">`;
-                if (!isPlaying) { html += `<button class="pc-btn start" onclick="startSleepMode()">▶ 시작</button>`; } else { html += `<button class="pc-btn stop" onclick="stopSleepMode()">⏸ 멈춤</button>`; }
+                // 버튼에 동기식 잠금해제 추가
+                if (!isPlaying) { html += `<button class="pc-btn start" onclick="initAudioEngineSynchronously(); startSleepMode();">▶ 시작</button>`; } else { html += `<button class="pc-btn stop" onclick="stopSleepMode()">⏸ 멈춤</button>`; }
                 html += `</div></div>`;
                 app.innerHTML = html;
                 return; 
@@ -584,7 +617,8 @@
             if (w.G) { html += '<div style="font-size: 18px; color: #cbd5e1; margin-bottom: 15px; line-height: 1.4;">' + w.G + '</div>'; }
             if (w.D) { html += '<div class="ex-box"><div class="ex-vn">' + w.D + '</div>'; if (w.E) html += '<div class="ex-pron">[' + w.E + ']</div>'; html += '<div class="ex-kr">' + w.F + '</div></div>'; }
             html += '</div><div class="bottom-controls">';
-            if (!isPlaying) { html += '<button class="play-btn" onclick="startSleepMode()">START</button>'; }
+            // 버튼에 동기식 잠금해제 추가
+            if (!isPlaying) { html += '<button class="play-btn" onclick="initAudioEngineSynchronously(); startSleepMode();">START</button>'; }
             else { html += '<button class="play-btn" style="background:#334155;" onclick="stopSleepMode()">PAUSE (일시정지)</button>'; }
             html += `<div class="row"><button class="row-btn btn-gold" onclick="toggleComplete()">${isCompleted ? "숨김 해제" : "암기 끝! 숨기기"}</button><select class="row-btn btn-outline sheet-select" onchange="changeStudyModeMain(this)">`;
             ['단어', '문장표현', '문법', '전체랜덤'].forEach(m => { html += `<option value="${m}" ${savedStudyMode === m ? 'selected' : ''}>${m}</option>`; });
@@ -707,14 +741,6 @@
             if (isPlaying) return; 
             isPlaying = true; 
             requestWakeLock(); 
-
-            // --- [추가된 내용: 아이폰 오디오 잠금 강제 해제] ---
-            const ttsPlayer = document.getElementById('ttsPlayer');
-            try {
-                ttsPlayer.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA'; // 무음 재생
-                await ttsPlayer.play();
-            } catch(e) {}
-            // ------------------------------------------------
 
             playBackgroundSound(); 
             startTime = Date.now(); 
@@ -960,6 +986,12 @@
         function exportData() { const data = { completed: completedWords, starred: starredWords, time: dailyTime, hits: hitCounts }; const blob = new Blob([JSON.stringify(data)], { type: 'text/plain' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `viet_backup_${getTodayStr(new Date())}.txt`; a.click(); }
         function importData() { document.getElementById('importFile').click(); }
         function processFile(el) { const file = el.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { try { const data = JSON.parse(e.target.result); if (confirm("기존 기록이 덮어씌워집니다. 진행할까요?")) { localStorage.setItem('vn_completed', JSON.stringify(data.completed)); localStorage.setItem('vn_starred', JSON.stringify(data.starred)); localStorage.setItem('vn_daily_time', JSON.stringify(data.time)); localStorage.setItem('vn_hit_counts', JSON.stringify(data.hits)); location.reload(); } } catch(err) { alert("파일 오류"); } }; reader.readAsText(file); }
+        
+        // 스크립트 마지막: 로드 시점부터 음성 목록 가져오기(미리 캐싱)
+        if (window.speechSynthesis) {
+            window.speechSynthesis.getVoices();
+            window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
+        }
     </script>
 </body>
 </html>
