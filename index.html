@@ -329,25 +329,20 @@
         window.keepAliveUtterances = [];
         let isAudioUnlocked = false; 
 
-        // ==========================================
-        // 🚨 글로벌 강제 예열 및 이중 락 해제 로직 (강화됨)
-        // ==========================================
         function initAudioEngineSynchronously() {
             if (isAudioUnlocked) return;
             try {
-                // 1. TTS 고질병인 '일시정지 상태 굳어버림' 해결 (resume -> cancel)
                 if (window.speechSynthesis) {
                     window.speechSynthesis.resume();
                     window.speechSynthesis.cancel();
                     
-                    const silentMsg = new SpeechSynthesisUtterance(''); // 빈 문자열 (보이지 않는 공백)
+                    const silentMsg = new SpeechSynthesisUtterance('');
                     silentMsg.lang = 'ko-KR';
                     silentMsg.volume = 0; 
                     silentMsg.rate = 2.0;
                     window.speechSynthesis.speak(silentMsg);
                 }
 
-                // 2. HTML5 Audio 강제 로드 및 무음 재생 (.then() 체이닝으로 확실한 신호 처리)
                 const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
                 const ttsPlayer = document.getElementById('ttsPlayer');
                 const bgmPlayer = document.getElementById('bgmPlayer');
@@ -368,14 +363,12 @@
             } catch(e) {}
         }
 
-        // 글로벌 이벤트로 사용자가 화면을 만지는 그 어떤 첫 번째 순간에 즉시 예열 실행
         const unlockEvents = ['touchstart', 'click'];
         const globalUnlockHandler = () => {
             if (!isAudioUnlocked) initAudioEngineSynchronously();
             unlockEvents.forEach(e => document.body.removeEventListener(e, globalUnlockHandler));
         };
         unlockEvents.forEach(e => document.body.addEventListener(e, globalUnlockHandler, { once: true }));
-        // ==========================================
 
         function stopActiveAudio() {
             const ttsPlayer = document.getElementById('ttsPlayer');
@@ -590,9 +583,14 @@
         ];
 
         let currentCalDate = new Date();
-        loadData(savedStudyMode);
+        
+        initDB().then(() => {
+            loadData(savedStudyMode);
+            loadMasterList();
+        });
+
         async function loadMasterList() { try { for (const name in sheetNames) { const data = await fetchSheetByName(sheetNames[name]); masterWordList = masterWordList.concat(data); } } catch(e) {} }
-        loadMasterList();
+        
         setInterval(() => { if (isPlaying) { const todayStr = getTodayStr(new Date()); dailyTime[todayStr] = (dailyTime[todayStr] || 0) + 10; localStorage.setItem('vn_daily_time', JSON.stringify(dailyTime)); if (savedBatteryProtect && navigator.getBattery) { navigator.getBattery().then(bt => { if(bt.level <= 0.2) { stopSleepMode(); alert("배터리 20% 보호: 학습을 종료합니다."); } }); } } }, 10000);
 
         function showNotice(msg) { const toast = document.getElementById('noticeToast'); toast.innerText = msg; toast.style.display = 'block'; setTimeout(() => { toast.style.display = 'none'; }, 2000); }
@@ -830,6 +828,7 @@
             document.getElementById('bgmPlayer').pause(); releaseWakeLock(); renderWord(); 
         }
 
+        // 🚨 밸런스 패치: 🇰🇷 한국어 엔진 소리 살짝 줄임 (0.85)
         function speakKoreanLocal(text) { 
             if(!text || isSkipping || !isPlaying) return; 
             
@@ -840,7 +839,7 @@
             window.keepAliveUtterances.push(msg); 
             
             msg.lang = 'ko-KR'; 
-            msg.volume = parseFloat(savedAppVolume); 
+            msg.volume = parseFloat(savedAppVolume) * 0.85; // 볼륨 85%로 조정
             msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
             
             msg.onend = () => { 
@@ -860,7 +859,7 @@
             const msg = new SpeechSynthesisUtterance(text); 
             window.keepAliveUtterances.push(msg);
             msg.lang = 'vi-VN'; 
-            msg.volume = parseFloat(savedAppVolume); 
+            msg.volume = parseFloat(savedAppVolume) * 0.85; 
             msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
             let voices = window.speechSynthesis.getVoices(); let vnVoices = voices.filter(v => v.lang.startsWith('vi')); 
             if(vnVoices.length > 0) { 
@@ -969,7 +968,8 @@
 
                             } else {
                                 const GOOGLE_API_KEY = 'AIzaSyCNWYad51NeCEiU7uf6PRyXFUKYur-fDa0'; 
-                                const requestBody = { input: { text: chunkText }, voice: { languageCode: 'vi-VN', name: savedVoiceType }, audioConfig: { audioEncoding: 'MP3', speakingRate: rate, pitch: 0.0, volumeGainDb: 4.0 } }; 
+                                // 🚨 밸런스 패치: 구글 음성 볼륨 상향 (volumeGainDb: 6.0)
+                                const requestBody = { input: { text: chunkText }, voice: { languageCode: 'vi-VN', name: savedVoiceType }, audioConfig: { audioEncoding: 'MP3', speakingRate: rate, pitch: 0.0, volumeGainDb: 6.0 } }; 
                                 const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody), signal: controller.signal }); 
                                 clearTimeout(timeoutId);
                                 if (!response.ok) throw new Error(`구글 API 오류`);
