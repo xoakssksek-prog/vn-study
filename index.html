@@ -263,7 +263,7 @@
 
                 <hr style="border:none; border-bottom:1px solid rgba(255,255,255,0.1); margin:15px 0;">
                 <div style="margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="color:var(--accent-gold); font-weight:bold;">🗄️ 엔진: Web Audio API (원상복구)</span>
+                    <span style="color:var(--accent-gold); font-weight:bold;">🗄️ 엔진: 순수 HTML5 Audio API (iOS 버그 방어)</span>
                     <div style="font-size:11px; color:var(--text-dim); text-align:right;">
                         신규 호출: <span id="cacheMissCount" style="color:var(--accent-red);">0</span>회
                     </div>
@@ -325,32 +325,23 @@
         let ttsToken = 0;
         let newFptCalls = 0;
 
-        let audioCtx = null;
-        let webAudioSource = null;
         window.keepAliveUtterances = [];
 
-        let audioUnlocked = false;
+        // 🍎 iOS BUG FIX START: Web Audio API 관련 코드 전부 삭제 (HTML5 Audio 엔진으로 일원화)
+        let activeHtmlAudio = null;
 
-        function unlockIOSAudio() {
-            if (audioUnlocked) return;
-            try {
-                if (!audioCtx) {
-                    const AudioContext = window.AudioContext || window.webkitAudioContext;
-                    audioCtx = new AudioContext();
-                }
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
-                const buffer = audioCtx.createBuffer(1, 1, 22050);
-                const source = audioCtx.createBufferSource();
-                source.buffer = buffer;
-                source.connect(audioCtx.destination);
-                source.start(0);
-
-                audioUnlocked = true;
-                updateDebugUI("오디오 엔진 잠금 해제 완료");
-            } catch(e) {}
+        function stopActiveAudio() {
+            if (activeHtmlAudio) {
+                try {
+                    activeHtmlAudio.pause();
+                    activeHtmlAudio.removeAttribute('src');
+                    activeHtmlAudio.load();
+                } catch(e) {}
+                activeHtmlAudio = null;
+            }
+            safeCancelTTS();
         }
+        // 🍎 iOS BUG FIX END
 
         function safeCancelTTS() {
             window.speechSynthesis.cancel();
@@ -407,11 +398,13 @@
 
                 await new Promise(stepResolve => {
                     let stepDone = false;
+                    
                     const safeNext = () => {
                         if (stepDone) return;
                         stepDone = true;
                         clearTimeout(fallbackTimer);
                         clearInterval(cancelChecker);
+                        
                         setTimeout(() => {
                             task.resolve();
                             stepResolve();
@@ -419,16 +412,22 @@
                     };
 
                     const fallbackTimer = setTimeout(() => {
-                        safeCancelTTS(); stopWebAudio(); safeNext();
+                        stopActiveAudio();
+                        safeNext();
                     }, 15000);
 
                     const cancelChecker = setInterval(() => {
                         if (task.sessionId !== playbackSessionId || !isPlaying || isSkipping) {
-                            safeCancelTTS(); stopWebAudio(); safeNext();
+                            stopActiveAudio();
+                            safeNext();
                         }
                     }, 50);
 
-                    try { task.playFn(safeNext, task.sessionId); } catch(e) { safeNext(); }
+                    try {
+                        task.playFn(safeNext, task.sessionId);
+                    } catch(e) {
+                        safeNext();
+                    }
                 });
             }
             isPlaybackRunning = false;
@@ -474,67 +473,80 @@
             });
         }
 
-        function getAudioCacheKey(provider, text, lang, voice, speed, pitch) { return `${provider}|${text}|${lang}|${voice}|${speed}|${pitch}`; }
-        function updateCacheStatus(msg, isFree) { const el = document.getElementById('cacheStatusDisplay'); if(el) { el.innerText = `[상태] ${msg}`; el.style.color = isFree ? "var(--accent-green)" : "var(--accent-red)"; } }
-        function showPaidToast() { const t = document.getElementById('paidToast'); if(t) { t.style.display = 'block'; setTimeout(() => { t.style.display = 'none'; }, 1000); } }
-
-        function blobToBase64(blob) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result.split(',')[1]);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
+        function getAudioCacheKey(provider, text, lang, voice, speed, pitch) {
+            return `${provider}|${text}|${lang}|${voice}|${speed}|${pitch}`;
         }
-
-        function base64ToArrayBuffer(base64) {
-            const binaryString = window.atob(base64);
-            const len = binaryString.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); }
-            return bytes.buffer;
-        }
-
-        function stopWebAudio() {
-            if (webAudioSource) {
-                try { webAudioSource.stop(); } catch(e) {}
-                try { webAudioSource.disconnect(); } catch(e) {}
-                webAudioSource = null;
+        
+        function updateCacheStatus(msg, isFree) {
+            const el = document.getElementById('cacheStatusDisplay');
+            if(el) {
+                el.innerText = `[상태] ${msg}`;
+                el.style.color = isFree ? "var(--accent-green)" : "var(--accent-red)";
             }
         }
 
-        function playBase64WebAudio(base64Str) {
-            return enqueuePlayback(async (safeNext) => {
+        function showPaidToast() {
+            const t = document.getElementById('paidToast');
+            if(t) {
+                t.style.display = 'block';
+                setTimeout(() => { t.style.display = 'none'; }, 1000);
+            }
+        }
+
+        // 🍎 iOS BUG FIX START: 순수 HTML5 Audio 엔진으로 완벽 대체
+        function playBase64HtmlAudio(base64Str) {
+            return enqueuePlayback((safeNext) => {
                 try {
-                    if (!audioCtx) { const AudioContext = window.AudioContext || window.webkitAudioContext; audioCtx = new AudioContext(); }
-                    if (audioCtx.state === 'suspended') await audioCtx.resume();
-                    const arrayBuf = base64ToArrayBuffer(base64Str);
-                    const safeBuffer = arrayBuf.slice(0);
+                    stopActiveAudio();
+                    const binaryString = window.atob(base64Str);
+                    const len = binaryString.length;
+                    const bytes = new Uint8Array(len);
+                    for (let i = 0; i < len; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    const blob = new Blob([bytes.buffer], { type: 'audio/mp3' });
+                    const url = URL.createObjectURL(blob);
                     
-                    audioCtx.decodeAudioData(safeBuffer, (audioBuffer) => {
-                        stopWebAudio();
-                        webAudioSource = audioCtx.createBufferSource();
-                        webAudioSource.buffer = audioBuffer;
-                        const gainNode = audioCtx.createGain();
-                        gainNode.gain.value = parseFloat(savedAppVolume);
-                        webAudioSource.connect(gainNode);
-                        gainNode.connect(audioCtx.destination);
-                        webAudioSource.onended = () => { stopWebAudio(); safeNext(); };
-                        webAudioSource.start(0);
-                    }, (e) => { safeNext(); });
-                } catch(e) { safeNext(); }
+                    activeHtmlAudio = new Audio(url);
+                    activeHtmlAudio.volume = parseFloat(savedAppVolume);
+                    
+                    activeHtmlAudio.onended = () => {
+                        URL.revokeObjectURL(url);
+                        activeHtmlAudio = null;
+                        safeNext();
+                    };
+                    
+                    activeHtmlAudio.onerror = () => {
+                        URL.revokeObjectURL(url);
+                        activeHtmlAudio = null;
+                        safeNext();
+                    };
+
+                    activeHtmlAudio.play().catch(() => {
+                        URL.revokeObjectURL(url);
+                        activeHtmlAudio = null;
+                        safeNext();
+                    });
+                } catch(e) {
+                    safeNext();
+                }
             });
         }
 
         function playFallbackUrl(url) {
             return enqueuePlayback((safeNext) => {
-                const audio = new Audio(url);
-                audio.volume = parseFloat(savedAppVolume);
-                audio.onended = () => safeNext();
-                audio.onerror = () => safeNext();
-                audio.play().catch(() => safeNext());
+                stopActiveAudio();
+                
+                activeHtmlAudio = new Audio(url);
+                activeHtmlAudio.volume = parseFloat(savedAppVolume);
+                
+                activeHtmlAudio.onended = () => { activeHtmlAudio = null; safeNext(); };
+                activeHtmlAudio.onerror = () => { activeHtmlAudio = null; safeNext(); };
+                
+                activeHtmlAudio.play().catch(() => { activeHtmlAudio = null; safeNext(); });
             });
         }
+        // 🍎 iOS BUG FIX END
 
         function normalizeText(t) { return t.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim(); }
         function splitTextIntoChunks(text, maxLength = 80) {
@@ -553,7 +565,6 @@
         }
         
         let isPcMode = localStorage.getItem('vn_pc_mode') === 'true';
-        let bgmGainNode; let bgmTrack;
         let monthlyCharCount = 0;
         let currentMonthStr = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
         
@@ -582,6 +593,7 @@
         let savedHideVn = localStorage.getItem('vn_hideVn') !== null ? (localStorage.getItem('vn_hideVn') === 'true') : true;
         
         let savedApiLimit = parseInt(localStorage.getItem('vn_apiLimit') || '2000000');
+
         let reviewMode = localStorage.getItem('vn_reviewMode') === 'true';
         let savedBatteryProtect = localStorage.getItem('vn_batteryProtect') === 'true';
         let savedSleepSound = localStorage.getItem('vn_sleepSound') || 'none';
@@ -664,9 +676,8 @@
         function closeListModal() { document.getElementById('listModal').style.display = 'none'; }
         
         function jumpToWord(index) { 
-            unlockIOSAudio(); 
             savedIndex = index; localStorage.setItem('vn_index', savedIndex); 
-            if (isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); safeCancelTTS(); stopWebAudio(); currentWordRep = 0; currentExRep = 0; } 
+            if (isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); stopActiveAudio(); currentWordRep = 0; currentExRep = 0; } 
             closeListModal(); renderWord(); showNotice(`${index + 1}번째 항목으로 이동했습니다.`); 
         }
         
@@ -675,9 +686,9 @@
         function toggleStar() { const w = words[savedIndex]; if (starredWords[w.A]) delete starredWords[w.A]; else starredWords[w.A] = true; localStorage.setItem('vn_starred', JSON.stringify(starredWords)); renderWord(); }
         function toggleComplete() { let w = words[savedIndex]; if (completedWords[w.A]) { delete completedWords[w.A]; } else { completedWords[w.A] = true; showNotice('✅ 암기 끝! 숨김 처리되었습니다.'); moveWord(1); } localStorage.setItem('vn_completed', JSON.stringify(completedWords)); renderWord(); }
         function toggleMainReview() { reviewMode = document.getElementById('mainReviewMode').checked; localStorage.setItem('vn_reviewMode', reviewMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); applyModeFilter(); if(wasPlaying) startSleepMode(); }
-        function toggleMainShuffle() { savedShuffle = document.getElementById('mainShuffleMode').checked; localStorage.setItem('vn_shuffle', savedShuffle); if(isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); safeCancelTTS(); stopWebAudio(); } renderWord(); }
+        function toggleMainShuffle() { savedShuffle = document.getElementById('mainShuffleMode').checked; localStorage.setItem('vn_shuffle', savedShuffle); if(isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); stopActiveAudio(); } renderWord(); }
         
-        async function changeStudyModeMain(el) { unlockIOSAudio(); savedStudyMode = el.value; localStorage.setItem('vn_studyMode', savedStudyMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); await loadData(savedStudyMode); if(wasPlaying) startSleepMode(); }
+        async function changeStudyModeMain(el) { savedStudyMode = el.value; localStorage.setItem('vn_studyMode', savedStudyMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); await loadData(savedStudyMode); if(wasPlaying) startSleepMode(); }
         
         function updateUsageDisplay() { 
             const el = document.getElementById('monthlyUsageDisplay'); const maxEl = document.getElementById('maxLimitDisplay'); const hintEl = document.getElementById('limitHintDisplay');
@@ -722,26 +733,24 @@
             localStorage.setItem('vn_voiceType', savedVoiceType); 
             
             const p = document.getElementById('bgmPlayer'); 
-            if (p) { if (bgmGainNode) { bgmGainNode.gain.value = parseFloat(savedBgmVolume) * 10.0; } else { p.volume = parseFloat(savedBgmVolume); } } 
-            if(isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); safeCancelTTS(); stopWebAudio(); } 
+            if (p) { p.volume = parseFloat(savedBgmVolume); } 
+            if(isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); stopActiveAudio(); } 
         }
 
         function adjustVolume(targetId, amount) { const slider = document.getElementById(targetId); let newVal = parseFloat(slider.value) + amount; if (newVal > 1) newVal = 1; if (newVal < 0) newVal = 0; slider.value = newVal.toFixed(1); saveSettings(); if (targetId === 'appVolume') showNotice('🔊 볼륨이 조절되었습니다.'); else showNotice('🎵 수면 유도음 볼륨이 조절되었습니다.'); }
-        function changeGlobalCount(type, n) { if (type === 'wordVn') { savedWordVnCount = Math.min(99, Math.max(0, savedWordVnCount + n)); localStorage.setItem('vn_wordVnCount', savedWordVnCount); document.getElementById('wordVnCountDisplay').innerText = savedWordVnCount; } else if (type === 'wordKr') { savedWordKrCount = Math.min(99, Math.max(0, savedWordKrCount + n)); localStorage.setItem('vn_wordKrCount', savedWordKrCount); document.getElementById('wordKrCountDisplay').innerText = savedWordKrCount; } else if (type === 'exVn') { savedExVnCount = Math.min(99, Math.max(0, savedExVnCount + n)); localStorage.setItem('vn_exVnCount', savedExVnCount); document.getElementById('exVnCountDisplay').innerText = savedExVnCount; } else if (type === 'exKr') { savedExKrCount = Math.min(99, Math.max(0, savedExKrCount + n)); localStorage.setItem('vn_exKrCount', savedExKrCount); document.getElementById('exKrCountDisplay').innerText = savedExKrCount; } if(isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); safeCancelTTS(); stopWebAudio(); } }
+        function changeGlobalCount(type, n) { if (type === 'wordVn') { savedWordVnCount = Math.min(99, Math.max(0, savedWordVnCount + n)); localStorage.setItem('vn_wordVnCount', savedWordVnCount); document.getElementById('wordVnCountDisplay').innerText = savedWordVnCount; } else if (type === 'wordKr') { savedWordKrCount = Math.min(99, Math.max(0, savedWordKrCount + n)); localStorage.setItem('vn_wordKrCount', savedWordKrCount); document.getElementById('wordKrCountDisplay').innerText = savedWordKrCount; } else if (type === 'exVn') { savedExVnCount = Math.min(99, Math.max(0, savedExVnCount + n)); localStorage.setItem('vn_exVnCount', savedExVnCount); document.getElementById('exVnCountDisplay').innerText = savedExVnCount; } else if (type === 'exKr') { savedExKrCount = Math.min(99, Math.max(0, savedExKrCount + n)); localStorage.setItem('vn_exKrCount', savedExKrCount); document.getElementById('exKrCountDisplay').innerText = savedExKrCount; } if(isPlaying) { isSkipping = true; ttsToken++; clearPlaybackQueue(); stopActiveAudio(); } }
         
         function moveWord(direction) { 
-            unlockIOSAudio();
             isSkipping = true; skipDirection = direction; 
-            ttsToken++; clearPlaybackQueue(); safeCancelTTS(); stopWebAudio(); 
+            ttsToken++; clearPlaybackQueue(); stopActiveAudio(); 
             if (direction === 1) { advanceIndex(); } else { savedIndex--; if (savedIndex < 0) savedIndex = words.length - 1; } 
             renderWord(); 
         }
         
         function playBackgroundSound() { 
             const p = document.getElementById('bgmPlayer'); 
-            // ⏱️ RHYTHM FIX: 수면음이 없더라도 안드로이드/아이폰 백그라운드 절전 방어를 위해 무음으로 강제 재생
             const s = { 
-                none: 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA', // 0.1초짜리 묵음 파일 데이터
+                none: 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA', 
                 rain: 'https://actions.google.com/sounds/v1/weather/light_rain.ogg', 
                 ocean: 'https://actions.google.com/sounds/v1/water/waves_crashing_on_rock_beach.ogg', 
                 forest: 'https://actions.google.com/sounds/v1/ambiences/jungle_atmosphere_night.ogg', 
@@ -749,25 +758,17 @@
                 camping: 'https://actions.google.com/sounds/v1/ambiences/outdoor_summer_ambience.ogg' 
             }; 
             p.src = s[savedSleepSound] || s['none']; 
-            
-            if (!audioCtx) { try { const AudioContext = window.AudioContext || window.webkitAudioContext; audioCtx = new AudioContext(); bgmTrack = audioCtx.createMediaElementSource(p); bgmGainNode = audioCtx.createGain(); bgmTrack.connect(bgmGainNode).connect(audioCtx.destination); } catch(e) {} } 
-            if (audioCtx && audioCtx.state === 'suspended') { audioCtx.resume(); } 
-            
-            if(bgmGainNode) { 
-                bgmGainNode.gain.value = savedSleepSound === 'none' ? 0 : parseFloat(savedBgmVolume) * 10.0; 
-            } else { 
-                p.volume = savedSleepSound === 'none' ? 0 : parseFloat(savedBgmVolume); 
-            } 
+            p.volume = savedSleepSound === 'none' ? 0 : parseFloat(savedBgmVolume); 
             p.play().catch(e => {}); 
         }
 
         // ==========================================
-        // ⏱️ RHYTHM FIX START: 무조건 리듬을 유지시키는 강제 타이머 로직
+        // ⏱️ RHYTHM FIX START: 강제 리듬 방어 (어떤 에러가 나도 순서와 박자를 무조건 지킴)
         // ==========================================
         async function enforceRhythmDelay(text, startTime) {
             if (!isPlaying || isSkipping) return;
             const rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9');
-            // 글자 수 기반으로 원래 음성이 재생되어야 할 권장 시간을 계산 (에러 시 무음 대기할 시간)
+            // 문장 길이에 비례하여 반드시 지나가야 하는 최소 대기 시간 계산
             const estMs = Math.max(1000, (text.length * 150) / rate + 500); 
             
             while (Date.now() - startTime < estMs) {
@@ -780,7 +781,6 @@
         // ==========================================
 
         async function startSleepMode() { 
-            unlockIOSAudio(); 
             if (isPlaying) return; isPlaying = true; requestWakeLock(); playBackgroundSound(); startTime = Date.now(); 
             
             if (sleepTimerId) clearTimeout(sleepTimerId); const timerVal = parseInt(savedTimer); if (timerVal > 0) sleepTimerId = setTimeout(() => stopSleepMode(), timerVal * 60 * 1000); 
@@ -797,14 +797,14 @@
                     if (currentWordRep < savedWordVnCount) { 
                         let st = Date.now();
                         await speakVietnameseFpt(w.A); 
-                        // ⏱️ RHYTHM FIX: 베트남어 에러가 나서 1초만에 넘어오더라도 강제로 제시간만큼 대기시킴
+                        // ⏱️ RHYTHM FIX: 베트남어가 iOS 버그로 인해 0초만에 끝나버려도 여기서 시간 끌기
                         await enforceRhythmDelay(w.A, st);
                         if (!isPlaying || isSkipping) break; 
                     } 
                     if (currentWordRep < savedWordKrCount && !savedHideKrWord) { 
                         let st = Date.now();
                         await speakKoreanLocal(w.C); 
-                        // ⏱️ RHYTHM FIX: 한국어도 에러나면 동일하게 강제 대기
+                        // ⏱️ RHYTHM FIX: 한국어가 iOS 버그로 인해 0초만에 끝나버려도 여기서 시간 끌기
                         await enforceRhythmDelay(w.C, st);
                         if (!isPlaying || isSkipping) break; 
                     } 
@@ -837,7 +837,7 @@
         }
         
         function stopSleepMode() { 
-            isPlaying = false; ttsToken++; clearPlaybackQueue(); safeCancelTTS(); stopWebAudio(); 
+            isPlaying = false; ttsToken++; clearPlaybackQueue(); stopActiveAudio(); 
             document.getElementById('bgmPlayer').pause(); releaseWakeLock(); renderWord(); 
         }
 
@@ -849,7 +849,7 @@
         function speakKoreanLocal(text) { 
             return enqueuePlayback((safeNext) => {
                 if(!text || isSkipping || !isPlaying) return safeNext(); 
-                stopWebAudio(); 
+                stopActiveAudio(); 
                 const msg = new SpeechSynthesisUtterance(text); 
                 window.keepAliveUtterances.push(msg); 
                 msg.lang = 'ko-KR'; msg.volume = parseFloat(savedAppVolume); msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
@@ -861,6 +861,7 @@
 
         function playIOSVoice(text) { 
             return enqueuePlayback((safeNext) => {
+                stopActiveAudio();
                 const msg = new SpeechSynthesisUtterance(text); 
                 window.keepAliveUtterances.push(msg);
                 msg.lang = 'vi-VN'; msg.volume = parseFloat(savedAppVolume); msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
@@ -892,7 +893,7 @@
                 
                 try {
                     if(!text || isSkipping || !isPlaying) return safeResolve(); 
-                    ttsToken++; const myToken = ttsToken; stopWebAudio();
+                    ttsToken++; const myToken = ttsToken; stopActiveAudio();
 
                     if (savedHideVn) { await playIOSVoice(text); return safeResolve(); } 
                     
@@ -987,7 +988,7 @@
                         }
 
                         if (b64Data) {
-                            try { await playBase64WebAudio(b64Data); } catch(err) {
+                            try { await playBase64HtmlAudio(b64Data); } catch(err) {
                                 updateDebugUI("재생 오류 감지");
                                 if (usedCache) { updateCacheStatus("손상된 캐시 초기화 → 자가 치유 중", false); await deleteCacheFromDB(cacheKey); retryThisChunk = true; }
                             }
