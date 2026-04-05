@@ -335,17 +335,19 @@
         function initAudioEngineSynchronously() {
             if (isAudioUnlocked) return;
             try {
+                // 1. TTS 고질병인 '일시정지 상태 굳어버림' 해결 (resume -> cancel)
                 if (window.speechSynthesis) {
                     window.speechSynthesis.resume();
                     window.speechSynthesis.cancel();
                     
-                    const silentMsg = new SpeechSynthesisUtterance('');
+                    const silentMsg = new SpeechSynthesisUtterance(''); // 빈 문자열 (보이지 않는 공백)
                     silentMsg.lang = 'ko-KR';
                     silentMsg.volume = 0; 
                     silentMsg.rate = 2.0;
                     window.speechSynthesis.speak(silentMsg);
                 }
 
+                // 2. HTML5 Audio 강제 로드 및 무음 재생 (.then() 체이닝으로 확실한 신호 처리)
                 const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
                 const ttsPlayer = document.getElementById('ttsPlayer');
                 const bgmPlayer = document.getElementById('bgmPlayer');
@@ -366,6 +368,7 @@
             } catch(e) {}
         }
 
+        // 글로벌 이벤트로 사용자가 화면을 만지는 그 어떤 첫 번째 순간에 즉시 예열 실행
         const unlockEvents = ['touchstart', 'click'];
         const globalUnlockHandler = () => {
             if (!isAudioUnlocked) initAudioEngineSynchronously();
@@ -587,15 +590,9 @@
         ];
 
         let currentCalDate = new Date();
-        
-        // 🚨 앱 시작 시 DB 켜고 -> 데이터 로드하도록 수정
-        initDB().then(() => {
-            loadData(savedStudyMode);
-            loadMasterList();
-        });
-
+        loadData(savedStudyMode);
         async function loadMasterList() { try { for (const name in sheetNames) { const data = await fetchSheetByName(sheetNames[name]); masterWordList = masterWordList.concat(data); } } catch(e) {} }
-        
+        loadMasterList();
         setInterval(() => { if (isPlaying) { const todayStr = getTodayStr(new Date()); dailyTime[todayStr] = (dailyTime[todayStr] || 0) + 10; localStorage.setItem('vn_daily_time', JSON.stringify(dailyTime)); if (savedBatteryProtect && navigator.getBattery) { navigator.getBattery().then(bt => { if(bt.level <= 0.2) { stopSleepMode(); alert("배터리 20% 보호: 학습을 종료합니다."); } }); } } }, 10000);
 
         function showNotice(msg) { const toast = document.getElementById('noticeToast'); toast.innerText = msg; toast.style.display = 'block'; setTimeout(() => { toast.style.display = 'none'; }, 2000); }
