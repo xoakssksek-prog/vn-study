@@ -329,30 +329,53 @@
         window.keepAliveUtterances = [];
         let isAudioUnlocked = false; 
 
+        // ==========================================
+        // 🚨 글로벌 강제 예열 및 이중 락 해제 로직 (강화됨)
+        // ==========================================
         function initAudioEngineSynchronously() {
             if (isAudioUnlocked) return;
             try {
+                // 1. TTS 고질병인 '일시정지 상태 굳어버림' 해결 (resume -> cancel)
+                if (window.speechSynthesis) {
+                    window.speechSynthesis.resume();
+                    window.speechSynthesis.cancel();
+                    
+                    const silentMsg = new SpeechSynthesisUtterance(''); // 빈 문자열 (보이지 않는 공백)
+                    silentMsg.lang = 'ko-KR';
+                    silentMsg.volume = 0; 
+                    silentMsg.rate = 2.0;
+                    window.speechSynthesis.speak(silentMsg);
+                }
+
+                // 2. HTML5 Audio 강제 로드 및 무음 재생 (.then() 체이닝으로 확실한 신호 처리)
+                const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
                 const ttsPlayer = document.getElementById('ttsPlayer');
                 const bgmPlayer = document.getElementById('bgmPlayer');
-                const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
                 
-                ttsPlayer.src = silentWav;
-                ttsPlayer.play().catch(() => {});
-                ttsPlayer.pause();
+                if (ttsPlayer) {
+                    ttsPlayer.src = silentWav;
+                    ttsPlayer.load();
+                    ttsPlayer.play().then(() => { ttsPlayer.pause(); }).catch(() => {});
+                }
                 
-                bgmPlayer.src = silentWav;
-                bgmPlayer.play().catch(() => {});
-                bgmPlayer.pause();
-
-                window.speechSynthesis.cancel();
-                const silentMsg = new SpeechSynthesisUtterance(' ');
-                silentMsg.volume = 0; 
-                silentMsg.rate = 2.0;
-                window.speechSynthesis.speak(silentMsg);
+                if (bgmPlayer) {
+                    bgmPlayer.src = silentWav;
+                    bgmPlayer.load();
+                    bgmPlayer.play().then(() => { bgmPlayer.pause(); }).catch(() => {});
+                }
 
                 isAudioUnlocked = true;
             } catch(e) {}
         }
+
+        // 글로벌 이벤트로 사용자가 화면을 만지는 그 어떤 첫 번째 순간에 즉시 예열 실행
+        const unlockEvents = ['touchstart', 'click'];
+        const globalUnlockHandler = () => {
+            if (!isAudioUnlocked) initAudioEngineSynchronously();
+            unlockEvents.forEach(e => document.body.removeEventListener(e, globalUnlockHandler));
+        };
+        unlockEvents.forEach(e => document.body.addEventListener(e, globalUnlockHandler, { once: true }));
+        // ==========================================
 
         function stopActiveAudio() {
             const ttsPlayer = document.getElementById('ttsPlayer');
@@ -713,32 +736,24 @@
             p.play().catch(e => {}); 
         }
 
-        // ==========================================
-        // 🚨 오디오 덕킹(볼륨 잠김 현상) 해결을 위한 핵심 대기 함수
-        // ==========================================
         async function waitPhysically(text, type) {
             const rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9');
             const estMs = Math.max(1000, (text.length * 150) / rate + 500); 
             const startTime = Date.now();
             
-            // 1. 최소 대기 시간 보장
             while (Date.now() - startTime < estMs) {
                 if (!isPlaying || isSkipping) break; 
                 await new Promise(r => setTimeout(r, 50));
             }
 
-            // 2. 엔진이 아직 말하고 있다면 절대 끊지 않고 끝날 때까지 대기
             if (type === 'kr') {
                 const fallbackTime = Date.now();
-                // 한국어(TTS)가 아직 말하는 중이면 끝날 때까지 멱살 잡고 기다림
                 while (window.speechSynthesis.speaking && Date.now() - fallbackTime < 5000) {
                     if (!isPlaying || isSkipping) break;
                     await new Promise(r => setTimeout(r, 50));
                 }
-                // 🚨 아이폰이 줄였던 배경 소리를 원래대로 키워주는 시간(0.4초) 부여
                 await new Promise(r => setTimeout(r, 400));
             } else {
-                // 베트남어(HTML5 오디오)의 경우
                 const ttsPlayer = document.getElementById('ttsPlayer');
                 if (ttsPlayer) {
                     const fallbackTime = Date.now();
@@ -750,7 +765,6 @@
                 await new Promise(r => setTimeout(r, 100));
             }
         }
-        // ==========================================
 
         async function startSleepMode() { 
             if (isPlaying) return; 
@@ -816,7 +830,6 @@
             document.getElementById('bgmPlayer').pause(); releaseWakeLock(); renderWord(); 
         }
 
-        // 기존의 * 0.5 꼼수 롤백 (정상 볼륨 적용)
         function speakKoreanLocal(text) { 
             if(!text || isSkipping || !isPlaying) return; 
             
@@ -827,7 +840,7 @@
             window.keepAliveUtterances.push(msg); 
             
             msg.lang = 'ko-KR'; 
-            msg.volume = parseFloat(savedAppVolume); // 원래 볼륨으로 복구
+            msg.volume = parseFloat(savedAppVolume); 
             msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
             
             msg.onend = () => { 
@@ -847,7 +860,7 @@
             const msg = new SpeechSynthesisUtterance(text); 
             window.keepAliveUtterances.push(msg);
             msg.lang = 'vi-VN'; 
-            msg.volume = parseFloat(savedAppVolume); // 원래 볼륨으로 복구
+            msg.volume = parseFloat(savedAppVolume); 
             msg.rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9'); 
             let voices = window.speechSynthesis.getVoices(); let vnVoices = voices.filter(v => v.lang.startsWith('vi')); 
             if(vnVoices.length > 0) { 
@@ -956,7 +969,6 @@
 
                             } else {
                                 const GOOGLE_API_KEY = 'AIzaSyCNWYad51NeCEiU7uf6PRyXFUKYur-fDa0'; 
-                                // 기존 꼼수였던 6.0 롤백 (정상 볼륨 4.0 적용)
                                 const requestBody = { input: { text: chunkText }, voice: { languageCode: 'vi-VN', name: savedVoiceType }, audioConfig: { audioEncoding: 'MP3', speakingRate: rate, pitch: 0.0, volumeGainDb: 4.0 } }; 
                                 const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody), signal: controller.signal }); 
                                 clearTimeout(timeoutId);
