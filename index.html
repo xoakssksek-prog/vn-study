@@ -311,6 +311,7 @@
     </div>
 
     <audio id="bgmPlayer" loop crossorigin="anonymous"></audio>
+    <audio id="ttsPlayer" playsinline></audio>
     <input type="file" id="importFile" style="display:none" onchange="processFile(this)">
 
     <script>
@@ -326,16 +327,15 @@
         let newFptCalls = 0;
 
         window.keepAliveUtterances = [];
-        let activeHtmlAudio = null;
 
         function stopActiveAudio() {
-            if (activeHtmlAudio) {
+            const ttsPlayer = document.getElementById('ttsPlayer');
+            if (ttsPlayer) {
                 try {
-                    activeHtmlAudio.pause();
-                    activeHtmlAudio.removeAttribute('src');
-                    activeHtmlAudio.load();
+                    ttsPlayer.pause();
+                    ttsPlayer.removeAttribute('src');
+                    ttsPlayer.load();
                 } catch(e) {}
-                activeHtmlAudio = null;
             }
             window.speechSynthesis.cancel();
         }
@@ -433,24 +433,22 @@
                     const blob = new Blob([bytes.buffer], { type: 'audio/mp3' });
                     const url = URL.createObjectURL(blob);
                     
-                    activeHtmlAudio = new Audio(url);
-                    activeHtmlAudio.volume = parseFloat(savedAppVolume);
+                    const ttsPlayer = document.getElementById('ttsPlayer');
+                    ttsPlayer.src = url;
+                    ttsPlayer.volume = parseFloat(savedAppVolume);
                     
-                    activeHtmlAudio.onended = () => {
+                    ttsPlayer.onended = () => {
                         URL.revokeObjectURL(url);
-                        activeHtmlAudio = null;
                         resolve();
                     };
                     
-                    activeHtmlAudio.onerror = () => {
+                    ttsPlayer.onerror = () => {
                         URL.revokeObjectURL(url);
-                        activeHtmlAudio = null;
                         resolve();
                     };
 
-                    activeHtmlAudio.play().catch(() => {
+                    ttsPlayer.play().catch(() => {
                         URL.revokeObjectURL(url);
-                        activeHtmlAudio = null;
                         resolve();
                     });
                 } catch(e) {
@@ -464,13 +462,14 @@
                 if (!isPlaying || isSkipping) return resolve();
                 stopActiveAudio();
                 
-                activeHtmlAudio = new Audio(url);
-                activeHtmlAudio.volume = parseFloat(savedAppVolume);
+                const ttsPlayer = document.getElementById('ttsPlayer');
+                ttsPlayer.src = url;
+                ttsPlayer.volume = parseFloat(savedAppVolume);
                 
-                activeHtmlAudio.onended = () => { activeHtmlAudio = null; resolve(); };
-                activeHtmlAudio.onerror = () => { activeHtmlAudio = null; resolve(); };
+                ttsPlayer.onended = () => { resolve(); };
+                ttsPlayer.onerror = () => { resolve(); };
                 
-                activeHtmlAudio.play().catch(() => { activeHtmlAudio = null; resolve(); });
+                ttsPlayer.play().catch(() => { resolve(); });
             });
         }
 
@@ -705,7 +704,20 @@
         // ==========================================
 
         async function startSleepMode() { 
-            if (isPlaying) return; isPlaying = true; requestWakeLock(); playBackgroundSound(); startTime = Date.now(); 
+            if (isPlaying) return; 
+            isPlaying = true; 
+            requestWakeLock(); 
+
+            // --- [추가된 내용: 아이폰 오디오 잠금 강제 해제] ---
+            const ttsPlayer = document.getElementById('ttsPlayer');
+            try {
+                ttsPlayer.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA'; // 무음 재생
+                await ttsPlayer.play();
+            } catch(e) {}
+            // ------------------------------------------------
+
+            playBackgroundSound(); 
+            startTime = Date.now(); 
             
             if (sleepTimerId) clearTimeout(sleepTimerId); const timerVal = parseInt(savedTimer); if (timerVal > 0) sleepTimerId = setTimeout(() => stopSleepMode(), timerVal * 60 * 1000); 
             while (isPlaying) { 
