@@ -142,6 +142,17 @@
                 <h3 style="margin:0; font-size:18px; color:var(--accent-gold);">전체 항목 리스트</h3>
                 <button class="close-btn" onclick="closeListModal()">닫기</button>
             </div>
+            
+            <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; margin-bottom: 10px; font-size: 14px;">
+                <label style="color: var(--accent-gold); font-weight: bold; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="rangeToggle" onchange="toggleRangeMode()" style="transform: scale(1.2);"> 🔄 지정 구간 반복 학습
+                </label>
+                <div id="rangeInputs" style="display:none; margin-top: 10px; align-items: center; gap: 8px;">
+                    <input type="number" id="rangeStart" value="1" min="1" style="width: 60px; background: #020617; color: #fff; border: 1px solid var(--accent-green); border-radius: 6px; padding: 6px; text-align: center;"> <span style="color:#fff;">~</span>
+                    <input type="number" id="rangeEnd" value="100" min="1" style="width: 60px; background: #020617; color: #fff; border: 1px solid var(--accent-green); border-radius: 6px; padding: 6px; text-align: center;"> 번
+                    <button onclick="applyRange()" style="background: var(--accent-green); color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 1;">구간 적용</button>
+                </div>
+            </div>
             <div id="listContainer" style="flex: 1; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 10px;"></div>
         </div>
     </div>
@@ -534,6 +545,11 @@
         let isPcMode = localStorage.getItem('vn_pc_mode') === 'true';
         let monthlyCharCount = 0;
         let currentMonthStr = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
+
+        // 구간 반복 변수 추가
+        let isRangeMode = localStorage.getItem('vn_rangeMode') === 'true';
+        let rangeStart = parseInt(localStorage.getItem('vn_rangeStart') || '1');
+        let rangeEnd = parseInt(localStorage.getItem('vn_rangeEnd') || '100');
         
         try { 
             savedIndex = parseInt(localStorage.getItem('vn_index') || '0');
@@ -595,10 +611,54 @@
 
         function showNotice(msg) { const toast = document.getElementById('noticeToast'); toast.innerText = msg; toast.style.display = 'block'; setTimeout(() => { toast.style.display = 'none'; }, 2000); }
         function notify(el, type) { const isOn = el.checked; let msg = ""; switch(type) { case 'review': msg = isOn ? "⭐ 별표 복습 모드" : "📚 일반 학습 모드"; break; case 'shuffle': msg = isOn ? "🔀 랜덤 재생" : "🔢 순차 재생"; break; case 'battery': msg = isOn ? "🔋 배터리 보호 작동" : "⚠️ 배터리 보호 해제"; break; case 'fade': msg = isOn ? "📉 서서히 볼륨 감소" : "🔇 일정 볼륨 유지"; break; case 'hit': msg = isOn ? "🔢 횟수 기록 시작" : "🚫 기록 중지"; break; case 'krWord': msg = isOn ? "🇰🇷 본문 한글 끔" : "🔊 한글 동시 학습"; break; case 'krEx': msg = isOn ? "🇰🇷 예문 한글 끔" : "🔊 예문 한글 켬"; break; case 'hideVn': msg = isOn ? "💸 무료 폰 음성 전환 완료" : "🔊 프리미엄 음성 작동"; break; } showNotice(msg); }
+        
         async function loadData(mode) { allWords = []; try { if (mode === '전체랜덤') { for (const name in sheetNames) { const data = await fetchSheetByName(sheetNames[name]); allWords = allWords.concat(data); } } else { allWords = await fetchSheetByName(sheetNames[mode]); } } catch (e) { } applyModeFilter(); }
-        function applyModeFilter() { if (reviewMode) { words = allWords.filter(w => starredWords[w.A]); if (words.length === 0) { reviewMode = false; localStorage.setItem('vn_reviewMode', 'false'); words = allWords; } } else { words = allWords; } if (savedIndex >= words.length) savedIndex = 0; renderWord(); }
+        
+        // 구간 모드 로직 통합
+        function applyModeFilter() { 
+            if (reviewMode) { 
+                words = allWords.filter(w => starredWords[w.A]); 
+                if (words.length === 0) { reviewMode = false; localStorage.setItem('vn_reviewMode', 'false'); words = allWords; } 
+            } else { 
+                words = allWords; 
+            } 
+
+            if (isRangeMode) {
+                let s = Math.max(1, rangeStart);
+                let e = Math.min(words.length, rangeEnd);
+                if (s <= e) {
+                    words = words.slice(s - 1, e);
+                }
+            }
+
+            if (savedIndex >= words.length) savedIndex = 0; 
+            renderWord(); 
+        }
+
         async function fetchSheetByName(name) { const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`; const res = await fetch(url); const data = await res.text(); return data.split('\n').slice(1).map(row => { const cols = row.split('","').map(c => c.replace(/(^"|"$)/g, '')); return { A: cols[0] || '', B: cols[1] || '', C: cols[2] || '', D: cols[3] || '', E: cols[4] || '', F: cols[5] || '', G: cols[6] || '' }; }).filter(w => w.A.trim() !== ''); }
         function togglePcMode() { isPcMode = !isPcMode; localStorage.setItem('vn_pc_mode', isPcMode); renderWord(); }
+
+        // 구간 모드 제어 기능 추가
+        function toggleRangeMode() {
+            isRangeMode = document.getElementById('rangeToggle').checked;
+            localStorage.setItem('vn_rangeMode', isRangeMode);
+            document.getElementById('rangeInputs').style.display = isRangeMode ? 'flex' : 'none';
+            if (!isRangeMode) { applyRange(); }
+        }
+
+        function applyRange() {
+            rangeStart = parseInt(document.getElementById('rangeStart').value) || 1;
+            rangeEnd = parseInt(document.getElementById('rangeEnd').value) || 100;
+            localStorage.setItem('vn_rangeStart', rangeStart);
+            localStorage.setItem('vn_rangeEnd', rangeEnd);
+            savedIndex = 0;
+            const wasPlaying = isPlaying;
+            if(wasPlaying) stopSleepMode();
+            applyModeFilter();
+            if(wasPlaying) startSleepMode();
+            openListModal();
+            showNotice(isRangeMode ? `${rangeStart}번 ~ ${rangeEnd}번 구간이 설정되었습니다.` : `전체 반복으로 변경되었습니다.`);
+        }
 
         function renderWord() {
             const app = document.getElementById('app');
@@ -644,7 +704,25 @@
             app.innerHTML = html;
         }
 
-        function openListModal() { const container = document.getElementById('listContainer'); let html = ''; words.forEach((w, idx) => { const isCurrent = idx === savedIndex; html += `<div onclick="jumpToWord(${idx})" style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; cursor: pointer; background: ${isCurrent ? 'rgba(16, 185, 129, 0.2)' : 'transparent'};"><div style="width: 40px; color: var(--accent-gold); font-size: 12px;">${idx + 1}</div><div style="flex: 1; color: var(--accent-green); font-weight: bold; font-size: 14px;">${w.A}</div><div style="flex: 1; color: #cbd5e1; font-size: 12px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${w.C}</div></div>`; }); container.innerHTML = html; document.getElementById('listModal').style.display = 'block'; setTimeout(() => { const activeEl = container.children[savedIndex]; if(activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50); }
+        function openListModal() { 
+            // 모달 열 때 구간 설정 상태 업데이트
+            document.getElementById('rangeToggle').checked = isRangeMode;
+            document.getElementById('rangeStart').value = rangeStart;
+            document.getElementById('rangeEnd').value = rangeEnd;
+            document.getElementById('rangeInputs').style.display = isRangeMode ? 'flex' : 'none';
+
+            const container = document.getElementById('listContainer'); 
+            let html = ''; 
+            let offset = (isRangeMode && !reviewMode) ? Math.max(1, rangeStart) - 1 : 0;
+
+            words.forEach((w, idx) => { 
+                const isCurrent = idx === savedIndex; 
+                html += `<div onclick="jumpToWord(${idx})" style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; cursor: pointer; background: ${isCurrent ? 'rgba(16, 185, 129, 0.2)' : 'transparent'};"><div style="width: 40px; color: var(--accent-gold); font-size: 12px;">${offset + idx + 1}</div><div style="flex: 1; color: var(--accent-green); font-weight: bold; font-size: 14px;">${w.A}</div><div style="flex: 1; color: #cbd5e1; font-size: 12px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${w.C}</div></div>`; 
+            }); 
+            container.innerHTML = html; 
+            document.getElementById('listModal').style.display = 'block'; 
+            setTimeout(() => { const activeEl = container.children[savedIndex]; if(activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50); 
+        }
         function closeListModal() { document.getElementById('listModal').style.display = 'none'; }
         
         function jumpToWord(index) { 
