@@ -189,6 +189,11 @@
                     <span id="limitHintDisplay" style="font-size: 10px; color: #94a3b8;">(2,000,000 자 도달 시 안전 락 작동)</span>
                 </div>
 
+                <div style="margin-bottom: 18px; display:flex; justify-content:space-between; align-items:center; background: rgba(16, 185, 129, 0.15); padding: 12px; border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.4);">
+                    <span style="color:var(--accent-green); font-weight:900; font-size: 14px;">🔇 사무실 무음 모드 (PC 보호)</span>
+                    <input type="checkbox" id="muteModeToggle" style="transform: scale(1.3);" onchange="saveSettings(); notify(this, 'mute')">
+                </div>
+
                 <div style="margin-bottom: 18px; display:flex; justify-content:space-between; align-items:center;">
                     <span style="color:var(--accent-gold); font-weight:bold;">🔊 어플 단독 볼륨</span>
                     <div style="display:flex; align-items:center; gap:8px;">
@@ -574,6 +579,7 @@
         let savedHideKrWord = localStorage.getItem('vn_hideKrWord') === 'true';
         let savedHideKrEx = localStorage.getItem('vn_hideKrEx') === 'true';
         let savedHideVn = localStorage.getItem('vn_hideVn') !== null ? (localStorage.getItem('vn_hideVn') === 'true') : true;
+        let savedMuteMode = localStorage.getItem('vn_muteMode') === 'true';
         
         let savedApiLimit = parseInt(localStorage.getItem('vn_apiLimit') || '2000000');
 
@@ -610,7 +616,7 @@
         setInterval(() => { if (isPlaying) { const todayStr = getTodayStr(new Date()); dailyTime[todayStr] = (dailyTime[todayStr] || 0) + 10; localStorage.setItem('vn_daily_time', JSON.stringify(dailyTime)); if (savedBatteryProtect && navigator.getBattery) { navigator.getBattery().then(bt => { if(bt.level <= 0.2) { stopSleepMode(); alert("배터리 20% 보호: 학습을 종료합니다."); } }); } } }, 10000);
 
         function showNotice(msg) { const toast = document.getElementById('noticeToast'); toast.innerText = msg; toast.style.display = 'block'; setTimeout(() => { toast.style.display = 'none'; }, 2000); }
-        function notify(el, type) { const isOn = el.checked; let msg = ""; switch(type) { case 'review': msg = isOn ? "⭐ 별표 복습 모드" : "📚 일반 학습 모드"; break; case 'shuffle': msg = isOn ? "🔀 랜덤 재생" : "🔢 순차 재생"; break; case 'battery': msg = isOn ? "🔋 배터리 보호 작동" : "⚠️ 배터리 보호 해제"; break; case 'fade': msg = isOn ? "📉 서서히 볼륨 감소" : "🔇 일정 볼륨 유지"; break; case 'hit': msg = isOn ? "🔢 횟수 기록 시작" : "🚫 기록 중지"; break; case 'krWord': msg = isOn ? "🇰🇷 본문 한글 끔" : "🔊 한글 동시 학습"; break; case 'krEx': msg = isOn ? "🇰🇷 예문 한글 끔" : "🔊 예문 한글 켬"; break; case 'hideVn': msg = isOn ? "💸 무료 폰 음성 전환 완료" : "🔊 프리미엄 음성 작동"; break; } showNotice(msg); }
+        function notify(el, type) { const isOn = el.checked; let msg = ""; switch(type) { case 'review': msg = isOn ? "⭐ 별표 복습 모드" : "📚 일반 학습 모드"; break; case 'shuffle': msg = isOn ? "🔀 랜덤 재생" : "🔢 순차 재생"; break; case 'battery': msg = isOn ? "🔋 배터리 보호 작동" : "⚠️ 배터리 보호 해제"; break; case 'fade': msg = isOn ? "📉 서서히 볼륨 감소" : "🔇 일정 볼륨 유지"; break; case 'hit': msg = isOn ? "🔢 횟수 기록 시작" : "🚫 기록 중지"; break; case 'krWord': msg = isOn ? "🇰🇷 본문 한글 끔" : "🔊 한글 동시 학습"; break; case 'krEx': msg = isOn ? "🇰🇷 예문 한글 끔" : "🔊 예문 한글 켬"; break; case 'hideVn': msg = isOn ? "💸 무료 폰 음성 전환 완료" : "🔊 프리미엄 음성 작동"; break; case 'mute': msg = isOn ? "🔇 사무실 무음 모드 켜짐 (오디오 차단)" : "🔊 오디오 재생 켜짐"; break; } showNotice(msg); }
         
         async function loadData(mode) { allWords = []; try { if (mode === '전체랜덤') { for (const name in sheetNames) { const data = await fetchSheetByName(sheetNames[name]); allWords = allWords.concat(data); } } else { allWords = await fetchSheetByName(sheetNames[mode]); } } catch (e) { } applyModeFilter(); }
         
@@ -753,7 +759,7 @@
             document.getElementById('appVolume').value = savedAppVolume; document.getElementById('bgmVolume').value = savedBgmVolume; 
             document.getElementById('wordVnCountDisplay').innerText = savedWordVnCount; document.getElementById('wordKrCountDisplay').innerText = savedWordKrCount; 
             document.getElementById('exVnCountDisplay').innerText = savedExVnCount; document.getElementById('exKrCountDisplay').innerText = savedExKrCount; 
-            document.getElementById('hideVnToggle').checked = savedHideVn; document.getElementById('apiLimitSelect').value = savedApiLimit.toString(); 
+            document.getElementById('hideVnToggle').checked = savedHideVn; document.getElementById('muteModeToggle').checked = savedMuteMode; document.getElementById('apiLimitSelect').value = savedApiLimit.toString(); 
             updateUsageDisplay(); document.getElementById('fadeOutToggle').checked = savedFadeOut; document.getElementById('hitCountToggle').checked = savedHitCountToggle; 
             document.getElementById('batteryProtect').checked = savedBatteryProtect; document.getElementById('sleepSound').value = savedSleepSound; 
             document.getElementById('sleepTimer').value = savedTimer; document.getElementById('hideKrWord').checked = savedHideKrWord; 
@@ -767,8 +773,8 @@
         function saveSettings() { 
             savedAppVolume = document.getElementById('appVolume').value; savedBgmVolume = document.getElementById('bgmVolume').value; 
             savedTimer = document.getElementById('sleepTimer').value; savedHideKrWord = document.getElementById('hideKrWord').checked; 
-            savedHideKrEx = document.getElementById('hideKrEx').checked; savedHideVn = document.getElementById('hideVnToggle').checked; 
-            localStorage.setItem('vn_hideVn', savedHideVn); 
+            savedHideKrEx = document.getElementById('hideKrEx').checked; savedHideVn = document.getElementById('hideVnToggle').checked; savedMuteMode = document.getElementById('muteModeToggle').checked;
+            localStorage.setItem('vn_hideVn', savedHideVn); localStorage.setItem('vn_muteMode', savedMuteMode);
             savedApiLimit = parseInt(document.getElementById('apiLimitSelect').value); localStorage.setItem('vn_apiLimit', savedApiLimit.toString());
             updateUsageDisplay();
             savedBatteryProtect = document.getElementById('batteryProtect').checked; savedSleepSound = document.getElementById('sleepSound').value; 
@@ -783,7 +789,7 @@
             localStorage.setItem('vn_voiceType', savedVoiceType); 
             
             const p = document.getElementById('bgmPlayer'); 
-            if (p) { p.volume = parseFloat(savedBgmVolume); } 
+            if (p) { p.volume = parseFloat(savedBgmVolume); if (savedMuteMode) p.pause(); else if (isPlaying) playBackgroundSound(); } 
             if(isPlaying) { isSkipping = true; ttsToken++; stopActiveAudio(); } 
         }
 
@@ -798,6 +804,7 @@
         }
         
         function playBackgroundSound() { 
+            if (savedMuteMode) return;
             const p = document.getElementById('bgmPlayer'); 
             const s = { 
                 none: 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA', 
@@ -908,7 +915,7 @@
 
         // 🚨 밸런스 패치: 🇰🇷 한국어 엔진 소리 살짝 줄임 (0.85)
         function speakKoreanLocal(text) { 
-            if(!text || isSkipping || !isPlaying) return; 
+            if(savedMuteMode || !text || isSkipping || !isPlaying) return; 
             
             stopActiveAudio(); 
             window.speechSynthesis.cancel(); 
@@ -930,7 +937,7 @@
         }
 
         function playIOSVoice(text) { 
-            if(!text || isSkipping || !isPlaying) return; 
+            if(savedMuteMode || !text || isSkipping || !isPlaying) return; 
             stopActiveAudio();
             window.speechSynthesis.cancel();
             
@@ -965,7 +972,7 @@
 
         async function speakVietnameseFpt(text) { 
             try {
-                if(!text || isSkipping || !isPlaying) return; 
+                if(savedMuteMode || !text || isSkipping || !isPlaying) return; 
                 ttsToken++; const myToken = ttsToken; stopActiveAudio();
 
                 if (savedHideVn) { 
