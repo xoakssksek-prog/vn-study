@@ -103,6 +103,13 @@
         .comp-all input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent-green); }
         .comp-unhide { background: var(--accent-green); color: #000; border: none; border-radius: 8px; padding: 9px 14px; font-weight: bold; font-size: 13px; cursor: pointer; }
         .comp-unhide:disabled { background: rgba(255,255,255,0.08); color: #64748b; cursor: default; }
+        .comp-unhide.warn { background: var(--accent-red); color: #fff; }
+        .comp-unhide.warn:disabled { background: rgba(255,255,255,0.08); color: #64748b; }
+        .star-play { width: 100%; background: linear-gradient(135deg, #fbbf24, #d97706); color: #451a03; border: none; border-radius: 10px; padding: 11px; font-weight: 800; font-size: 14px; cursor: pointer; margin: 2px 0 10px; }
+        .star-play:disabled { opacity: 0.35; cursor: default; }
+        .qs-link { background: none; border: 1px solid rgba(251,191,36,0.45); color: var(--accent-gold); border-radius: 10px; font-size: 11px; padding: 1px 6px; margin-left: 4px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+        .list-btns { display: flex; gap: 8px; margin-bottom: 15px; }
+        .list-btns button { flex: 1; }
 
         #noticeToast { display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: rgba(30, 41, 59, 0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #e2e8f0; padding: 18px 28px; border-radius: 20px; font-size: 14px; font-weight: 300; z-index: 11000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 85%; max-width: 340px; text-align: center; pointer-events: none; line-height: 1.6; border: 1px solid rgba(255,255,255,0.1); }
 
@@ -296,6 +303,24 @@
         .pc-bar-app { border-top: none; -webkit-app-region: drag; app-region: drag;
             padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 12px); }
         .pc-bar-app button { -webkit-app-region: no-drag; app-region: no-drag; }
+        /* ---- 📝 오늘 배울 것 직접 고르기 ---- */
+        .tp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+        .tp-head-btns { display: flex; gap: 6px; }
+        .tp-head-btns .cs-chip { font-size: 12px; padding: 6px 9px; }
+        .tp-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+        .tp-filters select, .tp-filters input { background: rgba(255, 255, 255, 0.06); color: #fff; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px; padding: 8px; font-size: 13px; }
+        .tp-filters select option { color: #000; }
+        .tp-filters input { flex: 1; min-width: 140px; }
+        .tp-filters .cs-chip { font-size: 12px; padding: 6px 9px; min-width: 0; }
+        .tp-list { max-height: 52vh; overflow-y: auto; background: rgba(0, 0, 0, 0.12); border-radius: 12px; }
+        .tp-row { display: flex; align-items: center; gap: 8px; padding: 10px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); cursor: pointer; text-align: left; font-size: 13px; }
+        .tp-row.sel { background: rgba(16, 185, 129, 0.13); }
+        .tp-row input { width: 18px; height: 18px; margin: 0; flex-shrink: 0; accent-color: var(--accent-green); pointer-events: none; }
+        .tp-a { flex: 1; color: var(--accent-green); font-weight: 700; word-break: break-word; }
+        .tp-c { flex: 1.2; color: #e2e8f0; word-break: keep-all; overflow-wrap: break-word; }
+        .tp-tag { font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+        .tp-foot { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+        .tp-n { color: var(--accent-gold); font-weight: 700; font-size: 13px; margin-right: auto; }
         /* COURSE:CSS END */
     </style>
 </head>
@@ -339,7 +364,8 @@
                 <h2 style="color: var(--accent-green); margin:0; font-size: 20px;">SETTINGS (무료 모드)</h2>
                 <button class="close-btn" onclick="closeSettings()">닫기</button>
             </div>
-            <button class="btn-gold row-btn" style="width:100%; margin-bottom:15px;" onclick="openCalendar()">📊 학습 리포트 보기</button>
+            <button class="btn-gold row-btn" style="width:100%; margin-bottom:10px;" onclick="openCalendar()">📊 학습 리포트 보기</button>
+            <div class="list-btns"><button class="row-btn btn-outline" onclick="closeSettings(); openStarList();">⭐ 별표 목록</button><button class="row-btn btn-outline" onclick="closeSettings(); openCompletedList();">📋 암기 끝 목록</button></div>
             <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 15px; margin-bottom: 15px;">
                 
                 <div style="margin-bottom: 18px; display:flex; justify-content:space-between; align-items:center; background: rgba(16, 185, 129, 0.15); padding: 12px; border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.4);">
@@ -432,6 +458,24 @@
         </div>
     </div>
 
+    <div id="starModal" class="modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <div class="modal-header"><h3>⭐ 별표 목록 <span id="starCount" style="font-size:13px; color:var(--text-dim); font-weight:400;"></span></h3><button class="close-btn" onclick="closeStarList()">닫기</button></div>
+            <button id="starPlayBtn" class="star-play" onclick="playStarred()">▶ 별표만 복습하기 (모든 탭)</button>
+            <div class="comp-actions">
+                <label class="comp-all"><input type="checkbox" id="starAll" onchange="starSelectAll(this.checked)"> 전체 선택</label>
+                <button id="starRemoveBtn" class="comp-unhide warn" onclick="unstarSelected()" disabled>별표 뺄 항목을 고르세요</button>
+            </div>
+            <div class="comp-table-header">
+                <div class="c-chk"></div>
+                <div class="c-vn">베트남어</div>
+                <div class="c-pron">발음</div>
+                <div class="c-mean">뜻</div>
+                <div class="c-hit">구분</div>
+            </div>
+            <div id="starListContainer" style="max-height:60vh; overflow-y:auto; background: rgba(0,0,0,0.1); border-radius: 12px;"></div>
+        </div>
+    </div>
     <div id="compModal" class="modal">
         <div class="modal-content" style="max-width: 550px;">
             <div class="modal-header"><h3>마스터 리스트 <span id="compCount" style="font-size:13px; color:var(--text-dim); font-weight:400;"></span></h3><button class="close-btn" onclick="closeModal()">닫기</button></div>
@@ -455,6 +499,19 @@
         <div class="modal-content">
             <div class="modal-header"><h2 style="margin:0; font-size:19px; color:var(--accent-gold);">📅 오늘의 학습</h2><button class="close-btn" onclick="closeCourse()">닫기</button></div>
             <div id="courseBody"></div>
+        </div>
+    </div>
+
+    <div id="todayPickModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header"><h3 style="margin:0;">📝 오늘 배울 것 고르기</h3><button class="close-btn" onclick="closeTodayPicker()">닫기</button></div>
+            <div class="tp-filters">
+                <select id="tpLevel" onchange="tpRender()"></select>
+                <input id="tpQuery" type="search" placeholder="베트남어·뜻으로 찾기" oninput="tpRender()">
+            </div>
+            <div id="tpTabs" class="tp-filters"><button class="cs-chip on" data-t="" onclick="tpSetTab('')">전체</button><button class="cs-chip" data-t="단어" onclick="tpSetTab('단어')">단어</button><button class="cs-chip" data-t="문장표현" onclick="tpSetTab('문장표현')">문장</button><button class="cs-chip" data-t="문법" onclick="tpSetTab('문법')">문법</button><button class="cs-chip" onclick="tpSelectShown(true)">보이는 것 모두 체크</button><button class="cs-chip" onclick="tpSelectShown(false)">체크 풀기</button></div>
+            <div id="tpList" class="tp-list"></div>
+            <div class="tp-foot"><span id="tpN" class="tp-n">0개 선택</span><button id="tpOk" class="comp-unhide" onclick="tpConfirm()">이걸로 오늘 배우기</button></div>
         </div>
     </div>
 
@@ -827,7 +884,7 @@
             if (!isPlaying) { html += `<button class="row-btn btn-outline" style="color:#fda4af; border-color:rgba(244,63,94,0.45);" onclick="startBattle(savedStudyMode === '오늘의 학습' ? 'today' : 'list')">⚔️ 퀴즈 전투</button>`; }
             else { html += `<button class="row-btn btn-outline" style="color:var(--accent-gold);" onclick="toggleBlackout()">💡 저전력 모드</button>`; }
             html += `<button class="row-btn btn-outline" onclick="openSettings()">⚙️ 설정</button></div>`;
-            html += `<div class="quick-settings"><label><input type="checkbox" id="mainReviewMode" ${reviewMode ? 'checked' : ''} onchange="toggleMainReview(); notify(this, 'review')"> ⭐ 별표 복습</label><label><input type="checkbox" id="mainShuffleMode" ${savedShuffle ? 'checked' : ''} onchange="toggleMainShuffle(); notify(this, 'shuffle')"> 🔀 랜덤 재생</label>`;
+            html += `<div class="quick-settings"><label><input type="checkbox" id="mainReviewMode" ${reviewMode ? 'checked' : ''} onchange="toggleMainReview(); notify(this, 'review')"> ⭐ 별표 복습</label><button class="qs-link" onclick="openStarList()">목록</button><label><input type="checkbox" id="mainShuffleMode" ${savedShuffle ? 'checked' : ''} onchange="toggleMainShuffle(); notify(this, 'shuffle')"> 🔀 랜덤 재생</label>`;
             html += `<button onclick="togglePcMode()" style="background:none; border:none; color:#cbd5e1; cursor:pointer; font-weight:bold; font-size:13px; display:flex; align-items:center; gap:5px;">💻 PC 모드</button></div></div></div>`;
             app.innerHTML = html; renderPip();
         }
@@ -865,7 +922,13 @@
         document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && isPlaying) requestWakeLock(); });
         function toggleStar() { const w = words[savedIndex]; if (starredWords[w.K]) delete starredWords[w.K]; else starredWords[w.K] = getTodayStr(new Date()); localStorage.setItem('vn_starred', JSON.stringify(starredWords)); renderWord(); }
         function toggleComplete() { let w = words[savedIndex]; if (completedWords[w.K]) { delete completedWords[w.K]; } else { completedWords[w.K] = getTodayStr(new Date()); showNotice('✅ 암기 끝! 숨김 처리되었습니다.'); moveWord(1); } localStorage.setItem('vn_completed', JSON.stringify(completedWords)); renderWord(); }
-        function toggleMainReview() { reviewMode = document.getElementById('mainReviewMode').checked; localStorage.setItem('vn_reviewMode', reviewMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); applyModeFilter(); if(wasPlaying) startSleepMode(); }
+        async function toggleMainReview() {
+            reviewMode = document.getElementById('mainReviewMode').checked; localStorage.setItem('vn_reviewMode', reviewMode); savedIndex = 0;
+            const wasPlaying = isPlaying; if (wasPlaying) stopSleepMode();
+            if (reviewMode && savedStudyMode === '오늘의 학습') { savedStudyMode = '전체랜덤'; localStorage.setItem('vn_studyMode', savedStudyMode); await loadData(savedStudyMode); } // 오늘의 학습엔 별표 필터가 없어서 모든 탭으로
+            else applyModeFilter();
+            if (wasPlaying) startSleepMode();
+        }
         function toggleMainShuffle() { savedShuffle = document.getElementById('mainShuffleMode').checked; localStorage.setItem('vn_shuffle', savedShuffle); if(isPlaying) { isSkipping = true; ttsToken++; stopActiveAudio(); } renderWord(); }
         
         async function changeStudyModeMain(el) { savedStudyMode = el.value; localStorage.setItem('vn_studyMode', savedStudyMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); await loadData(savedStudyMode); if(wasPlaying) startSleepMode(); }
@@ -1261,6 +1324,53 @@
             showNotice(`${n}개를 다시 공부하도록 돌려놨어요.`);
         }
         function closeModal() { document.getElementById('compModal').style.display = 'none'; renderWord(); }
+        // ---- ⭐ 별표 목록: 모든 탭의 별표를 한곳에서. 최근 것부터, 여러 개 골라 별표 빼기, 별표만 복습하기 ----
+        let starKeys = [];
+        let starSel = new Set();
+        const TAB_SHORT = { '단어': '단어', '문장표현': '문장', '문법': '문법' };
+        function openStarList() {
+            const day = k => typeof starredWords[k] === 'string' ? starredWords[k] : '';
+            starKeys = Object.keys(starredWords).map((k, n) => [k, n]).sort((x, y) => (day(y[0]).localeCompare(day(x[0]))) || (y[1] - x[1])).map(x => x[0]);
+            starSel = new Set();
+            let html = '';
+            starKeys.forEach((key, i) => {
+                const item = masterWordList.find(w => w.K === key) || allWords.find(w => w.K === key) || { A: key.replace(/#\d+$/, ''), B: '?', C: '?' };
+                const sub = [day(key) ? day(key).slice(5).replace('-', '/') + ' 별표' : '', completedWords[key] ? '암기 끝' : ''].filter(Boolean).join(' · ');
+                html += `<div class="comp-row" data-i="${i}" onclick="starToggle(${i})"><div class="c-chk"><input type="checkbox" tabindex="-1"></div><div class="c-vn">${item.A}${sub ? `<div style="font-size:10px; color:var(--text-dim); font-weight:300; margin-top:2px;">${sub}</div>` : ''}</div><div class="c-pron">${item.B}</div><div class="c-mean">${item.C}</div><div class="c-hit">${TAB_SHORT[item.S] || ''}</div></div>`;
+            });
+            document.getElementById('starListContainer').innerHTML = html || '<div style="padding:30px 10px; color:var(--text-dim); font-size:14px; line-height:1.7;">별표 친 항목이 없어요.<br>단어 화면 위쪽 ☆ 를 누르면 별표가 생겨요.</div>';
+            document.getElementById('starCount').textContent = starKeys.length ? `(${starKeys.length}개)` : '';
+            document.getElementById('starPlayBtn').disabled = !starKeys.length;
+            starSync();
+            document.getElementById('starModal').style.display = 'block';
+        }
+        function closeStarList() { document.getElementById('starModal').style.display = 'none'; renderWord(); }
+        function starToggle(i) { if (starSel.has(i)) starSel.delete(i); else starSel.add(i); starSync(); }
+        function starSelectAll(on) { starSel = on ? new Set(starKeys.map((_, i) => i)) : new Set(); starSync(); }
+        function starSync() {
+            document.querySelectorAll('#starListContainer .comp-row').forEach(r => { const on = starSel.has(+r.dataset.i); r.classList.toggle('sel', on); r.querySelector('input').checked = on; });
+            const n = starSel.size, btn = document.getElementById('starRemoveBtn'), all = document.getElementById('starAll');
+            btn.disabled = !n; btn.textContent = n ? `선택한 ${n}개 별표 빼기` : '별표 뺄 항목을 고르세요';
+            all.checked = n > 0 && n === starKeys.length; all.disabled = !starKeys.length;
+        }
+        function unstarSelected() {
+            const n = starSel.size; if (!n) return;
+            if (!confirm(`${n}개의 별표를 뺄까요?`)) return;
+            starSel.forEach(i => { const k = starKeys[i]; if (k !== undefined) delete starredWords[k]; });
+            localStorage.setItem('vn_starred', JSON.stringify(starredWords));
+            if (reviewMode) applyModeFilter(); // 별표 복습 중이면 재생 목록도 바로 반영
+            openStarList();
+            showNotice(`${n}개의 별표를 뺐어요.`);
+        }
+        async function playStarred() {
+            if (!Object.keys(starredWords).length) return;
+            document.getElementById('starModal').style.display = 'none';
+            const wasPlaying = isPlaying; if (wasPlaying) stopSleepMode();
+            reviewMode = true; localStorage.setItem('vn_reviewMode', 'true'); savedIndex = 0;
+            if (savedStudyMode !== '전체랜덤') { savedStudyMode = '전체랜덤'; localStorage.setItem('vn_studyMode', savedStudyMode); await loadData(savedStudyMode); }
+            else applyModeFilter();
+            showNotice('⭐ 별표 친 항목만 복습해요 (모든 탭).\nSTART를 누르세요.');
+        }
         function uncheckWord(i) { const key = compKeys[i]; if (key === undefined) return; if (confirm('이 단어를 숨김 해제하고 다시 공부할까요?')) { delete completedWords[key]; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); openCompletedList(); } }
         function exportData() { const data = { completed: completedWords, starred: starredWords, time: dailyTime, hits: hitCounts, srs: srs, course: course, streak: streak }; const blob = new Blob([JSON.stringify(data)], { type: 'text/plain' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `viet_backup_${getTodayStr(new Date())}.txt`; a.click(); }
         function importData() { document.getElementById('importFile').click(); }
@@ -1304,9 +1414,9 @@
         function isLearned(w) { return !!srs[itemKey(w)] || !!completedWords[w.K]; }
 
         // 오늘 새로 배울 항목: 지금 단계에서 아직 안 배운 것을 시트 순서대로, 단어 6 : 문법 2 : 문장 2 비율로 섞어서
-        function pickNew(level, n) {
+        function pickNew(level, n, skip) {
             const by = { '단어': [], '문법': [], '문장표현': [] };
-            masterWordList.forEach(w => { if (w.lv === level && !isLearned(w) && by[w.S]) by[w.S].push(w); });
+            masterWordList.forEach(w => { if (w.lv === level && !isLearned(w) && !(skip && skip.has(itemKey(w))) && by[w.S]) by[w.S].push(w); });
             const quota = { '단어': Math.round(n * 0.6), '문법': Math.round(n * 0.2) }; quota['문장표현'] = n - quota['단어'] - quota['문법'];
             const picked = {}; let count = 0;
             TAB_ORDER.forEach(t => { picked[t] = by[t].splice(0, quota[t]); count += picked[t].length; });
@@ -1316,15 +1426,39 @@
             return out;
         }
         function dueKeys() { const d = dayStr(0); return Object.keys(srs).filter(k => srs[k].d <= d && masterMap[k]).sort((a, b) => srs[a].d.localeCompare(srs[b].d)); }
-        function ensureToday(force) {
+        // 오늘 배울 새 항목은 날이 바뀌어도, 공부를 해도 그대로 둔다.
+        // 바뀌는 때: 🔄 다시 뽑기 · 📝 직접 고르기 · 단계 직접 변경 · 👑 승급 시험 합격  (복습 목록만 매일 새로 계산)
+        function ensureToday(force, next) {
             if (!masterWordList.length) return;
             const d = dayStr(0);
-            if (!force && todayPlan && todayPlan.date === d && todayPlan.level === course.level && todayPlan.perDay === course.perDay) return;
             const same = todayPlan && todayPlan.date === d;
-            const fresh = pickNew(course.level, course.perDay), freshSet = new Set(fresh.map(itemKey));
-            const due = dueKeys().filter(k => !freshSet.has(k)).slice(0, Math.max(10, course.perDay * 2));
-            const old = Object.keys(srs).filter(k => masterMap[k] && srs[k].b >= 2 && srs[k].d > d); // 예전에 배운 것 몇 개를 툭툭 섞는다
-            todayPlan = { date: d, level: course.level, perDay: course.perDay, newKeys: fresh.map(itemKey), dueKeys: due, surpriseKeys: shuffleArr(old).slice(0, 3), done: same ? todayPlan.done : { battle: false, review: false } };
+            if (!force && todayPlan && Array.isArray(todayPlan.newKeys)) {
+                if (same) return;
+                todayPlan.newKeys = todayPlan.newKeys.filter(k => masterMap[k]); // 시트에서 지워진 것만 뺀다
+                todayPlan.date = d; todayPlan.done = { battle: false, review: false };
+                refreshReviews();
+                return;
+            }
+            // 다시 뽑기: 지금까지 받았던 새 항목은 빼고 그다음 것들로. 한 바퀴 다 돌면 지금 것만 빼고 처음부터
+            let skip = null;
+            if (next && todayPlan && todayPlan.level === course.level) {
+                skip = new Set((todayPlan.skip || []).concat(todayPlan.newKeys));
+                if (!pickNew(course.level, course.perDay, skip).length) skip = new Set(todayPlan.newKeys);
+            }
+            let fresh = pickNew(course.level, course.perDay, skip);
+            if (skip && fresh.length < course.perDay) { // 남은 게 모자라면 앞쪽 것으로 채운다
+                const have = new Set(todayPlan.newKeys.concat(fresh.map(itemKey)));
+                fresh = fresh.concat(pickNew(course.level, course.perDay, have).slice(0, course.perDay - fresh.length));
+            }
+            todayPlan = { date: d, level: course.level, perDay: course.perDay, newKeys: fresh.map(itemKey), skip: skip ? [...skip] : [], manual: false, dueKeys: [], surpriseKeys: [], done: same ? todayPlan.done : { battle: false, review: false } };
+            refreshReviews();
+        }
+        // 복습할 것: 오늘 날짜 기준으로 다시 계산 (새 항목과 겹치는 건 빼고)
+        function refreshReviews() {
+            const d = dayStr(0), nset = new Set(todayPlan.newKeys);
+            todayPlan.dueKeys = dueKeys().filter(k => !nset.has(k)).slice(0, Math.max(10, course.perDay * 2));
+            const old = Object.keys(srs).filter(k => masterMap[k] && !nset.has(k) && srs[k].b >= 2 && srs[k].d > d); // 예전에 배운 것 몇 개를 툭툭 섞는다
+            todayPlan.surpriseKeys = shuffleArr(old).slice(0, 3);
             lsSet('vn_today', todayPlan);
         }
         // 듣기용 오늘 목록: 새 항목 2개마다 복습 1개를 끼워 넣는다
@@ -1400,19 +1534,78 @@
             h += `<button class="cs-btn" onclick="startBattle('review')">🔁 복습 전투<small>${m.dueCount ? m.dueCount + '개 대기 중' : '예전 것 랜덤'}</small></button>`;
             h += `<button class="cs-btn gold" onclick="startBattle('boss')">👑 승급 시험<small>Lv.${course.level} 20문제 · 80% 합격</small></button>`;
             h += `</div>`;
-            if (nw.length) h += `<div class="cs-card"><div class="cs-h">오늘 새로 배울 것</div><div class="cs-list">${nw.map(w => `<div><span>${w.A}</span><span>${w.C}</span></div>`).join('')}</div></div>`;
+            h += `<div class="cs-card"><div class="tp-head"><div class="cs-h" style="margin:0;">오늘 새로 배울 것 ${nw.length}개${todayPlan.manual ? ' · 직접 고름' : ''}</div><div class="tp-head-btns"><button class="cs-chip" onclick="openTodayPicker()">📝 직접 고르기</button><button class="cs-chip" onclick="replanToday()">🔄 다시 뽑기</button></div></div>`;
+            h += nw.length ? `<div class="cs-list">${nw.map(w => `<div><span>${w.A}</span><span>${w.C}</span></div>`).join('')}</div>` : `<div class="cs-sub">새로 배울 것이 없어요. 📝 직접 고르기로 골라 보세요.</div>`;
+            h += `<div class="cs-sub" style="margin-top:8px;">다시 뽑기·직접 고르기를 하거나 승급 시험에 합격하기 전까지는 날이 바뀌어도 그대로예요.</div></div>`;
             h += `<div class="cs-card"><div class="cs-h">단계 고르기 (낮은 단계로 돌아가 복습해도 돼요)</div><div class="cs-chips">`;
-            for (let i = 1; i <= 10; i++) { const ok = i <= course.maxLevel; h += `<button class="cs-chip ${i === course.level ? 'on' : ''}" ${ok ? '' : 'disabled'} onclick="setLevel(${i})" title="${LEVEL_NAMES[i]}">${ok ? '' : '🔒'}${i}</button>`; }
-            h += `</div><div class="cs-sub" style="margin-top:8px;">${LEVEL_NAMES.slice(1).map((n, i) => (i + 1) + ' ' + n).join(' · ')}<br>승급 시험에 합격하면 다음 단계가 열려요.</div></div>`;
+            for (let i = 1; i <= 10; i++) { h += `<button class="cs-chip ${i === course.level ? 'on' : ''}" onclick="setLevel(${i})" title="${LEVEL_NAMES[i]}">${i}</button>`; } // 잠금 없이 언제든 선택
+            h += `</div><div class="cs-sub" style="margin-top:8px;">${LEVEL_NAMES.slice(1).map((n, i) => (i + 1) + ' ' + n).join(' · ')}<br>어느 단계든 눌러서 바로 공부할 수 있어요. 승급 시험에 합격하면 다음 단계로 자동으로 넘어가요.</div></div>`;
             h += `<div class="cs-card"><div class="cs-h">하루에 새로 배울 개수</div><div class="cs-chips">${[5, 10, 15, 20, 30].map(n => `<button class="cs-chip ${course.perDay === n ? 'on' : ''}" onclick="setPerDay(${n})">${n}개</button>`).join('')}</div>`;
             h += `<div class="cs-h" style="margin-top:14px;">발음 표기</div><div class="cs-chips">${[['hcm', '호치민(남부)'], ['hn', '하노이(북부)'], ['both', '둘 다']].map(([v, t]) => `<button class="cs-chip ${course.pron === v ? 'on' : ''}" onclick="setPron('${v}')">${t}</button>`).join('')}</div></div>`;
-            h += `<div style="display:flex; gap:14px; flex-wrap:wrap;"><button class="cs-link" onclick="closeCourse(); openCompletedList();">📋 암기 끝 목록</button><button class="cs-link" onclick="replanToday()">🔄 오늘 배울 것 다시 뽑기</button></div>`;
+            h += `<div style="display:flex; gap:14px; flex-wrap:wrap;"><button class="cs-link" onclick="closeCourse(); openStarList();">⭐ 별표 목록</button><button class="cs-link" onclick="closeCourse(); openCompletedList();">📋 암기 끝 목록</button></div>`;
             body.innerHTML = h;
         }
-        function setLevel(n) { if (n > course.maxLevel) return; course.level = n; saveCourse(); ensureToday(true); if (savedStudyMode === '오늘의 학습') reloadTodayList(); renderCourse(); showNotice(`Lv.${n} ${LEVEL_NAMES[n]} 단계로 바꿨어요.`); }
-        function setPerDay(n) { course.perDay = n; saveCourse(); ensureToday(true); if (savedStudyMode === '오늘의 학습') reloadTodayList(); renderCourse(); }
+        function setLevel(n) { if (n < 1 || n > 10) return; if (n === course.level) { renderCourse(); return; } course.level = n; course.maxLevel = Math.max(course.maxLevel, n); saveCourse(); ensureToday(true); if (savedStudyMode === '오늘의 학습') reloadTodayList(); renderCourse(); showNotice(`Lv.${n} ${LEVEL_NAMES[n]} 단계로 바꿨어요.`); }
+        function setPerDay(n) {
+            course.perDay = n; saveCourse();
+            if (!todayPlan) ensureToday(true);
+            else if (todayPlan.manual) { renderCourse(); showNotice(`직접 고른 목록은 그대로 둬요.\n하루 ${n}개는 다음에 뽑을 때부터 적용돼요.`); return; }
+            else {
+                const cur = todayPlan.newKeys.filter(k => masterMap[k]);
+                todayPlan.newKeys = cur.length > n ? cur.slice(0, n) : cur.concat(pickNew(course.level, n - cur.length, new Set(cur)).map(itemKey));
+                todayPlan.perDay = n; refreshReviews();
+            }
+            if (savedStudyMode === '오늘의 학습') reloadTodayList();
+            renderCourse();
+        }
         function setPron(v) { course.pron = v; saveCourse(); renderCourse(); renderWord(); }
-        function replanToday() { ensureToday(true); if (savedStudyMode === '오늘의 학습') reloadTodayList(); renderCourse(); showNotice('오늘 배울 것을 새로 뽑았어요.'); }
+        // ---- 📝 오늘 배울 것 직접 고르기: 단계·종류·검색으로 찾아서 체크 ----
+        let tpSel = new Set(), tpLevel = 0, tpTab = '', tpQuery = '';
+        const tpNorm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd').toLowerCase();
+        function openTodayPicker() {
+            ensureToday();
+            tpSel = new Set((todayPlan && todayPlan.newKeys) || []); tpLevel = course.level; tpTab = ''; tpQuery = '';
+            document.getElementById('tpLevel').innerHTML = '<option value="0">전체 단계</option>' + LEVEL_NAMES.slice(1).map((n, i) => `<option value="${i + 1}">Lv.${i + 1} ${n}</option>`).join('');
+            document.getElementById('tpLevel').value = String(tpLevel);
+            document.getElementById('tpQuery').value = '';
+            document.getElementById('courseModal').style.display = 'none';
+            document.getElementById('todayPickModal').style.display = 'block';
+            tpRender();
+        }
+        function closeTodayPicker() { document.getElementById('todayPickModal').style.display = 'none'; openCourse(); }
+        function tpSetTab(t) { tpTab = t; tpRender(); }
+        function tpRender() {
+            tpLevel = +document.getElementById('tpLevel').value; tpQuery = tpNorm(document.getElementById('tpQuery').value.trim());
+            document.querySelectorAll('#tpTabs .cs-chip').forEach(c => c.classList.toggle('on', c.dataset.t === tpTab));
+            const list = masterWordList.filter(w => (!tpLevel || w.lv === tpLevel) && (!tpTab || w.S === tpTab) && (!tpQuery || tpNorm(w.A).includes(tpQuery) || tpNorm(w.C).includes(tpQuery)));
+            const shown = list.slice(0, 400);
+            document.getElementById('tpList').innerHTML = shown.map(w => {
+                const k = itemKey(w), tag = completedWords[w.K] ? '암기 끝' : (srs[k] ? '익힘' : '');
+                return `<div class="tp-row${tpSel.has(k) ? ' sel' : ''}" data-k="${encodeURIComponent(k)}" onclick="tpToggle(this)"><input type="checkbox" tabindex="-1" ${tpSel.has(k) ? 'checked' : ''}><span class="tp-a">${w.A}</span><span class="tp-c">${w.C}</span><span class="tp-tag">${TAB_SHORT[w.S] || ''} · Lv.${w.lv}${tag ? ' · ' + tag : ''}</span></div>`;
+            }).join('') + (list.length > shown.length ? `<div class="cs-sub" style="padding:10px;">${list.length - shown.length}개 더 있어요. 단계나 검색으로 좁혀 보세요.</div>` : '') || '<div class="cs-sub" style="padding:20px;">찾는 항목이 없어요.</div>';
+            tpCount();
+        }
+        function tpToggle(el) { const k = decodeURIComponent(el.dataset.k); if (tpSel.has(k)) tpSel.delete(k); else tpSel.add(k); const on = tpSel.has(k); el.classList.toggle('sel', on); el.querySelector('input').checked = on; tpCount(); }
+        function tpSelectShown(on) { document.querySelectorAll('#tpList .tp-row').forEach(el => { const k = decodeURIComponent(el.dataset.k); if (on) tpSel.add(k); else tpSel.delete(k); el.classList.toggle('sel', on); el.querySelector('input').checked = on; }); tpCount(); }
+        function tpCount() { const n = tpSel.size; document.getElementById('tpN').textContent = `${n}개 선택`; document.getElementById('tpOk').disabled = !n; }
+        function tpConfirm() {
+            if (!tpSel.size) return;
+            const order = new Map(masterWordList.map((w, i) => [itemKey(w), i]));
+            todayPlan.newKeys = [...tpSel].filter(k => masterMap[k]).sort((a, b) => order.get(a) - order.get(b));
+            todayPlan.manual = true; todayPlan.skip = []; todayPlan.date = dayStr(0);
+            refreshReviews();
+            if (savedStudyMode === '오늘의 학습') reloadTodayList();
+            document.getElementById('todayPickModal').style.display = 'none'; openCourse();
+            showNotice(`오늘 배울 것을 ${todayPlan.newKeys.length}개로 정했어요.`);
+        }
+        function replanToday() {
+            const before = todayPlan ? todayPlan.newKeys.join('|') : '';
+            ensureToday(true, true);
+            if (savedStudyMode === '오늘의 학습') reloadTodayList();
+            renderCourse();
+            const changed = todayPlan && todayPlan.newKeys.join('|') !== before;
+            showNotice(changed ? `오늘 배울 새 항목 ${todayPlan.newKeys.length}개를 다른 것으로 바꿨어요.` : '이 단계에 아직 안 배운 새 항목이 더 없어요.\n퀴즈 전투로 익히거나 👑 승급 시험을 보세요.');
+        }
         function reloadTodayList(keepIndex) {
             const wasPlaying = isPlaying; if (wasPlaying) stopSleepMode();
             allWords = getTodaySet(); allWords.forEach((w, i) => { w.P = i + 1; });
