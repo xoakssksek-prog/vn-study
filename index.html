@@ -304,6 +304,8 @@
         .pc-bar-app { border-top: none; -webkit-app-region: drag; app-region: drag;
             padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 12px); }
         .pc-bar-app button { -webkit-app-region: no-drag; app-region: no-drag; }
+        .ex-pron-hn { font-size: 0.92em; opacity: 0.85; }
+        .ex-pron-lb { font-size: 0.78em; color: #94a3b8; font-weight: 600; }
         /* ---- 📝 오늘 배울 것 직접 고르기 ---- */
         .tp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
         .tp-head-btns { display: flex; gap: 6px; }
@@ -550,7 +552,7 @@
 
         window.keepAliveUtterances = [];
         // ---- 새 버전 확인: 깃허브에 새로 올리면, 앱을 열거나 다시 볼 때 저절로 한 번 새로고침 ----
-        const APP_VERSION = '20261102-113741';
+        const APP_VERSION = '20261102-144441';
         let lastVersionCheck = 0;
         function checkNewVersion() {
             if (!/^https?:$/.test(location.protocol) || (typeof isPlaying !== 'undefined' && isPlaying)) return;
@@ -816,7 +818,7 @@
             const rows = await sheetRows(name);
             const seen = {}; let n = 0;
             return rows
-                .map(cols => ({ A: cols[0] || '', B: cols[1] || '', C: cols[2] || '', D: cols[3] || '', E: cols[4] || '', F: cols[5] || '', G: cols[6] || '', H: cols[7] || '', I: cols[8] || '', hn: cols[9] || '', lit: cols[10] || '', why: cols[11] || '' }))
+                .map(cols => ({ A: cols[0] || '', B: cols[1] || '', C: cols[2] || '', D: cols[3] || '', E: cols[4] || '', F: cols[5] || '', G: cols[6] || '', H: cols[7] || '', I: cols[8] || '', hn: cols[9] || '', lit: cols[10] || '', why: cols[11] || '', exHn: cols[12] || '' }))
                 .filter(w => w.A.trim() !== '' && w.A.trim() !== '베트남어') // 1행 제목 줄('베트남어')은 건너뜀
                 .map(w => { n++; seen[w.A] = (seen[w.A] || 0) + 1; w.S = name; w.N = n; w.K = seen[w.A] === 1 ? w.A : w.A + '#' + seen[w.A]; return w; });
         }
@@ -892,7 +894,7 @@
             html += pronHtml(w);
             html += '<div class="kr">' + w.C + '</div>';
             if (w.G) { html += '<div class="tip">' + w.G + '</div>'; }
-            if (w.D) { html += '<div class="ex-box"><div class="ex-vn">' + w.D + '</div>'; if (w.E) html += '<div class="ex-pron">[' + glossHtml(w.E) + ']</div>'; html += '<div class="ex-kr">' + w.F + '</div>' + exExtraHtml(w) + '</div>'; }
+            if (w.D) { html += '<div class="ex-box"><div class="ex-vn">' + w.D + '</div>'; html += exPronHtml(w); html += '<div class="ex-kr">' + w.F + '</div>' + exExtraHtml(w) + '</div>'; }
             html += '</div><div class="bottom-controls">';
             if (!isPlaying) { html += '<button class="play-btn" onclick="initAudioEngineSynchronously(); startSleepMode();">START</button>'; }
             else { html += '<button class="play-btn" style="background:#334155;" onclick="stopSleepMode()">PAUSE (일시정지)</button>'; }
@@ -1258,8 +1260,8 @@
             if (w.C) h += `<span class="pc-kr">(${w.C})</span>`;
             h += '</div>';
             if (w.D) {
-                h += `<div class="pip-line ex"><span class="pc-ex">${w.D}</span>`; if (w.E) h += `<span class="pc-ex-pron pip-g2">[${glossHtml(w.E)}]</span>`; if (w.F) h += `<span class="pc-ex-kr">(${w.F})</span>`; h += '</div>';
-                if (w.E) h += `<div class="pip-line g3"><span class="pc-ex-pron">[${glossHtml(w.E)}]</span></div>`; // 세 줄일 때만 보이는 단어별 발음 줄
+                h += `<div class="pip-line ex"><span class="pc-ex">${w.D}</span>`; if (exPronOne(w)) h += `<span class="pc-ex-pron pip-g2">[${glossHtml(exPronOne(w))}]</span>`; if (w.F) h += `<span class="pc-ex-kr">(${w.F})</span>`; h += '</div>';
+                if (exPronOne(w)) h += `<div class="pip-line g3"><span class="pc-ex-pron">[${glossHtml(exPronOne(w))}]</span></div>`; // 세 줄일 때만 보이는 단어별 발음 줄
             }
             h += '</div><button class="pc-nav-btn" data-act="next">›</button></div>';
             h += '<div class="pc-side-group">' + (isPlaying ? '<button class="pc-btn stop" data-act="stop">⏸</button>' : '<button class="pc-btn start" data-act="play">▶</button>') + '</div></div>';
@@ -1526,7 +1528,15 @@
             const m = missions();
             return `<div class="course-pill" onclick="openCourse()">🔥 ${streakDays()}일 · Lv.${course.level} · 미션 ${m.count}/3</div>`;
         }
-        function pronText(w) { const hn = (w.hn || '').trim(); if (course.pron === 'hn' && hn) return hn; if (course.pron === 'both' && hn && hn !== w.B) return w.B + ' · 북 ' + hn; return w.B; }
+        function pronText(w) { const hn = (w.hn || '').trim(); if (course.pron === 'hn' && hn) return hn; if (course.pron === 'both' && hn && hn !== w.B) return '호치민 ' + w.B + ' · 하노이 ' + hn; return w.B; }
+        // 예문 발음: 호치민(E) / 하노이(M) / 둘 다
+        function exPronOne(w) { return (course.pron === 'hn' && (w.exHn || '').trim()) ? w.exHn : (w.E || ''); }
+        function exPronHtml(w) {
+            if (!w.E && !w.exHn) return '';
+            const hn = (w.exHn || '').trim();
+            if (course.pron === 'both' && hn && hn !== w.E) return '<div class="ex-pron"><span class="ex-pron-lb">호치민</span> [' + glossHtml(w.E) + ']</div><div class="ex-pron ex-pron-hn"><span class="ex-pron-lb">하노이</span> [' + glossHtml(hn) + ']</div>';
+            return '<div class="ex-pron">[' + glossHtml(exPronOne(w)) + ']</div>';
+        }
         function pronHtml(w) { const t = pronText(w); return t ? '<div class="pron">[' + t + ']</div>' : ''; }
         function exExtraHtml(w) { let h = ''; if (w.lit) h += '<div class="ex-lit">직역 <b>' + w.lit + '</b></div>'; if (w.why) h += '<div class="ex-why">💡 ' + w.why + '</div>'; return h; }
         function lvChipHtml(w) { return (w.lv && !w.lvAuto) ? `<div class="lv-chip">Lv.${w.lv} ${LEVEL_NAMES[w.lv] || ''}${w.I ? ' · ' + w.I : ''}</div>` : ''; }
