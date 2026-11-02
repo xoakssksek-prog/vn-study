@@ -149,6 +149,8 @@
         @media (display-mode: window-controls-overlay) {
             html:not(.pc-on) body { padding-top: env(titlebar-area-height, 0px); box-sizing: border-box; }
             html:not(.pc-on) body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(titlebar-area-height, 0px); -webkit-app-region: drag; app-region: drag; z-index: 10000; }
+            html:not(.pc-on) .card { height: calc(100dvh - env(titlebar-area-height, 0px)); } /* 위를 비운 만큼 화면 높이를 줄여 아래 줄이 안 잘리게 */
+            html:not(.pc-on) .modal, html:not(.pc-on) .bt, html:not(.pc-on) #blackoutOverlay { top: env(titlebar-area-height, 0px); bottom: 0; height: auto; } /* 설정·목록·전투 화면도 그 아래부터 */
         }
 
         .cheer-box { background: rgba(251, 191, 36, 0.1); border: 1px dashed var(--accent-gold); padding: 12px; border-radius: 15px; text-align: center; margin-bottom: 15px; color: var(--accent-gold); font-size: 14px; font-weight: 800; line-height: 1.4; }
