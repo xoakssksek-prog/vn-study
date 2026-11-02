@@ -8,6 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="베트남어공부">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/197/197473.png">
+    <link rel="manifest" href="manifest.json">
     
     <title>태만&명희의 프리미엄 베트남어</title>
     
@@ -118,6 +119,37 @@
         .pc-btn.hide { background: var(--accent-gold); color: #451a03; }
         .pc-nav-btn { background: none; border: none; color: var(--accent-gold); font-size: 28px; font-weight: bold; cursor: pointer; padding: 0 15px; opacity: 0.5; transition: 0.3s; }
         .pc-nav-btn:hover { opacity: 1; transform: scale(1.2); }
+
+        /* ---- 자막바 (항상 위 자막창 · 앱 창 자막바 공통): 폭에 맞춰 한 줄 → 두 줄 → 세 줄 (fitBar) ---- */
+        .pip-bar { height: 100vh; border-top: none; padding: 0 8px; }
+        .pip-bar .pc-content-area { height: 100%; min-width: 0; }
+        .pip-bar .pc-nav-btn { padding: 0 6px; }
+        .pip-text { --s: 1; flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; overflow: hidden; cursor: default; }
+        .pip-line { max-width: 100%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+        .pip-line > span { margin-right: calc(10px * var(--s)); }
+        .pip-line > span:last-child { margin-right: 0; }
+        .pip-text.one { flex-direction: row; justify-content: safe center; gap: 0; }
+        .pip-text.one .pip-line { flex: none; max-width: none; overflow: visible; }
+        .pip-text.two .pc-ex, .pip-text.three .pc-ex { margin-left: 0; border-left: none; padding-left: 0; }
+        .pip-line.g3 { display: none; }
+        .pip-text.three .pip-line.g3 { display: block; }
+        .pip-text.three .pip-g2 { display: none; }
+        .pip-text.nogloss .pc-ex-pron { display: none; }
+        .pip-text .pc-vn { font-size: calc(20px * var(--s)); }
+        .pip-text .pc-pron { font-size: calc(15px * var(--s)); }
+        .pip-text .pc-kr { font-size: calc(16px * var(--s)); }
+        .pip-text .pc-ex { font-size: calc(18px * var(--s)); }
+        .pip-text .pc-ex-pron { font-size: calc(14px * var(--s)); }
+        .pip-text .pc-ex-kr { font-size: calc(15px * var(--s)); }
+        .pip-text.one.clip .pip-line.ex { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+        .pip-bar.slim .pc-side-group { gap: 5px; }
+        .pip-bar.slim .pc-btn { padding: 3px 9px; font-size: 11px; }
+        .pip-bar.slim .pc-nav-btn { font-size: 20px; }
+        /* 설치한 앱 창에서 제목 표시줄을 숨겼을 때: 일반 화면은 맨 위를 비워 창 옮기기용으로, 자막바는 창 전체를 쓴다 */
+        @media (display-mode: window-controls-overlay) {
+            html:not(.pc-on) body { padding-top: env(titlebar-area-height, 0px); box-sizing: border-box; }
+            html:not(.pc-on) body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(titlebar-area-height, 0px); -webkit-app-region: drag; app-region: drag; z-index: 10000; }
+        }
 
         .cheer-box { background: rgba(251, 191, 36, 0.1); border: 1px dashed var(--accent-gold); padding: 12px; border-radius: 15px; text-align: center; margin-bottom: 15px; color: var(--accent-gold); font-size: 14px; font-weight: 800; line-height: 1.4; }
         /* COURSE:CSS START */
@@ -247,6 +279,11 @@
             .row-btn { height: 46px; border-radius: 13px; }
             .quick-settings { padding: 9px 6px; margin-bottom: 0; font-size: 13px; }
         }
+
+        /* ---- 자막바 창(PC자막.bat · PC 앱): 창 전체가 자막바, 빈 곳을 잡고 창을 옮길 수 있게 ---- */
+        .pc-bar-app { border-top: none; -webkit-app-region: drag; app-region: drag;
+            padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 12px); }
+        .pc-bar-app button { -webkit-app-region: no-drag; app-region: no-drag; }
         /* COURSE:CSS END */
     </style>
 </head>
@@ -438,6 +475,7 @@
         let ttsToken = 0;
 
         window.keepAliveUtterances = [];
+        const SILENT_LOOP = 'data:audio/wav;base64,UklGRsQPAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YaAPAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA'; // 0.5초 무음 (이어폰 끊김 감지용)
         let isAudioUnlocked = false; 
 
         function initAudioEngineSynchronously() {
@@ -467,7 +505,7 @@
                 if (bgmPlayer) {
                     bgmPlayer.src = silentWav;
                     bgmPlayer.load();
-                    bgmPlayer.play().then(() => { bgmPlayer.pause(); }).catch(() => {});
+                    bgmPlayer.play().then(() => { if (!isPlaying) pauseBgm(); }).catch(() => {});
                 }
 
                 isAudioUnlocked = true;
@@ -496,6 +534,52 @@
         function normalizeText(t) { return t.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim(); }
         
         let isPcMode = localStorage.getItem('vn_pc_mode') === 'true';
+        // PC자막.bat 으로 열면 주소 끝에 #pc → 처음부터 자막바 모드로, 창도 화면 아래쪽 한 줄 크기로
+        // 앱으로 설치해서 연 창(주소창·탭 없음)에서 PC 모드를 누르면 창 자체가 화면 아래 한 줄 자막바로 바뀐다
+        const isBarMode = location.hash === '#pc';
+        if (isBarMode) isPcMode = true;
+        function isAppWindow() { return isBarMode || matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: window-controls-overlay)').matches || !!(window.locationbar && window.locationbar.visible === false); } // 주소창 없는 앱 창인지
+        // 자막바 높이(글자 영역): 보통 / 얇게
+        const PIP_NORMAL_H = 80, PIP_SLIM_H = 40;
+        let pipSlim = false;
+        try { pipSlim = localStorage.getItem('vn_pip_slim') === '1'; } catch (e) {}
+        function barH() { return pipSlim ? PIP_SLIM_H : PIP_NORMAL_H; }
+        // 앱 창이 자막바가 되면 창 제목을 바꾼다. 실행.bat 이 이 제목의 창을 항상 위로 고정한다
+        const BASE_TITLE = document.title;
+        const BAR_TITLE = '[항상 위] 베트남어 자막바';
+        function syncPcChrome() {
+            const bar = isPcMode && isAppWindow();
+            document.title = bar ? BAR_TITLE : BASE_TITLE;
+            document.documentElement.classList.toggle('pc-on', bar);
+        }
+        function fitWindow(pc) {
+            if (!isAppWindow()) return;
+            try {
+                if (pc) {
+                    if (window.outerHeight > 300) localStorage.setItem('vn_win_bounds', JSON.stringify({ w: window.outerWidth, h: window.outerHeight, x: window.screenX, y: window.screenY }));
+                    const h = barH() + Math.max(0, window.outerHeight - window.innerHeight);
+                    const toBottom = () => window.moveTo(screen.availLeft || 0, (screen.availTop || 0) + screen.availHeight - window.outerHeight);
+                    window.resizeTo(screen.availWidth, h);
+                    window.moveTo(screen.availLeft || 0, (screen.availTop || 0) + screen.availHeight - h);
+                    setTimeout(toBottom, 250); // 브라우저가 최소 높이로 맞췄으면 다시 바닥(작업표시줄 바로 위)에 붙인다
+                } else {
+                    let b = null; try { b = JSON.parse(localStorage.getItem('vn_win_bounds') || 'null'); } catch (e) {}
+                    if (!b || b.h < 300) { const h = Math.min(920, screen.availHeight); b = { w: 480, h: h, x: (screen.availLeft || 0) + Math.round((screen.availWidth - 480) / 2), y: (screen.availTop || 0) + Math.round((screen.availHeight - h) / 2) }; }
+                    window.resizeTo(b.w, b.h); window.moveTo(b.x, b.y);
+                }
+            } catch (e) {}
+        }
+        if ('documentPictureInPicture' in window && !isBarMode) isPcMode = false; // 시작은 항상 일반 화면
+        if (isPcMode) fitWindow(true);
+        else if (isAppWindow() && window.outerHeight < 300) fitWindow(false); // 자막바 크기로 닫혔던 앱 창을 원래 크기로
+        syncPcChrome();
+        function toggleMuteQuick() {
+            savedMuteMode = !savedMuteMode; localStorage.setItem('vn_muteMode', savedMuteMode);
+            if (savedMuteMode) { stopActiveAudio(); pauseBgm(); }
+            else if (isPlaying) playBackgroundSound();
+            showNotice(savedMuteMode ? '🔇 소리 끔 (글자만 넘어가요)' : '🔊 소리 켬');
+            renderWord();
+        }
 
         // 구간 반복 변수 추가
         let isRangeMode = localStorage.getItem('vn_rangeMode') === 'true';
@@ -645,7 +729,32 @@
                 .filter(w => w.A.trim() !== '' && w.A.trim() !== '베트남어') // 1행 제목 줄('베트남어')은 건너뜀
                 .map(w => { n++; seen[w.A] = (seen[w.A] || 0) + 1; w.S = name; w.N = n; w.K = seen[w.A] === 1 ? w.A : w.A + '#' + seen[w.A]; return w; });
         }
-        function togglePcMode() { isPcMode = !isPcMode; localStorage.setItem('vn_pc_mode', isPcMode); renderWord(); }
+        async function togglePcMode() {
+            // 설치한 앱 창: 창 자체가 화면 아래 자막바로 바뀐다 (항상 위 고정은 실행.bat 이 맡음)
+            // 브라우저 탭(엣지·크롬): 다른 프로그램 위에 떠 있는 자막창을 따로 띄운다
+            if (!isPcMode && !isAppWindow() && 'documentPictureInPicture' in window) {
+                await openPipBar();
+                if (pipWin && !pipWin.closed) { renderWord(); hideMainForPip(); }
+                return;
+            }
+            isPcMode = !isPcMode; localStorage.setItem('vn_pc_mode', isPcMode); syncPcChrome(); fitWindow(isPcMode); renderWord();
+        }
+        // 자막바가 떠 있는 동안 본 창은 화면 밖으로 치워 둔다(가능한 경우). 안 되면 안내 화면에서 최소화하도록 안내
+        function hideMainForPip() {
+            if (!isAppWindow()) return;
+            try {
+                if (window.outerHeight > 300) localStorage.setItem('vn_win_bounds', JSON.stringify({ w: window.outerWidth, h: window.outerHeight, x: window.screenX, y: window.screenY }));
+                window.resizeTo(360, 260);
+                window.moveTo((screen.availLeft || 0) + screen.availWidth - 370, (screen.availTop || 0) + 10); // 오른쪽 위 구석에 작게
+            } catch (e) {}
+        }
+        function closePipBar() { if (pipWin && !pipWin.closed) pipWin.close(); }
+        function pipHomeHtml() {
+            return '<div class="card" style="justify-content:center; align-items:center; gap:14px;">' +
+                '<div style="font-size:42px;">📌</div><div style="font-size:18px; font-weight:700;">자막바가 다른 화면 위에 떠 있어요</div>' +
+                '<div style="font-size:14px; color:#94a3b8; line-height:1.7;">이 창은 <b style="color:#fff;">최소화(—)</b>해 두세요.<br>이 창을 닫으면 자막바도 같이 닫혀요.</div>' +
+                '<button class="play-btn" style="max-width:320px;" onclick="closePipBar()">자막바 닫고 돌아가기</button></div>';
+        }
 
         // 구간 모드 제어 기능 추가
         function toggleRangeMode() {
@@ -673,21 +782,13 @@
             const app = document.getElementById('app');
             if (words.length === 0 && savedStudyMode === '오늘의 학습' && masterWordList.length) { app.innerHTML = `<div class="card" style="justify-content:center; gap:16px;"><div class="top-pills">${coursePillHtml()}</div><div style="font-size:18px; line-height:1.6;">오늘 배울 항목이 없어요.<br><span style="color:#94a3b8; font-size:14px;">이 단계를 다 배웠다면 👑 승급 시험에 도전하거나,<br>다른 단계나 다른 모드를 골라 보세요.</span></div><button class="play-btn" onclick="openCourse()">📅 오늘 메뉴 열기</button><select class="row-btn btn-outline sheet-select" onchange="changeStudyModeMain(this)">${STUDY_MODES.map(m => `<option value="${m}" ${savedStudyMode === m ? 'selected' : ''}>${m}</option>`).join('')}</select></div>`; return; }
             if (words.length === 0) { app.innerHTML = '<div class="card" style="justify-content:center;"><div style="font-size:17px; line-height:1.8; color:#cbd5e1;">데이터 로딩 중...<br><span style="font-size:14px; color:#94a3b8;">계속 이 화면이면 구글 시트를 확인하세요.<br>① [공유]가 <b style="color:#fff;">링크가 있는 모든 사용자 · 뷰어</b>인지<br>② 엑셀(.xlsx)이 아니라 <b style="color:#fff;">구글 시트</b>인지<br>③ 아래 탭 이름이 <b style="color:#fff;">단어, 문장표현, 문법</b>인지</span></div></div>'; return; }
+            if (pipWin && !pipWin.closed) { app.innerHTML = pipHomeHtml(); renderPip(); return; }
             const w = words[savedIndex]; const isCompleted = completedWords[w.K]; const isStarred = starredWords[w.K];
             
             if (isPcMode) {
-                let html = `<div class="pc-bar-container">`;
-                html += `<div class="pc-side-group"><button class="pc-btn mode" onclick="togglePcMode()">📱 일반 모드</button><button class="pc-btn hide" onclick="toggleComplete()">✅ 암기 끝</button>${('documentPictureInPicture' in window) ? '<button class="pc-btn mode" onclick="openPipBar()" title="다른 프로그램 위에 항상 떠 있는 자막창">📌 항상 위</button>' : ''}</div>`;
-                html += `<div class="pc-content-area"><button class="pc-nav-btn" onclick="moveWord(-1)">‹</button><div class="pc-text-group" onclick="openListModal()" title="목록 열기"><span class="pc-vn">${w.A}</span>`;
-                if (w.B) html += `<span class="pc-pron">[${w.B}]</span>`;
-                if (w.C) html += `<span class="pc-kr">(${w.C})</span>`;
-                if (w.D) { html += `<span class="pc-ex">${w.D}</span>`; if (w.E) html += `<span class="pc-ex-pron">[${w.E}]</span>`; if (w.F) html += `<span class="pc-ex-kr">(${w.F})</span>`; }
-                html += `</div><button class="pc-nav-btn" onclick="moveWord(1)">›</button></div>`;
-                html += `<div class="pc-side-group">`;
-                if (!isPlaying) { html += `<button class="pc-btn start" onclick="initAudioEngineSynchronously(); startSleepMode();">▶ 시작</button>`; } else { html += `<button class="pc-btn stop" onclick="stopSleepMode()">⏸ 멈춤</button>`; }
-                html += `</div></div>`;
-                app.innerHTML = html; renderPip();
-                return; 
+                // 앱 창 자막바: 항상 위 자막창과 같은 모양. 📱 를 누르면 일반 화면으로
+                app.innerHTML = barHtml(w, true); fitBar(document);
+                return;
             }
 
             const sm = window.innerHeight < 860; // 폰 화면이면 글자를 조금 줄여 아래 버튼이 잘리지 않게
@@ -785,7 +886,7 @@
             localStorage.setItem('vn_delayTime', savedDelayTime); localStorage.setItem('vn_voiceRate', vr); 
             
             const p = document.getElementById('bgmPlayer'); 
-            if (p) { p.volume = parseFloat(savedBgmVolume); if (savedMuteMode) p.pause(); else if (isPlaying) playBackgroundSound(); } 
+            if (p) { p.volume = parseFloat(savedBgmVolume); if (savedMuteMode) pauseBgm(); else if (isPlaying) playBackgroundSound(); } 
             if(isPlaying) { isSkipping = true; ttsToken++; stopActiveAudio(); } 
         }
 
@@ -812,10 +913,31 @@
                 fire: 'https://actions.google.com/sounds/v1/ambiences/fire.ogg', 
                 camping: 'https://actions.google.com/sounds/v1/ambiences/outdoor_summer_ambience.ogg' 
             }; 
-            p.src = s[savedSleepSound] || s['none']; 
-            p.volume = savedSleepSound === 'none' ? 0 : parseFloat(savedBgmVolume); 
+            const quiet = savedSleepSound === 'none' || !s[savedSleepSound];
+            // 아이폰: 무음 감지용 오디오는 다른 앱 음악을 멈추지 않도록 '섞어 듣기'(ambient)로. 빗소리 등은 원래대로
+            if (navigator.audioSession) { try { navigator.audioSession.type = quiet ? 'ambient' : 'auto'; } catch (e) {} }
+            const src = quiet ? (navigator.audioSession ? SILENT_LOOP : s['none']) : s[savedSleepSound];
+            bgmOwnPause = Date.now();
+            if (p.getAttribute('src') !== src) p.src = src;
+            p.volume = quiet ? 0 : parseFloat(savedBgmVolume); 
             p.play().catch(e => {}); 
         }
+        // ---- 이어폰이 끊기면 멈춤 ----
+        // 아이폰은 이어폰 연결이 끊기면 재생 중인 오디오를 스스로 멈춘다(읽어 주는 음성은 안 멈춤).
+        // 재생 중엔 무음 오디오를 같이 틀어 두고, 그게 우리 모르게 멈추면 이어폰이 끊긴 것으로 보고 전체를 멈춘다.
+        let bgmOwnPause = 0;
+        function pauseBgm() { bgmOwnPause = Date.now(); const p = document.getElementById('bgmPlayer'); if (p) p.pause(); }
+        document.getElementById('bgmPlayer').addEventListener('pause', () => {
+            if (!isPlaying || savedMuteMode || Date.now() - bgmOwnPause < 1500) return;
+            setTimeout(() => {
+                if (!isPlaying || document.visibilityState !== 'visible') return; // 화면이 꺼지거나 다른 앱으로 넘어간 경우는 제외
+                stopSleepMode();
+                showNotice('🎧 이어폰 연결이 끊겨서 멈췄어요.\n다시 들으려면 시작을 누르세요.');
+            }, 400);
+        });
+        document.addEventListener('visibilitychange', () => { // 다른 앱에 갔다 돌아오면 감지용 오디오 다시 켜기
+            if (document.visibilityState === 'visible' && isPlaying && !savedMuteMode) { const p = document.getElementById('bgmPlayer'); if (p && p.paused) { bgmOwnPause = Date.now(); p.play().catch(() => {}); } }
+        });
 
         async function waitPhysically(text, type) {
             const rate = parseFloat(localStorage.getItem('vn_voiceRate') || '0.9');
@@ -912,7 +1034,7 @@
         
         function stopSleepMode() { 
             isPlaying = false; ttsToken++; stopActiveAudio(); 
-            document.getElementById('bgmPlayer').pause(); releaseWakeLock(); renderWord(); 
+            pauseBgm(); releaseWakeLock(); renderWord(); 
         }
 
         function speakKoreanLocal(text) { 
@@ -1012,35 +1134,71 @@
         async function openPipBar() {
             if (!('documentPictureInPicture' in window)) { showNotice('이 브라우저는 항상 위 자막창을 지원하지 않아요. 크롬이나 엣지에서 열어 주세요.'); return; }
             if (pipWin && !pipWin.closed) { pipWin.focus(); return; }
-            try { pipWin = await documentPictureInPicture.requestWindow({ width: Math.min(1100, (screen.availWidth || 1200) - 40), height: 80 }); }
+            try { pipWin = await documentPictureInPicture.requestWindow({ width: (screen.availWidth || 1920), height: pipSlim ? PIP_SLIM_H : PIP_NORMAL_H, disallowReturnToOpener: true }); }
             catch (e) { pipWin = null; showNotice('자막창을 열 수 없어요: ' + e.message); return; }
             document.querySelectorAll('style').forEach(s => pipWin.document.head.appendChild(s.cloneNode(true)));
             pipWin.document.title = '베트남어 자막';
             pipWin.document.body.style.cssText = 'margin:0; background:#0f172a; overflow:hidden; height:100vh;';
-            pipWin.document.body.addEventListener('click', e => {
-                const b = e.target.closest('[data-act]'); if (!b) return;
-                const a = b.dataset.act;
-                if (a === 'prev') moveWord(-1); else if (a === 'next') moveWord(1);
-                else if (a === 'play') { initAudioEngineSynchronously(); startSleepMode(); }
-                else if (a === 'stop') stopSleepMode(); else if (a === 'done') toggleComplete();
-            });
-            pipWin.addEventListener('pagehide', () => { pipWin = null; });
+            pipWin.addEventListener('resize', fitPip);
+            pipWin.document.body.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b) barAct(b.dataset.act); });
+            pipWin.addEventListener('pagehide', () => { pipWin = null; isPcMode = false; syncPcChrome(); fitWindow(false); renderWord(); });
             renderPip();
         }
         function renderPip() {
             if (!pipWin || pipWin.closed) return;
             if (!words.length) { pipWin.document.body.innerHTML = '<div class="pc-bar-container" style="height:100vh; border-top:none; justify-content:center; color:#cbd5e1;">데이터 로딩 중...</div>'; return; }
-            const w = words[savedIndex];
-            let h = '<div class="pc-bar-container" style="height:100vh; border-top:none;">';
-            h += '<div class="pc-side-group"><button class="pc-btn hide" data-act="done" title="암기 끝">✅</button></div>';
-            h += `<div class="pc-content-area"><button class="pc-nav-btn" data-act="prev">‹</button><div class="pc-text-group"><span class="pc-vn">${w.A}</span>`;
-            if (w.B) h += `<span class="pc-pron">[${w.B}]</span>`;
+            pipWin.document.body.innerHTML = barHtml(words[savedIndex], false);
+            fitPip();
+        }
+        // 자막바 내용 (inPage: 앱 창·브라우저 안에 그리는 자막바 → 📱 일반 화면 버튼을 붙인다)
+        function barHtml(w, inPage) {
+            let h = '<div class="pc-bar-container pip-bar' + (pipSlim ? ' slim' : '') + (inPage && isAppWindow() ? ' pc-bar-app' : '') + '">';
+            h += '<div class="pc-side-group">' + (inPage ? '<button class="pc-btn mode" data-act="exit" title="일반 화면으로">📱</button>' : '')
+                + '<button class="pc-btn hide" data-act="done" title="암기 끝">✅</button><button class="pc-btn mode" data-act="mute" title="소리 켜기/끄기">' + (savedMuteMode ? '🔇' : '🔊') + '</button>'
+                + '<button class="pc-btn mode" data-act="slim" title="자막바를 한 줄로 얇게 / 원래대로">' + (pipSlim ? '두껍게' : '얇게') + '</button></div>';
+            h += `<div class="pc-content-area"><button class="pc-nav-btn" data-act="prev">‹</button><div class="pip-text one"><div class="pip-line"><span class="pc-vn">${w.A}</span>`;
+            if (pronText(w)) h += `<span class="pc-pron">[${pronText(w)}]</span>`;
             if (w.C) h += `<span class="pc-kr">(${w.C})</span>`;
-            if (w.D) { h += `<span class="pc-ex">${w.D}</span>`; if (w.E) h += `<span class="pc-ex-pron">[${w.E}]</span>`; if (w.F) h += `<span class="pc-ex-kr">(${w.F})</span>`; }
+            h += '</div>';
+            if (w.D) {
+                h += `<div class="pip-line ex"><span class="pc-ex">${w.D}</span>`; if (w.E) h += `<span class="pc-ex-pron pip-g2">[${w.E}]</span>`; if (w.F) h += `<span class="pc-ex-kr">(${w.F})</span>`; h += '</div>';
+                if (w.E) h += `<div class="pip-line g3"><span class="pc-ex-pron">[${w.E}]</span></div>`; // 세 줄일 때만 보이는 단어별 발음 줄
+            }
             h += '</div><button class="pc-nav-btn" data-act="next">›</button></div>';
             h += '<div class="pc-side-group">' + (isPlaying ? '<button class="pc-btn stop" data-act="stop">⏸</button>' : '<button class="pc-btn start" data-act="play">▶</button>') + '</div></div>';
-            pipWin.document.body.innerHTML = h;
+            return h;
         }
+        function barAct(a) {
+            if (a === 'prev') moveWord(-1); else if (a === 'next') moveWord(1);
+            else if (a === 'play') { initAudioEngineSynchronously(); startSleepMode(); }
+            else if (a === 'stop') stopSleepMode(); else if (a === 'done') toggleComplete(); else if (a === 'mute') toggleMuteQuick();
+            else if (a === 'slim') togglePipSlim(); else if (a === 'exit') togglePcMode();
+        }
+        document.addEventListener('click', e => { const b = e.target.closest('.pip-bar [data-act]'); if (b) barAct(b.dataset.act); });
+        window.addEventListener('resize', () => { if (isPcMode && !(pipWin && !pipWin.closed)) fitBar(document); });
+        // 글자가 안 잘리게: 한 줄 → 두 줄 → 세 줄(단어별 발음을 따로) → 단어별 발음 빼고 두 줄. 그래도 넘치면 끝만 … 처리
+        const PIP_TRIES = [['one', 1], ['one', .9], ['one', .82], ['two', 1], ['two', .9], ['three', 1], ['three', .9], ['three', .8], ['three', .72],
+            ['two nogloss', 1], ['two nogloss', .9], ['two nogloss', .8], ['two nogloss', .7], ['two nogloss', .6]];
+        // 얇게: 한 줄만 (크게→작게 → 단어별 발음 빼기 → 예문 끝을 … 처리)
+        const PIP_SLIM_TRIES = [['one', 1], ['one', .9], ['one', .82], ['one nogloss', 1], ['one nogloss', .9], ['one nogloss', .8], ['one nogloss clip', .8]];
+        function togglePipSlim() {
+            pipSlim = !pipSlim;
+            try { localStorage.setItem('vn_pip_slim', pipSlim ? '1' : '0'); } catch (e) {}
+            if (pipWin && !pipWin.closed) {
+                // 버튼 클릭 직후라 자막창 크기를 바꿀 수 있다. 브라우저 최소 높이보다 얇아지지는 않음
+                try { pipWin.resizeTo(pipWin.outerWidth, pipWin.outerHeight - pipWin.innerHeight + barH()); } catch (e) {}
+                renderPip();
+            } else if (isPcMode) { fitWindow(true); renderWord(); }
+        }
+        function fitBar(doc) {
+            const t = doc && doc.querySelector('.pip-text'); if (!t) return;
+            const fits = () => t.scrollWidth <= t.clientWidth + 1 && t.scrollHeight <= t.clientHeight + 1 && [...t.children].every(l => l.scrollWidth <= l.clientWidth + 1);
+            for (const [mode, sc] of (pipSlim ? PIP_SLIM_TRIES : PIP_TRIES)) {
+                t.className = 'pip-text ' + mode; t.style.setProperty('--s', sc);
+                if (fits()) return;
+            }
+        }
+        function fitPip() { if (pipWin && !pipWin.closed) fitBar(pipWin.document); }
         function toggleBlackout() { const o = document.getElementById('blackoutOverlay'); o.style.display = (o.style.display === 'none') ? 'flex' : 'none'; }
         function getTodayStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
         function formatTimeText(seconds) { if (!seconds || seconds <= 0) return '0분'; const h = Math.floor(seconds / 3600); const m = Math.floor((seconds % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; }
