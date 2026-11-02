@@ -305,7 +305,8 @@
             padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 12px); }
         .pc-bar-app button { -webkit-app-region: no-drag; app-region: no-drag; }
         .ex-pron-hn { font-size: 0.92em; opacity: 0.85; }
-        .ex-pron-lb { font-size: 0.78em; color: #94a3b8; font-weight: 600; }
+        .ex-pron-lb, .pr-lb { font-size: 0.78em; color: #94a3b8; font-weight: 600; }
+        .pr-sep { color: #64748b; margin: 0 4px; }
         /* ---- 📝 오늘 배울 것 직접 고르기 ---- */
         .tp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
         .tp-head-btns { display: flex; gap: 6px; }
@@ -552,7 +553,7 @@
 
         window.keepAliveUtterances = [];
         // ---- 새 버전 확인: 깃허브에 새로 올리면, 앱을 열거나 다시 볼 때 저절로 한 번 새로고침 ----
-        const APP_VERSION = '20261102-144441';
+        const APP_VERSION = '20261102-145024';
         let lastVersionCheck = 0;
         function checkNewVersion() {
             if (!/^https?:$/.test(location.protocol) || (typeof isPlaying !== 'undefined' && isPlaying)) return;
@@ -1256,7 +1257,7 @@
                 + '<button class="pc-btn hide" data-act="done" title="암기 끝">✅</button><button class="pc-btn mode" data-act="mute" title="소리 켜기/끄기">' + (savedMuteMode ? '🔇' : '🔊') + '</button>'
                 + '<button class="pc-btn mode" data-act="slim" title="자막바를 한 줄로 얇게 / 원래대로">' + (pipSlim ? '두껍게' : '얇게') + '</button></div>';
             h += `<div class="pc-content-area"><button class="pc-nav-btn" data-act="prev">‹</button><div class="pip-text one"><div class="pip-line"><span class="pc-vn">${w.A}</span>`;
-            if (pronText(w)) h += `<span class="pc-pron">[${pronText(w)}]</span>`;
+            if (pronText(w)) h += `<span class="pc-pron">${pronWrap(w)}</span>`;
             if (w.C) h += `<span class="pc-kr">(${w.C})</span>`;
             h += '</div>';
             if (w.D) {
@@ -1528,16 +1529,18 @@
             const m = missions();
             return `<div class="course-pill" onclick="openCourse()">🔥 ${streakDays()}일 · Lv.${course.level} · 미션 ${m.count}/3</div>`;
         }
-        function pronText(w) { const hn = (w.hn || '').trim(); if (course.pron === 'hn' && hn) return hn; if (course.pron === 'both' && hn && hn !== w.B) return '호치민 ' + w.B + ' · 하노이 ' + hn; return w.B; }
+        function pronText(w) { const hn = (w.hn || '').trim(); if (course.pron === 'hn' && hn) return hn; if (course.pron === 'both' && hn && hn !== w.B) return '(호): ' + w.B + ' / (하): ' + hn; return w.B; }
+        // 화면용: 둘 다일 때는 (호)·(하) 표시를 작게, 대괄호 없이 / 하나일 때는 [발음]
+        function pronWrap(w) { const t = pronText(w); if (!t) return ''; return t.startsWith('(호): ') ? t.replace('(호): ', '<span class="pr-lb">(호):</span> ').replace(' / (하): ', ' <span class="pr-sep">/</span> <span class="pr-lb">(하):</span> ') : '[' + t + ']'; }
         // 예문 발음: 호치민(E) / 하노이(M) / 둘 다
         function exPronOne(w) { return (course.pron === 'hn' && (w.exHn || '').trim()) ? w.exHn : (w.E || ''); }
         function exPronHtml(w) {
             if (!w.E && !w.exHn) return '';
             const hn = (w.exHn || '').trim();
-            if (course.pron === 'both' && hn && hn !== w.E) return '<div class="ex-pron"><span class="ex-pron-lb">호치민</span> [' + glossHtml(w.E) + ']</div><div class="ex-pron ex-pron-hn"><span class="ex-pron-lb">하노이</span> [' + glossHtml(hn) + ']</div>';
+            if (course.pron === 'both' && hn && hn !== w.E) return '<div class="ex-pron"><span class="ex-pron-lb">(호):</span> ' + glossHtml(w.E) + '</div><div class="ex-pron ex-pron-hn"><span class="ex-pron-lb">(하):</span> ' + glossHtml(hn) + '</div>';
             return '<div class="ex-pron">[' + glossHtml(exPronOne(w)) + ']</div>';
         }
-        function pronHtml(w) { const t = pronText(w); return t ? '<div class="pron">[' + t + ']</div>' : ''; }
+        function pronHtml(w) { const t = pronWrap(w); return t ? '<div class="pron">' + t + '</div>' : ''; }
         function exExtraHtml(w) { let h = ''; if (w.lit) h += '<div class="ex-lit">직역 <b>' + w.lit + '</b></div>'; if (w.why) h += '<div class="ex-why">💡 ' + w.why + '</div>'; return h; }
         function lvChipHtml(w) { return (w.lv && !w.lvAuto) ? `<div class="lv-chip">Lv.${w.lv} ${LEVEL_NAMES[w.lv] || ''}${w.I ? ' · ' + w.I : ''}</div>` : ''; }
 
@@ -1787,7 +1790,7 @@
             const w = q.w;
             let h = `<div class="bt-fb-box ${ok ? 'ok' : 'no'}"><div class="bt-fb-title">${ok ? OK_MSG[Math.floor(Math.random() * OK_MSG.length)] : '✖ 아까워요! 이 문제는 다시 나와요'}</div>`;
             if (w) {
-                h += `<div class="bt-fb-vn">${w.A} <span class="bt-fb-pron">[${pronText(w)}]</span></div><div class="bt-fb-line">${w.C}</div>`;
+                h += `<div class="bt-fb-vn">${w.A} <span class="bt-fb-pron">${pronWrap(w)}</span></div><div class="bt-fb-line">${w.C}</div>`;
                 if (q.type === 'order' || q.type === 'blank' || !ok) {
                     if (w.D) h += `<div class="bt-fb-line"><b style="color:var(--accent-green)">${w.D}</b><br>${w.F}</div>`;
                     if (w.lit) h += `<div class="bt-fb-line dim">직역: ${w.lit}</div>`;
