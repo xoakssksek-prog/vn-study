@@ -1,6 +1,6 @@
 {
-  "name": "태만&명희의 프리미엄 베트남어",
-  "short_name": "베트남어",
+  "name": "이태만 어르신의 베트남어 공부",
+  "short_name": "태만 어르신",
   "description": "구글 시트 연동 베트남어 학습 (오늘의 학습 · 퀴즈 전투 · PC 자막바)",
   "start_url": "index.html",
   "scope": "./",

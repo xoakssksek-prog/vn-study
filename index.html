@@ -6,11 +6,11 @@
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="베트남어공부">
+    <meta name="apple-mobile-web-app-title" content="태만 어르신">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/197/197473.png">
     <link rel="manifest" href="manifest.json">
     
-    <title>태만&명희의 프리미엄 베트남어</title>
+    <title>이태만 어르신의 베트남어 공부</title>
     
     <style>
         :root {
@@ -99,7 +99,7 @@
         .c-mean { flex: 1.2; color: #fff; word-break: keep-all; overflow-wrap: break-word; }
         .c-hit { width: 45px; text-align: center; font-size: 10px; color: var(--text-dim); font-weight: 300; }
         .c-del { width: 40px; text-align: right; }
-        /* 암기 끝 목록: 여러 개 골라 한 번에 숨김 해제 */
+        /* 암기 끝 목록: 여러 개 골라 한 번에 다시 공부하기 */
         .c-chk { width: 30px; flex-shrink: 0; display: flex; justify-content: center; }
         .c-chk input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent-green); pointer-events: none; }
         .comp-row { cursor: pointer; }
@@ -359,11 +359,16 @@
                 </label>
                 <div id="rangeInputs" style="display:none; margin-top: 10px; align-items: center; gap: 8px;">
                     <input type="number" id="rangeStart" value="1" min="1" style="width: 60px; background: #020617; color: #fff; border: 1px solid var(--accent-green); border-radius: 6px; padding: 6px; text-align: center;"> <span style="color:#fff;">~</span>
-                    <input type="number" id="rangeEnd" value="100" min="1" style="width: 60px; background: #020617; color: #fff; border: 1px solid var(--accent-green); border-radius: 6px; padding: 6px; text-align: center;"> 번
+                    <input type="number" id="rangeEnd" value="" min="1" style="width: 60px; background: #020617; color: #fff; border: 1px solid var(--accent-green); border-radius: 6px; padding: 6px; text-align: center;"> 번
                     <button onclick="applyRange()" style="background: var(--accent-green); color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 1;">구간 적용</button>
                 </div>
             </div>
             <div id="listContainer" style="flex: 1; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 10px;"></div>
+            <div id="listPages" class="row" style="display:none; align-items:center; justify-content:space-between; margin:8px 0 0;">
+                <button id="listPrev" class="qs-link" onclick="changeListPage(-1)">이전</button>
+                <span id="listPageStatus"></span>
+                <button id="listNext" class="qs-link" onclick="changeListPage(1)">다음</button>
+            </div>
         </div>
     </div>
 
@@ -556,6 +561,8 @@
         let switchingStudyMode = false;
         let focusLoadError = false;
         let playbackSession = 0;
+        const COMPLETED_PREVIEW_MS = 5000;
+        let completedPreviewTimer = null;
         const sheetNames = { '단어': '단어', '문장표현': '문장표현', '문법': '문법' };
         let allWords = []; let words = []; let isPlaying = false; let isSkipping = false; let skipDirection = 1; let sleepTimerId = null;
         let savedIndex = 0; let completedWords = {}; let starredWords = {}; let dailyTime = {}; let wakeLock = null;
@@ -567,7 +574,7 @@
 
         window.keepAliveUtterances = [];
         // ---- 새 버전 확인: 깃허브에 새로 올리면, 앱을 열거나 다시 볼 때 저절로 한 번 새로고침 ----
-        const APP_VERSION = '20261125-focus-words';
+        const APP_VERSION = '20261125-study-range';
         let lastVersionCheck = 0;
         function checkNewVersion() {
             if (!/^https?:$/.test(location.protocol) || (typeof isPlaying !== 'undefined' && isPlaying)) return;
@@ -692,7 +699,15 @@
         // 구간 반복 변수 추가
         let isRangeMode = localStorage.getItem('vn_rangeMode') === 'true';
         let rangeStart = parseInt(localStorage.getItem('vn_rangeStart') || '1');
-        let rangeEnd = parseInt(localStorage.getItem('vn_rangeEnd') || '100');
+        let rangeEnd = Number(localStorage.getItem('vn_rangeEnd')) || 0;
+        let focusRange = lsGetRange();
+        const LIST_PAGE_SIZE = 100;
+        let listPage = 0;
+
+        function lsGetRange() {
+            try { return JSON.parse(localStorage.getItem('vn_focus_range')) || { enabled: false, start: 1, end: 0 }; }
+            catch (e) { return { enabled: false, start: 1, end: 0 }; }
+        }
         
         try { 
             savedIndex = parseInt(localStorage.getItem('vn_index') || '0');
@@ -776,24 +791,29 @@
         
         // 구간 모드 로직 통합
         function applyModeFilter() {
+            cancelCompletedPreview();
             navHistory = [];
-            if (savedStudyMode === '오늘의 학습' || savedStudyMode === FOCUS_MODE) { words = allWords; if (savedIndex >= words.length) savedIndex = 0; renderWord(); return; } // 오늘의 학습은 별표·구간 필터 없이 그대로
-            if (reviewMode) {
-                words = allWords.filter(w => starredWords[w.K]); 
-                if (words.length === 0) { reviewMode = false; localStorage.setItem('vn_reviewMode', 'false'); words = allWords; } 
-            } else { 
-                words = allWords; 
-            } 
-
-            if (isRangeMode) {
-                // 구간은 목록에 보이는 번호(P) 기준: 별표 복습 중이어도 "50~60번"은 같은 50~60번
-                const s = Math.max(1, rangeStart), e = rangeEnd;
-                const ranged = words.filter(w => w.P >= s && w.P <= e);
-                if (ranged.length) words = ranged;
+            words = allWords;
+            const focus = savedStudyMode === FOCUS_MODE;
+            const today = savedStudyMode === '오늘의 학습';
+            if (!focus && !today && reviewMode) {
+                const starred = words.filter(w => starredWords[w.K]);
+                if (starred.length) words = starred;
+                else {
+                    reviewMode = false;
+                    localStorage.setItem('vn_reviewMode', 'false');
+                }
             }
 
-            if (savedIndex >= words.length) savedIndex = 0; 
-            renderWord(); 
+            const range = currentStudyRange();
+            if (!today && range.enabled && allWords.length) {
+                const start = Math.min(range.start, allWords.length);
+                const end = Math.min(range.end || allWords.length, allWords.length);
+                const ranged = words.filter(w => w.P >= start && w.P <= end);
+                if (focus || ranged.length) words = ranged;
+            }
+            if (savedIndex >= words.length) savedIndex = 0;
+            renderWord();
         }
 
         // CSV 읽기: 따옴표("")·쉼표·줄바꿈이 들어간 칸도 깨지지 않게 한 글자씩 읽는다
@@ -856,7 +876,7 @@
                     w.K = name === FOCUS_MODE ? FOCUS_MODE + '|' + key : key;
                     return w;
                 });
-            return name === FOCUS_MODE ? entries.slice(0, 10) : entries;
+            return entries;
         }
         async function togglePcMode() {
             // 설치한 앱 창: 창 자체가 화면 아래 자막바로 바뀐다 (항상 위 고정은 실행.bat 이 맡음)
@@ -885,26 +905,62 @@
                 '<button class="play-btn" style="max-width:320px;" onclick="closePipBar()">자막바 닫고 돌아가기</button></div>';
         }
 
-        // 구간 모드 제어 기능 추가
+        function currentStudyRange() {
+            return savedStudyMode === FOCUS_MODE ? focusRange : { enabled: isRangeMode, start: rangeStart, end: rangeEnd };
+        }
+
         function toggleRangeMode() {
-            isRangeMode = document.getElementById('rangeToggle').checked;
-            localStorage.setItem('vn_rangeMode', isRangeMode);
-            document.getElementById('rangeInputs').style.display = isRangeMode ? 'flex' : 'none';
-            if (!isRangeMode) { applyRange(); }
+            const enabled = document.getElementById('rangeToggle').checked;
+            document.getElementById('rangeInputs').style.display = enabled ? 'flex' : 'none';
+            if (!enabled) applyRange();
         }
 
         function applyRange() {
-            rangeStart = parseInt(document.getElementById('rangeStart').value) || 1;
-            rangeEnd = parseInt(document.getElementById('rangeEnd').value) || 100;
-            localStorage.setItem('vn_rangeStart', rangeStart);
-            localStorage.setItem('vn_rangeEnd', rangeEnd);
-            savedIndex = 0;
+            const enabled = document.getElementById('rangeToggle').checked;
+            const total = allWords.length;
+            const from = document.getElementById('rangeStart').value;
+            const to = document.getElementById('rangeEnd').value;
+            const start = enabled ? Number(from || 1) : 1;
+            const end = enabled ? Number(to || total) : 0;
+            if (enabled && (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start || end > total)) {
+                showNotice(`1번부터 ${total}번 사이로 구간을 지정해 주세요.`);
+                return;
+            }
+
+            if (savedStudyMode === FOCUS_MODE) {
+                focusRange = { enabled, start, end };
+                localStorage.setItem('vn_focus_range', JSON.stringify(focusRange));
+            } else {
+                isRangeMode = enabled;
+                if (enabled) {
+                    rangeStart = start;
+                    rangeEnd = end;
+                    localStorage.setItem('vn_rangeStart', rangeStart);
+                    localStorage.setItem('vn_rangeEnd', rangeEnd);
+                }
+                localStorage.setItem('vn_rangeMode', enabled);
+            }
+
             const wasPlaying = isPlaying;
-            if(wasPlaying) stopSleepMode();
+            if (wasPlaying) stopSleepMode();
+            savedIndex = 0;
+            currentPlayingIndex = -1;
             applyModeFilter();
-            if(wasPlaying) startSleepMode();
+            localStorage.setItem('vn_index', savedIndex);
+            if (wasPlaying) startSleepMode();
             openListModal();
-            showNotice(isRangeMode ? `${rangeStart}번 ~ ${rangeEnd}번 구간이 설정되었습니다.` : `전체 반복으로 변경되었습니다.`);
+            showNotice(enabled ? `${start}번 ~ ${end}번 구간이 설정되었습니다.` : '전체 반복으로 변경되었습니다.');
+        }
+
+        function openRangeFromBar() {
+            if (pipWin && !pipWin.closed) {
+                if (isPlaying) stopSleepMode();
+                closePipBar();
+                window.focus();
+            } else if (isPcMode) {
+                togglePcMode();
+            }
+            openListModal();
         }
 
         function focusEmptyMessage() {
@@ -950,7 +1006,7 @@
             let html = '<div class="card">';
             html += `<div class="top-pills">` + coursePillHtml() + `<div class="status" style="cursor:pointer; display:inline-block; margin:0; padding:6px 15px; background:rgba(255,255,255,0.05); border-radius:20px; font-size:12px; color:var(--accent-gold); border: 1px solid var(--glass-border);" onclick="openListModal()">` + (reviewMode && savedStudyMode !== FOCUS_MODE ? '⭐ REVIEW' : 'MODE: ' + savedStudyMode) + ' | ' + statusPos(w) + ' 🔍 </div></div><div class="content-wrap">' + lvChipHtml(w);
             html += `<button class="star-btn ${isStarred ? 'active' : ''}" onclick="toggleStar()">${isStarred ? '★' : '☆'}</button>`;
-            if (isCompleted) html += '<div style="color:var(--accent-gold); font-size:14px; margin-bottom:5px; font-weight:bold;">✅ 마스터한 항목</div>';
+            if (isCompleted) html += '<div style="color:var(--accent-gold); font-size:14px; margin-bottom:5px; font-weight:bold;">✅ 암기 끝 · 5초 복습</div>';
             html += '<div style="display: flex; align-items: center; justify-content: space-between;"><button class="arrow-btn" onclick="moveWord(-1)">‹</button><div class="vn" style="font-size:' + vnSize + ';">' + w.A + '</div><button class="arrow-btn" onclick="moveWord(1)">›</button></div>';
             html += pronHtml(w);
             html += '<div class="kr">' + w.C + '</div>';
@@ -960,7 +1016,7 @@
             if (!isPlaying) { html += '<button class="play-btn" onclick="initAudioEngineSynchronously(); startSleepMode();">START</button>'; }
             else { html += '<button class="play-btn" style="background:#334155;" onclick="stopSleepMode()">PAUSE (일시정지)</button>'; }
             html += `<button class="play-btn focus-btn" aria-pressed="${savedStudyMode === FOCUS_MODE}" title="${savedStudyMode === FOCUS_MODE ? '이전 학습으로 돌아가기' : FOCUS_MODE}" onclick="toggleFocusMode()">${FOCUS_MODE}</button></div>`;
-            html += `<div class="row"><button class="row-btn btn-gold" onclick="toggleComplete()">${isCompleted ? "숨김 해제" : "암기 끝! 숨기기"}</button><select class="row-btn btn-outline sheet-select" onchange="changeStudyModeMain(this)">`;
+            html += `<div class="row"><button class="row-btn btn-gold" onclick="toggleComplete()">${isCompleted ? "다시 공부하기" : "암기 끝"}</button><select class="row-btn btn-outline sheet-select" onchange="changeStudyModeMain(this)">`;
             STUDY_MODES.forEach(m => { html += `<option value="${m}" ${savedStudyMode === m ? 'selected' : ''}>${m}</option>`; });
             html += `</select></div><div class="row">`;
             if (!isPlaying) { html += `<button class="row-btn btn-outline" style="color:#fda4af; border-color:rgba(244,63,94,0.45);" onclick="startBattle(savedStudyMode === '오늘의 학습' ? 'today' : 'list')">⚔️ 퀴즈 전투</button>`; }
@@ -971,28 +1027,52 @@
             app.innerHTML = html; renderPip();
         }
 
-        function openListModal() { 
-            // 모달 열 때 구간 설정 상태 업데이트
-            document.getElementById('rangeToggle').checked = isRangeMode;
-            document.getElementById('rangeStart').value = rangeStart;
-            document.getElementById('rangeEnd').value = rangeEnd;
-            document.getElementById('rangeInputs').style.display = isRangeMode ? 'flex' : 'none';
-
-            const container = document.getElementById('listContainer'); 
-            let html = ''; 
-            // 번호는 화면 위쪽·구간 설정과 같은 목록 번호(P)로 표시
-
-            words.forEach((w, idx) => { 
-                const isCurrent = idx === savedIndex; 
-                html += `<div onclick="jumpToWord(${idx})" style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; cursor: pointer; background: ${isCurrent ? 'rgba(16, 185, 129, 0.2)' : 'transparent'};"><div style="width: 40px; color: var(--accent-gold); font-size: 12px;">${w.P || (idx + 1)}</div><div style="flex: 1; color: var(--accent-green); font-weight: bold; font-size: 14px;">${w.A}</div><div style="flex: 1; color: #cbd5e1; font-size: 12px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${w.C}</div></div>`; 
-            }); 
-            container.innerHTML = html; 
-            document.getElementById('listModal').style.display = 'block'; 
-            setTimeout(() => { const activeEl = container.children[savedIndex]; if(activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50); 
+        function openListModal() {
+            const range = currentStudyRange();
+            const rangeToggle = document.getElementById('rangeToggle');
+            rangeToggle.checked = range.enabled && savedStudyMode !== '오늘의 학습';
+            rangeToggle.disabled = savedStudyMode === '오늘의 학습';
+            document.getElementById('rangeStart').value = Math.min(range.start, allWords.length || 1);
+            document.getElementById('rangeEnd').value = Math.min(range.end || allWords.length, allWords.length) || '';
+            document.getElementById('rangeInputs').style.display = rangeToggle.checked ? 'flex' : 'none';
+            listPage = Math.floor(savedIndex / LIST_PAGE_SIZE);
+            renderWordListPage();
+            document.getElementById('listModal').style.display = 'block';
+            setTimeout(() => {
+                const active = document.getElementById('listContainer').children[savedIndex % LIST_PAGE_SIZE];
+                if (active) active.scrollIntoView({ block: 'nearest' });
+            }, 50);
         }
+
+        function renderWordListPage() {
+            const container = document.getElementById('listContainer');
+            const first = listPage * LIST_PAGE_SIZE;
+            const pageCount = Math.ceil(words.length / LIST_PAGE_SIZE);
+            let html = '';
+            words.slice(first, first + LIST_PAGE_SIZE).forEach((w, i) => {
+                const idx = first + i;
+                const isCurrent = idx === savedIndex;
+                html += `<div onclick="jumpToWord(${idx})" style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; cursor: pointer; background: ${isCurrent ? 'rgba(16, 185, 129, 0.2)' : 'transparent'};"><div style="width: 40px; color: var(--accent-gold); font-size: 12px;">${w.P || (idx + 1)}</div><div style="flex: 1; color: var(--accent-green); font-weight: bold; font-size: 14px;">${completedWords[w.K] ? '✅ ' : ''}${w.A}</div><div style="flex: 1; color: #cbd5e1; font-size: 12px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${w.C}</div></div>`; 
+            });
+            container.innerHTML = html;
+            container.scrollTop = 0;
+            document.getElementById('listPages').style.display = pageCount > 1 ? 'flex' : 'none';
+            document.getElementById('listPageStatus').textContent = `${listPage + 1} / ${pageCount} · ${words.length}개`;
+            document.getElementById('listPrev').disabled = listPage === 0;
+            document.getElementById('listNext').disabled = listPage + 1 >= pageCount;
+        }
+
+        function changeListPage(direction) {
+            const next = listPage + direction;
+            if (next < 0 || next * LIST_PAGE_SIZE >= words.length) return;
+            listPage = next;
+            renderWordListPage();
+        }
+
         function closeListModal() { document.getElementById('listModal').style.display = 'none'; }
         
-        function jumpToWord(index) { 
+        function jumpToWord(index) {
+            cancelCompletedPreview();
             savedIndex = index; localStorage.setItem('vn_index', savedIndex); 
             if (isPlaying) { isSkipping = true; ttsToken++; stopActiveAudio(); currentWordRep = 0; currentExRep = 0; } 
             closeListModal(); renderWord(); showNotice(`${(words[index] && words[index].P) || index + 1}번 항목으로 이동했습니다.`); 
@@ -1003,7 +1083,34 @@
         // 다른 앱을 보다 돌아오면 화면 켜짐 유지가 풀려 있으므로 다시 요청
         document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && isPlaying) requestWakeLock(); });
         function toggleStar() { const w = words[savedIndex]; if (starredWords[w.K]) delete starredWords[w.K]; else starredWords[w.K] = getTodayStr(new Date()); localStorage.setItem('vn_starred', JSON.stringify(starredWords)); renderWord(); }
-        function toggleComplete() { let w = words[savedIndex]; if (completedWords[w.K]) { delete completedWords[w.K]; } else { completedWords[w.K] = getTodayStr(new Date()); showNotice('✅ 암기 끝! 숨김 처리되었습니다.'); moveWord(1); } localStorage.setItem('vn_completed', JSON.stringify(completedWords)); renderWord(); }
+        function cancelCompletedPreview() {
+            if (completedPreviewTimer !== null) clearTimeout(completedPreviewTimer);
+            completedPreviewTimer = null;
+        }
+
+        function toggleComplete() {
+            const word = words[savedIndex];
+            if (!word) return;
+            cancelCompletedPreview();
+            const completing = !completedWords[word.K];
+            if (completing) completedWords[word.K] = getTodayStr(new Date());
+            else delete completedWords[word.K];
+            localStorage.setItem('vn_completed', JSON.stringify(completedWords));
+            currentPlayingIndex = -1;
+
+            if (isPlaying) {
+                isSkipping = true;
+                ttsToken++;
+                stopActiveAudio();
+            } else if (completing && words.length > 1) {
+                completedPreviewTimer = setTimeout(() => {
+                    completedPreviewTimer = null;
+                    if (!isPlaying && words[savedIndex] === word && completedWords[word.K]) moveWord(1);
+                }, COMPLETED_PREVIEW_MS);
+            }
+            showNotice(completing ? '✅ 암기 끝 · 다음부터 5초 복습' : '일반 반복 학습으로 돌아왔어요.');
+            renderWord();
+        }
         async function toggleMainReview() {
             reviewMode = document.getElementById('mainReviewMode').checked; localStorage.setItem('vn_reviewMode', reviewMode); savedIndex = 0;
             const wasPlaying = isPlaying; if (wasPlaying) stopSleepMode();
@@ -1085,7 +1192,8 @@
         function adjustVolume(targetId, amount) { const slider = document.getElementById(targetId); let newVal = parseFloat(slider.value) + amount; if (newVal > 1) newVal = 1; if (newVal < 0) newVal = 0; slider.value = newVal.toFixed(1); saveSettings(); if (targetId === 'appVolume') showNotice('🔊 볼륨이 조절되었습니다.'); else showNotice('🎵 수면 유도음 볼륨이 조절되었습니다.'); }
         function changeGlobalCount(type, n) { if (type === 'wordVn') { savedWordVnCount = Math.min(99, Math.max(0, savedWordVnCount + n)); localStorage.setItem('vn_wordVnCount', savedWordVnCount); document.getElementById('wordVnCountDisplay').innerText = savedWordVnCount; } else if (type === 'wordKr') { savedWordKrCount = Math.min(99, Math.max(0, savedWordKrCount + n)); localStorage.setItem('vn_wordKrCount', savedWordKrCount); document.getElementById('wordKrCountDisplay').innerText = savedWordKrCount; } else if (type === 'exVn') { savedExVnCount = Math.min(99, Math.max(0, savedExVnCount + n)); localStorage.setItem('vn_exVnCount', savedExVnCount); document.getElementById('exVnCountDisplay').innerText = savedExVnCount; } else if (type === 'exKr') { savedExKrCount = Math.min(99, Math.max(0, savedExKrCount + n)); localStorage.setItem('vn_exKrCount', savedExKrCount); document.getElementById('exKrCountDisplay').innerText = savedExKrCount; } if(isPlaying) { isSkipping = true; ttsToken++; stopActiveAudio(); } }
         
-        function moveWord(direction) { 
+        function moveWord(direction) {
+            cancelCompletedPreview();
             isSkipping = true; skipDirection = direction; 
             ttsToken++; stopActiveAudio(); 
             if (direction === 1) { advanceIndex(); }
@@ -1163,6 +1271,7 @@
 
         async function startSleepMode() { 
             if (isPlaying || switchingStudyMode) return;
+            cancelCompletedPreview();
             const session = ++playbackSession;
             const stillPlaying = () => isPlaying && session === playbackSession; 
             isPlaying = true; 
@@ -1173,12 +1282,19 @@
             
             if (sleepTimerId) clearTimeout(sleepTimerId); const timerVal = parseInt(savedTimer); if (timerVal > 0) sleepTimerId = setTimeout(() => stopSleepMode(), timerVal * 60 * 1000); 
             while (stillPlaying()) { 
-                if (!words.length || !playableIndices().length) { stopSleepMode(); showNotice("재생할 항목이 없어요. 전부 '암기 끝' 상태예요. 완료 목록에서 숨김을 풀거나 다른 모드를 골라 주세요."); return; }
+                if (!words.length) { stopSleepMode(); showNotice('재생할 항목이 없어요.'); return; }
                 if (savedIndex >= words.length) savedIndex = 0; isSkipping = false; const w = words[savedIndex];
-                if (!isPlayable(w)) { advanceIndex(); continue; } // 암기 끝 항목은 화면을 다시 그리지 않고 바로 건너뜀
                 localStorage.setItem('vn_index', savedIndex); renderWord(); const itemStart = Date.now();
                 if (currentPlayingIndex !== savedIndex) { currentWordRep = 0; currentExRep = 0; currentPlayingIndex = savedIndex; } 
                 if (savedHitCountToggle && currentWordRep === 0 && currentExRep === 0) { hitCounts[w.K] = (hitCounts[w.K] || 0) + 1; localStorage.setItem('vn_hit_counts', JSON.stringify(hitCounts)); } 
+                if (completedWords[w.K]) {
+                    const end = Date.now() + COMPLETED_PREVIEW_MS;
+                    while (stillPlaying() && !isSkipping && Date.now() < end) {
+                        await new Promise(resolve => tick(resolve, Math.min(100, Math.max(0, end - Date.now()))));
+                    }
+                    if (stillPlaying() && !isSkipping) advanceIndex();
+                    continue;
+                }
                 let maxWordReps = Math.max(savedWordVnCount, savedWordKrCount); 
                 
                 for (; currentWordRep < maxWordReps; currentWordRep++) { 
@@ -1282,15 +1398,13 @@
         
         // ---- 재생 순서 ----
         var navHistory = []; // 랜덤 재생에서 지나온 순서 (‹ 버튼용)
-        function isPlayable(w) { return (reviewMode && savedStudyMode !== FOCUS_MODE) || !completedWords[w.K]; }
-        function playableIndices() { const a = []; words.forEach((w, i) => { if (isPlayable(w)) a.push(i); }); return a; }
         function advanceIndex() {
             if (savedShuffle && words.length > 1) {
                 navHistory.push(savedIndex); if (navHistory.length > 100) navHistory.shift();
-                let pool = playableIndices().filter(i => i !== savedIndex); // 같은 단어 연속 금지, 암기 끝은 건너뜀
-                if (!pool.length) pool = words.map((_, i) => i).filter(i => i !== savedIndex);
-                savedIndex = pool[Math.floor(Math.random() * pool.length)];
+                const next = Math.floor(Math.random() * (words.length - 1));
+                savedIndex = next >= savedIndex ? next + 1 : next;
             } else { savedIndex++; if (savedIndex >= words.length) savedIndex = 0; }
+            localStorage.setItem('vn_index', savedIndex);
         }
         function statusPos(w) { const p = w.P || (savedIndex + 1); return (words.length === allWords.length) ? (p + '/' + allWords.length) : (p + '번 · ' + (savedIndex + 1) + '/' + words.length); }
 
@@ -1353,7 +1467,8 @@
         function barHtml(w, inPage) {
             let h = '<div class="pc-bar-container pip-bar' + (pipSlim ? ' slim' : '') + (inPage && isAppWindow() ? ' pc-bar-app' : '') + '">';
             h += '<div class="pc-side-group">' + (inPage ? '<button class="pc-btn mode" data-act="exit" title="일반 화면으로">📱</button>' : '')
-                + '<button class="pc-btn hide" data-act="done" title="암기 끝">✅</button><button class="pc-btn mode" data-act="mute" title="소리 켜기/끄기">' + (savedMuteMode ? '🔇' : '🔊') + '</button>'
+                + `<button class="pc-btn ${completedWords[w.K] ? 'hide' : 'mode'}" data-act="done" aria-pressed="${!!completedWords[w.K]}" title="${completedWords[w.K] ? '다시 공부하기' : '암기 끝 · 5초 복습'}">✅</button>`
+                + '<button class="pc-btn mode" data-act="mute" title="소리 켜기/끄기">' + (savedMuteMode ? '🔇' : '🔊') + '</button>'
                 + '<button class="pc-btn mode" data-act="slim" title="자막바를 한 줄로 얇게 / 원래대로">' + (pipSlim ? '두껍게' : '얇게') + '</button></div>';
             h += `<div class="pc-content-area"><button class="pc-nav-btn" data-act="prev">‹</button><div class="pip-text one"><div class="pip-line"><span class="pc-vn">${w.A}</span>`;
             if (pronText(w)) h += `<span class="pc-pron">${pronWrap(w)}</span>`;
@@ -1364,7 +1479,7 @@
                 if (exPronOne(w)) h += `<div class="pip-line g3"><span class="pc-ex-pron">[${glossHtml(exPronOne(w))}]</span></div>`; // 세 줄일 때만 보이는 단어별 발음 줄
             }
             h += '</div><button class="pc-nav-btn" data-act="next">›</button></div>';
-            h += `<div class="pc-side-group"><button class="pc-btn focus-btn" data-act="focus" aria-pressed="${savedStudyMode === FOCUS_MODE}" title="${savedStudyMode === FOCUS_MODE ? '이전 학습으로 돌아가기' : FOCUS_MODE}">핵심</button>` + (isPlaying ? '<button class="pc-btn stop" data-act="stop">⏸</button>' : '<button class="pc-btn start" data-act="play">▶</button>') + '</div></div>';
+            h += `<div class="pc-side-group">${savedStudyMode === '오늘의 학습' ? '' : '<button class="pc-btn mode" data-act="range" title="지정 구간 반복 학습">구간</button>'}<button class="pc-btn focus-btn" data-act="focus" aria-pressed="${savedStudyMode === FOCUS_MODE}" title="${savedStudyMode === FOCUS_MODE ? '이전 학습으로 돌아가기' : FOCUS_MODE}">핵심</button>` + (isPlaying ? '<button class="pc-btn stop" data-act="stop">⏸</button>' : '<button class="pc-btn start" data-act="play">▶</button>') + '</div></div>';
             return h;
         }
         // 예문 발음: 발음은 노랑, 괄호 안 뜻은 흰색으로 구분  예) 럿 부이(아주 기쁘다) → 럿 부이 / (아주 기쁘다)
@@ -1375,6 +1490,7 @@
             else if (a === 'stop') stopSleepMode(); else if (a === 'done') toggleComplete(); else if (a === 'mute') toggleMuteQuick();
             else if (a === 'slim') togglePipSlim(); else if (a === 'exit') togglePcMode();
             else if (a === 'focus') toggleFocusMode(); else if (a === 'focus-refresh') switchStudyMode(FOCUS_MODE);
+            else if (a === 'range') openRangeFromBar();
         }
         document.addEventListener('click', e => { const b = e.target.closest('.pip-bar [data-act]'); if (b) barAct(b.dataset.act); });
         window.addEventListener('resize', () => { if (isPcMode && !(pipWin && !pipWin.closed)) fitBar(document); });
@@ -1409,8 +1525,8 @@
         function changeMonth(offset) { currentCalDate.setMonth(currentCalDate.getMonth() + offset); renderCalendar(); }
         function renderCalendar() { const year = currentCalDate.getFullYear(); const month = currentCalDate.getMonth(); document.getElementById('calTitle').innerText = `${year}년 ${month + 1}월`; const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const grid = document.getElementById('calendarGrid'); grid.innerHTML = ''; ['일','월','화','수','목','금','토'].forEach(d => grid.innerHTML += `<div style="font-weight:bold; color:var(--accent-green); font-size:10px;">${d}</div>`); for(let i=0; i<firstDay; i++) grid.innerHTML += '<div style="opacity:0;"></div>'; for(let i=1; i<=daysInMonth; i++) { const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`; const sec = dailyTime[ds] || 0; let medal = sec >= 3600 ? '💎' : (sec >= 1800 ? '🌟' : (sec >= 600 ? '⚡' : '')); const timeStr = sec > 0 ? formatTimeText(sec) : ''; grid.innerHTML += `<div class="cal-day"><div style="position:absolute; top:2px; left:4px; font-size:9px; color:#fff;">${i}</div><div style="font-size:14px; margin-top:3px;">${medal}</div><div class="cal-time">${timeStr}</div></div>`; } const todayStr = getTodayStr(new Date()); const monthPrefix = `${year}-${String(month+1).padStart(2,'0')}`; const yearPrefix = todayStr.substring(0, 4); let todaySec = dailyTime[todayStr] || 0; let monthSec = 0; let yearSec = 0; for (const k in dailyTime) { if (k.startsWith(monthPrefix)) monthSec += dailyTime[k]; if (k.startsWith(yearPrefix)) yearSec += dailyTime[k]; } const stats = document.getElementById('statsContent'); stats.innerHTML = `<div class="stats-row"><span class="stats-label">- 오늘 학습 시간</span> <span class="stats-value">${formatTimeText(todaySec)}</span></div><div class="stats-row"><span class="stats-label">- 이달 누적 학습</span> <span class="stats-value" style="color:var(--accent-green);">${formatTimeText(monthSec)}</span></div><div class="stats-row"><span class="stats-label">- 올해 누적 학습</span> <span class="stats-value">${formatTimeText(yearSec)}</span></div><hr style="border:none; border-bottom:1px solid rgba(255,255,255,0.05); margin:8px 0;"><div class="stats-row"><span class="stats-label">- 정복한 단어 수</span> <span class="stats-value" style="color:var(--accent-green);">${Object.keys(completedWords).length}개</span></div>`; }
         function renderWeeklyChart() { const container = document.getElementById('weeklyBarChart'); container.innerHTML = ''; const today = new Date(); const dayMap = [6, 0, 1, 2, 3, 4, 5]; const currentDayIdx = dayMap[today.getDay()]; const monDate = new Date(today); monDate.setDate(today.getDate() - currentDayIdx); const dayLabels = ['월','화','수','목','금','토','일']; let maxSec = 1; const weekData = []; for (let i = 0; i < 7; i++) { const targetDate = new Date(monDate); targetDate.setDate(monDate.getDate() + i); const ds = getTodayStr(targetDate); const sec = dailyTime[ds] || 0; if (sec > maxSec) maxSec = sec; weekData.push({ label: dayLabels[i], sec: sec }); } weekData.forEach(data => { const h = Math.max(2, (data.sec / maxSec) * 55); const timeStr = data.sec > 0 ? formatTimeText(data.sec) : ''; container.innerHTML += `<div class="bar-wrapper"><div class="bar-time-label">${timeStr}</div><div class="report-bar" style="height:${h}px;"></div><div style="font-size:10px; color:#fff; font-weight:bold;">${data.label}</div></div>`; }); }
-        // 완료 목록: 기록 키(K)로 찾고, 암기 끝 누른 날짜를 같이 보여준다. 최근에 숨긴 것부터.
-        // 줄을 눌러 여러 개 고른 뒤 [다시 공부하기] 한 번으로 숨김 해제
+        // 완료 목록: 기록 키(K)로 찾고, 암기 끝 누른 날짜를 같이 보여준다. 최근에 완료한 것부터.
+        // 줄을 눌러 여러 개 고른 뒤 [다시 공부하기] 한 번으로 일반 반복 학습으로 돌아간다.
         let compKeys = [];
         let compSel = new Set();
         function openCompletedList() {
@@ -1425,7 +1541,7 @@
                 const d = day(key) ? day(key).slice(5).replace('-', '/') + ' 완료' : '';
                 html += `<div class="comp-row" data-i="${i}" onclick="compToggle(${i})"><div class="c-chk"><input type="checkbox" tabindex="-1"></div><div class="c-vn">${item.A}${d ? `<div style="font-size:10px; color:var(--text-dim); font-weight:300; margin-top:2px;">${d}</div>` : ''}</div><div class="c-pron">${item.B}</div><div class="c-mean">${item.C}</div><div class="c-hit">${hits}회</div></div>`;
             });
-            container.innerHTML = html || '<div style="padding:30px 10px; color:var(--text-dim); font-size:14px;">암기 끝으로 숨긴 항목이 없어요.</div>';
+            container.innerHTML = html || '<div style="padding:30px 10px; color:var(--text-dim); font-size:14px;">암기 끝으로 표시한 항목이 없어요.</div>';
             document.getElementById('compCount').textContent = compKeys.length ? `(${compKeys.length}개)` : '';
             compSync();
             document.getElementById('compModal').style.display = 'block';
@@ -1440,7 +1556,7 @@
         }
         function unhideSelected() {
             const n = compSel.size; if (!n) return;
-            if (!confirm(`${n}개를 숨김 해제하고 다시 공부할까요?`)) return;
+            if (!confirm(`${n}개를 다시 공부할까요?`)) return;
             compSel.forEach(i => { const k = compKeys[i]; if (k !== undefined) delete completedWords[k]; });
             localStorage.setItem('vn_completed', JSON.stringify(completedWords));
             openCompletedList();
@@ -1494,7 +1610,7 @@
             else applyModeFilter();
             showNotice('⭐ 별표 친 항목만 복습해요 (모든 탭).\nSTART를 누르세요.');
         }
-        function uncheckWord(i) { const key = compKeys[i]; if (key === undefined) return; if (confirm('이 단어를 숨김 해제하고 다시 공부할까요?')) { delete completedWords[key]; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); openCompletedList(); } }
+        function uncheckWord(i) { const key = compKeys[i]; if (key === undefined) return; if (confirm('이 단어를 다시 공부할까요?')) { delete completedWords[key]; localStorage.setItem('vn_completed', JSON.stringify(completedWords)); openCompletedList(); } }
         function exportData() { const data = { completed: completedWords, starred: starredWords, time: dailyTime, hits: hitCounts, srs: srs, course: course, streak: streak }; const blob = new Blob([JSON.stringify(data)], { type: 'text/plain' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `viet_backup_${getTodayStr(new Date())}.txt`; a.click(); }
         function importData() { document.getElementById('importFile').click(); }
         function processFile(el) { const file = el.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { try { const data = JSON.parse(e.target.result); if (confirm("기존 기록이 덮어씌워집니다. 진행할까요?")) { localStorage.setItem('vn_completed', JSON.stringify(data.completed)); localStorage.setItem('vn_starred', JSON.stringify(data.starred)); localStorage.setItem('vn_daily_time', JSON.stringify(data.time)); localStorage.setItem('vn_hit_counts', JSON.stringify(data.hits)); if (data.srs) localStorage.setItem('vn_srs', JSON.stringify(data.srs)); if (data.course) localStorage.setItem('vn_course', JSON.stringify(data.course)); if (data.streak) localStorage.setItem('vn_streak', JSON.stringify(data.streak)); localStorage.removeItem('vn_today'); location.reload(); } } catch(err) { alert("파일 오류"); } }; reader.readAsText(file); }
