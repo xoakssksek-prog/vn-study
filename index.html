@@ -55,6 +55,11 @@
         .bottom-controls { width: 100%; padding-bottom: 15px; }
         .play-btn { height: 65px; width: 100%; border-radius: 18px; border: none; font-size: 24px; font-weight: 900; background: linear-gradient(135deg, #f43f5e, #be123c); color: white; margin-bottom: 12px; box-shadow: 0 8px 20px rgba(244, 63, 94, 0.3); cursor: pointer; letter-spacing: 0.15em; }
 
+        .play-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+        .play-row .play-btn { margin: 0; padding: 0 6px; font-size: clamp(14px, 3.5vw, 24px); letter-spacing: .04em; }
+        .focus-btn { background: #0f172a; color: var(--accent-green); border: 1px solid var(--accent-green); }
+        .focus-btn[aria-pressed="true"] { background: var(--accent-green); color: #022c22; }
+
         .row { display: flex; gap: 10px; margin-bottom: 10px; }
         .row-btn { flex: 1; height: 55px; border-radius: 15px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .btn-gold { background: linear-gradient(135deg, #fbbf24, #d97706); color: #451a03; }
@@ -134,6 +139,8 @@
         .pc-btn.start { background: var(--accent-green); color: #000; }
         .pc-btn.stop { background: var(--accent-red); color: #fff; }
         .pc-btn.mode { background: rgba(255,255,255,0.05); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1); }
+        .pc-btn.focus-btn { padding-inline: 8px; }
+        .focus-empty-pc { gap: 8px; padding: 0 8px; justify-content: center; color: #cbd5e1; font-size: 12px; }
         .pc-btn.hide { background: var(--accent-gold); color: #451a03; }
         .pc-nav-btn { background: none; border: none; color: var(--accent-gold); font-size: 28px; font-weight: bold; cursor: pointer; padding: 0 15px; opacity: 0.5; transition: 0.3s; }
         .pc-nav-btn:hover { opacity: 1; transform: scale(1.2); }
@@ -542,6 +549,13 @@
 
     <script>
         const sheetId = '1dFO9zjknCildZAQvZ5pT4nt0ZXMsKYskImaHwso3yyM'; // 회사 계정 구글 시트 (2026-10-26 새 단어장)
+        const FOCUS_MODE = '오늘의 핵심 단어';
+        const FOCUS_GID = 227611251;
+        let previousFocusMode = localStorage.getItem('vn_focus_previous_mode') || '단어';
+        let previousFocusIndex = parseInt(localStorage.getItem('vn_focus_previous_index') || '0', 10);
+        let switchingStudyMode = false;
+        let focusLoadError = false;
+        let playbackSession = 0;
         const sheetNames = { '단어': '단어', '문장표현': '문장표현', '문법': '문법' };
         let allWords = []; let words = []; let isPlaying = false; let isSkipping = false; let skipDirection = 1; let sleepTimerId = null;
         let savedIndex = 0; let completedWords = {}; let starredWords = {}; let dailyTime = {}; let wakeLock = null;
@@ -553,7 +567,7 @@
 
         window.keepAliveUtterances = [];
         // ---- 새 버전 확인: 깃허브에 새로 올리면, 앱을 열거나 다시 볼 때 저절로 한 번 새로고침 ----
-        const APP_VERSION = '20261102-145024';
+        const APP_VERSION = '20261125-focus-words';
         let lastVersionCheck = 0;
         function checkNewVersion() {
             if (!/^https?:$/.test(location.protocol) || (typeof isPlaying !== 'undefined' && isPlaying)) return;
@@ -740,11 +754,22 @@
         async function loadData(mode) {
             allWords = [];
             try {
-                await loadMasterList();
-                if (mode === '오늘의 학습') allWords = getTodaySet();
-                else if (mode === '전체랜덤') allWords = masterWordList.slice();
-                else allWords = masterWordList.filter(w => w.S === sheetNames[mode]);
-            } catch (e) { }
+                if (mode === FOCUS_MODE) {
+                    focusLoadError = false;
+                    const [, focusWords] = await Promise.all([
+                        masterWordList.length ? masterWordList : loadMasterList(),
+                        fetchSheetByName(FOCUS_MODE)
+                    ]);
+                    allWords = focusWords;
+                } else {
+                    await loadMasterList();
+                    if (mode === '오늘의 학습') allWords = getTodaySet();
+                    else if (mode === '전체랜덤') allWords = masterWordList.slice();
+                    else allWords = masterWordList.filter(w => w.S === sheetNames[mode]);
+                }
+            } catch (e) {
+                if (mode === FOCUS_MODE) focusLoadError = true;
+            }
             allWords.forEach((w, i) => { w.P = i + 1; });
             applyModeFilter();
         }
@@ -752,7 +777,7 @@
         // 구간 모드 로직 통합
         function applyModeFilter() {
             navHistory = [];
-            if (savedStudyMode === '오늘의 학습') { words = allWords; if (savedIndex >= words.length) savedIndex = 0; renderWord(); return; } // 오늘의 학습은 별표·구간 필터 없이 그대로
+            if (savedStudyMode === '오늘의 학습' || savedStudyMode === FOCUS_MODE) { words = allWords; if (savedIndex >= words.length) savedIndex = 0; renderWord(); return; } // 오늘의 학습은 별표·구간 필터 없이 그대로
             if (reviewMode) {
                 words = allWords.filter(w => starredWords[w.K]); 
                 if (words.length === 0) { reviewMode = false; localStorage.setItem('vn_reviewMode', 'false'); words = allWords; } 
@@ -803,12 +828,13 @@
                     resolve((resp.table.rows || []).map(r => (r.c || []).map(c => (c && c.v != null) ? String(c.v) : '')));
                 };
                 s.onerror = () => { cleanup(); reject(new Error('시트를 불러오지 못했어요')); };
-                s.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json;responseHandler:${cb}&headers=0&sheet=${encodeURIComponent(name)}`;
+                const tab = name === FOCUS_MODE ? `gid=${FOCUS_GID}&refresh=${Date.now()}` : `sheet=${encodeURIComponent(name)}`;
+                s.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json;responseHandler:${cb}&headers=0&${tab}`;
                 document.head.appendChild(s);
             });
         }
         async function sheetRows(name) {
-            if (location.protocol === 'file:') return gvizJsonp(name);
+            if (name === FOCUS_MODE || location.protocol === 'file:') return gvizJsonp(name);
             try {
                 const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&headers=0&sheet=${encodeURIComponent(name)}`;
                 const res = await fetch(url); if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -817,11 +843,20 @@
         }
         async function fetchSheetByName(name) {
             const rows = await sheetRows(name);
-            const seen = {}; let n = 0;
-            return rows
+            const seen = Object.create(null); let n = 0;
+            const entries = rows
                 .map(cols => ({ A: cols[0] || '', B: cols[1] || '', C: cols[2] || '', D: cols[3] || '', E: cols[4] || '', F: cols[5] || '', G: cols[6] || '', H: cols[7] || '', I: cols[8] || '', hn: cols[9] || '', lit: cols[10] || '', why: cols[11] || '', exHn: cols[12] || '' }))
                 .filter(w => w.A.trim() !== '' && w.A.trim() !== '베트남어') // 1행 제목 줄('베트남어')은 건너뜀
-                .map(w => { n++; seen[w.A] = (seen[w.A] || 0) + 1; w.S = name; w.N = n; w.K = seen[w.A] === 1 ? w.A : w.A + '#' + seen[w.A]; return w; });
+                .map(w => {
+                    n++;
+                    seen[w.A] = (seen[w.A] || 0) + 1;
+                    w.S = name;
+                    w.N = n;
+                    const key = seen[w.A] === 1 ? w.A : w.A + '#' + seen[w.A];
+                    w.K = name === FOCUS_MODE ? FOCUS_MODE + '|' + key : key;
+                    return w;
+                });
+            return name === FOCUS_MODE ? entries.slice(0, 10) : entries;
         }
         async function togglePcMode() {
             // 설치한 앱 창: 창 자체가 화면 아래 자막바로 바뀐다 (항상 위 고정은 실행.bat 이 맡음)
@@ -872,11 +907,36 @@
             showNotice(isRangeMode ? `${rangeStart}번 ~ ${rangeEnd}번 구간이 설정되었습니다.` : `전체 반복으로 변경되었습니다.`);
         }
 
+        function focusEmptyMessage() {
+            return focusLoadError ? '시트에서 핵심 단어를 불러오지 못했어요.' : '시트에 핵심 단어를 입력해 주세요.';
+        }
+
+        function focusEmptyBar(inPage) {
+            const exit = inPage ? '<button class="pc-btn mode" data-act="exit" title="일반 화면으로">📱</button>' : '';
+            return '<div class="pc-bar-container pip-bar focus-empty-pc">' + exit +
+                '<span>' + focusEmptyMessage() + '</span><button class="pc-btn mode" data-act="focus-refresh">다시 읽기</button>' +
+                '<button class="pc-btn mode" data-act="focus">이전 학습</button></div>';
+        }
+
         function renderWord() {
             const app = document.getElementById('app');
+            if (pipWin && !pipWin.closed) { app.innerHTML = pipHomeHtml(); renderPip(); return; }
+            if (switchingStudyMode) {
+                app.innerHTML = isPcMode ? '<div class="pc-bar-container focus-empty-pc">학습 목록을 불러오는 중…</div>' : '<div class="card" style="justify-content:center;">학습 목록을 불러오는 중…</div>';
+                return;
+            }
+            if (words.length === 0 && savedStudyMode === FOCUS_MODE) {
+                app.innerHTML = isPcMode ? focusEmptyBar(true) :
+                    `<div class="card" style="justify-content:center; gap:14px;">
+                        <div class="status">${FOCUS_MODE}</div>
+                        <div>${focusEmptyMessage()}</div>
+                        <a style="color:var(--accent-green);" href="https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=${FOCUS_GID}" target="_blank" rel="noopener">구글 시트 열기</a>
+                        <div class="row"><button class="row-btn btn-outline" onclick="switchStudyMode(FOCUS_MODE)">다시 읽기</button><button class="row-btn btn-outline" onclick="toggleFocusMode()">이전 학습</button></div>
+                    </div>`;
+                return;
+            }
             if (words.length === 0 && savedStudyMode === '오늘의 학습' && masterWordList.length) { app.innerHTML = `<div class="card" style="justify-content:center; gap:16px;"><div class="top-pills">${coursePillHtml()}</div><div style="font-size:18px; line-height:1.6;">오늘 배울 항목이 없어요.<br><span style="color:#94a3b8; font-size:14px;">이 단계를 다 배웠다면 👑 승급 시험에 도전하거나,<br>다른 단계나 다른 모드를 골라 보세요.</span></div><button class="play-btn" onclick="openCourse()">📅 오늘 메뉴 열기</button><select class="row-btn btn-outline sheet-select" onchange="changeStudyModeMain(this)">${STUDY_MODES.map(m => `<option value="${m}" ${savedStudyMode === m ? 'selected' : ''}>${m}</option>`).join('')}</select></div>`; return; }
             if (words.length === 0) { app.innerHTML = '<div class="card" style="justify-content:center;"><div style="font-size:17px; line-height:1.8; color:#cbd5e1;">데이터 로딩 중...<br><span style="font-size:14px; color:#94a3b8;">계속 이 화면이면 구글 시트를 확인하세요.<br>① [공유]가 <b style="color:#fff;">링크가 있는 모든 사용자 · 뷰어</b>인지<br>② 엑셀(.xlsx)이 아니라 <b style="color:#fff;">구글 시트</b>인지<br>③ 아래 탭 이름이 <b style="color:#fff;">단어, 문장표현, 문법</b>인지</span></div></div>'; return; }
-            if (pipWin && !pipWin.closed) { app.innerHTML = pipHomeHtml(); renderPip(); return; }
             const w = words[savedIndex]; const isCompleted = completedWords[w.K]; const isStarred = starredWords[w.K];
             
             if (isPcMode) {
@@ -888,7 +948,7 @@
             const sm = window.innerHeight < 860; // 폰 화면이면 글자를 조금 줄여 아래 버튼이 잘리지 않게
             let vnSize = w.A.length > 15 ? (sm ? '28px' : '34px') : (w.A.length > 8 ? (sm ? '36px' : '44px') : (sm ? '42px' : '52px'));
             let html = '<div class="card">';
-            html += `<div class="top-pills">` + coursePillHtml() + `<div class="status" style="cursor:pointer; display:inline-block; margin:0; padding:6px 15px; background:rgba(255,255,255,0.05); border-radius:20px; font-size:12px; color:var(--accent-gold); border: 1px solid var(--glass-border);" onclick="openListModal()">` + (reviewMode ? '⭐ REVIEW' : 'MODE: ' + savedStudyMode) + ' | ' + statusPos(w) + ' 🔍 </div></div><div class="content-wrap">' + lvChipHtml(w);
+            html += `<div class="top-pills">` + coursePillHtml() + `<div class="status" style="cursor:pointer; display:inline-block; margin:0; padding:6px 15px; background:rgba(255,255,255,0.05); border-radius:20px; font-size:12px; color:var(--accent-gold); border: 1px solid var(--glass-border);" onclick="openListModal()">` + (reviewMode && savedStudyMode !== FOCUS_MODE ? '⭐ REVIEW' : 'MODE: ' + savedStudyMode) + ' | ' + statusPos(w) + ' 🔍 </div></div><div class="content-wrap">' + lvChipHtml(w);
             html += `<button class="star-btn ${isStarred ? 'active' : ''}" onclick="toggleStar()">${isStarred ? '★' : '☆'}</button>`;
             if (isCompleted) html += '<div style="color:var(--accent-gold); font-size:14px; margin-bottom:5px; font-weight:bold;">✅ 마스터한 항목</div>';
             html += '<div style="display: flex; align-items: center; justify-content: space-between;"><button class="arrow-btn" onclick="moveWord(-1)">‹</button><div class="vn" style="font-size:' + vnSize + ';">' + w.A + '</div><button class="arrow-btn" onclick="moveWord(1)">›</button></div>';
@@ -896,9 +956,10 @@
             html += '<div class="kr">' + w.C + '</div>';
             if (w.G) { html += '<div class="tip">' + w.G + '</div>'; }
             if (w.D) { html += '<div class="ex-box"><div class="ex-vn">' + w.D + '</div>'; html += exPronHtml(w); html += '<div class="ex-kr">' + w.F + '</div>' + exExtraHtml(w) + '</div>'; }
-            html += '</div><div class="bottom-controls">';
+            html += '</div><div class="bottom-controls"><div class="play-row">';
             if (!isPlaying) { html += '<button class="play-btn" onclick="initAudioEngineSynchronously(); startSleepMode();">START</button>'; }
             else { html += '<button class="play-btn" style="background:#334155;" onclick="stopSleepMode()">PAUSE (일시정지)</button>'; }
+            html += `<button class="play-btn focus-btn" aria-pressed="${savedStudyMode === FOCUS_MODE}" title="${savedStudyMode === FOCUS_MODE ? '이전 학습으로 돌아가기' : FOCUS_MODE}" onclick="toggleFocusMode()">${FOCUS_MODE}</button></div>`;
             html += `<div class="row"><button class="row-btn btn-gold" onclick="toggleComplete()">${isCompleted ? "숨김 해제" : "암기 끝! 숨기기"}</button><select class="row-btn btn-outline sheet-select" onchange="changeStudyModeMain(this)">`;
             STUDY_MODES.forEach(m => { html += `<option value="${m}" ${savedStudyMode === m ? 'selected' : ''}>${m}</option>`; });
             html += `</select></div><div class="row">`;
@@ -952,7 +1013,38 @@
         }
         function toggleMainShuffle() { savedShuffle = document.getElementById('mainShuffleMode').checked; localStorage.setItem('vn_shuffle', savedShuffle); if(isPlaying) { isSkipping = true; ttsToken++; stopActiveAudio(); } renderWord(); }
         
-        async function changeStudyModeMain(el) { savedStudyMode = el.value; localStorage.setItem('vn_studyMode', savedStudyMode); savedIndex = 0; const wasPlaying = isPlaying; if(wasPlaying) stopSleepMode(); await loadData(savedStudyMode); if(wasPlaying) startSleepMode(); }
+        function changeStudyModeMain(el) { return switchStudyMode(el.value); }
+
+        function toggleFocusMode() {
+            return savedStudyMode === FOCUS_MODE ?
+                switchStudyMode(previousFocusMode, previousFocusIndex) : switchStudyMode(FOCUS_MODE);
+        }
+
+        async function switchStudyMode(mode, index = 0) {
+            if (switchingStudyMode) return;
+            switchingStudyMode = true;
+            const wasPlaying = isPlaying;
+            if (wasPlaying) stopSleepMode();
+            else renderWord();
+            if (mode === FOCUS_MODE && savedStudyMode !== FOCUS_MODE) {
+                previousFocusMode = savedStudyMode;
+                previousFocusIndex = savedIndex;
+                localStorage.setItem('vn_focus_previous_mode', previousFocusMode);
+                localStorage.setItem('vn_focus_previous_index', previousFocusIndex);
+            }
+            savedStudyMode = mode;
+            savedIndex = index;
+            currentPlayingIndex = -1;
+            localStorage.setItem('vn_studyMode', mode);
+            try {
+                await loadData(mode);
+                localStorage.setItem('vn_index', savedIndex);
+            } finally {
+                switchingStudyMode = false;
+                renderWord();
+            }
+            if (wasPlaying && words.length) startSleepMode();
+        }
 
         function openSettings() { 
             document.getElementById('settingsModal').style.display = 'block'; 
@@ -1070,7 +1162,9 @@
         }
 
         async function startSleepMode() { 
-            if (isPlaying) return; 
+            if (isPlaying || switchingStudyMode) return;
+            const session = ++playbackSession;
+            const stillPlaying = () => isPlaying && session === playbackSession; 
             isPlaying = true; 
             requestWakeLock(); 
 
@@ -1078,7 +1172,7 @@
             startTime = Date.now(); 
             
             if (sleepTimerId) clearTimeout(sleepTimerId); const timerVal = parseInt(savedTimer); if (timerVal > 0) sleepTimerId = setTimeout(() => stopSleepMode(), timerVal * 60 * 1000); 
-            while (isPlaying) { 
+            while (stillPlaying()) { 
                 if (!words.length || !playableIndices().length) { stopSleepMode(); showNotice("재생할 항목이 없어요. 전부 '암기 끝' 상태예요. 완료 목록에서 숨김을 풀거나 다른 모드를 골라 주세요."); return; }
                 if (savedIndex >= words.length) savedIndex = 0; isSkipping = false; const w = words[savedIndex];
                 if (!isPlayable(w)) { advanceIndex(); continue; } // 암기 끝 항목은 화면을 다시 그리지 않고 바로 건너뜀
@@ -1088,46 +1182,49 @@
                 let maxWordReps = Math.max(savedWordVnCount, savedWordKrCount); 
                 
                 for (; currentWordRep < maxWordReps; currentWordRep++) { 
-                    if (!isPlaying || isSkipping) break; 
+                    if (!stillPlaying() || isSkipping) break; 
                     
                     if (currentWordRep < savedWordVnCount) { 
                         playIOSVoice(w.A); 
                         await waitPhysically(w.A, 'vn'); 
-                        if (!isPlaying || isSkipping) break; 
+                        if (!stillPlaying() || isSkipping) break; 
                         await new Promise(r => tick(r, 200)); 
                     } 
                     if (currentWordRep < savedWordKrCount && !savedHideKrWord) { 
                         speakKoreanLocal(w.C); 
                         await waitPhysically(w.C, 'kr'); 
-                        if (!isPlaying || isSkipping) break; 
+                        if (!stillPlaying() || isSkipping) break; 
                         await new Promise(r => tick(r, 200)); 
                     } 
-                    let delayMs = parseInt(savedDelayTime); for(let ms=0; ms<delayMs; ms+=100) { if(!isPlaying || isSkipping) break; await new Promise(r => tick(r, 100)); } 
+                    let delayMs = parseInt(savedDelayTime); for(let ms=0; ms<delayMs; ms+=100) { if(!stillPlaying() || isSkipping) break; await new Promise(r => tick(r, 100)); } 
+                    if (!stillPlaying()) return;
                 } 
-                if (!isPlaying || isSkipping) continue; 
+                if (!stillPlaying() || isSkipping) continue; 
                 
                 if (w.D && (savedExVnCount > 0 || savedExKrCount > 0)) { 
                     let maxExReps = Math.max(savedExVnCount, savedExKrCount); 
                     for (; currentExRep < maxExReps; currentExRep++) { 
-                        if (!isPlaying || isSkipping) break; 
+                        if (!stillPlaying() || isSkipping) break; 
                         
                         if (currentExRep < savedExVnCount) { 
                             playIOSVoice(w.D); 
                             await waitPhysically(w.D, 'vn'); 
-                            if (!isPlaying || isSkipping) break; 
+                            if (!stillPlaying() || isSkipping) break; 
                             await new Promise(r => tick(r, 200));
                         } 
                         if (currentExRep < savedExKrCount && !savedHideKrEx) { 
                             speakKoreanLocal(w.F); 
                             await waitPhysically(w.F, 'kr'); 
-                            if (!isPlaying || isSkipping) break; 
+                            if (!stillPlaying() || isSkipping) break; 
                             await new Promise(r => tick(r, 200));
                         } 
-                        let delayMs = parseInt(savedDelayTime); for(let ms=0; ms<delayMs; ms+=100) { if(!isPlaying || isSkipping) break; await new Promise(r => tick(r, 100)); } 
+                        let delayMs = parseInt(savedDelayTime); for(let ms=0; ms<delayMs; ms+=100) { if(!stillPlaying() || isSkipping) break; await new Promise(r => tick(r, 100)); } 
+                        if (!stillPlaying()) return;
                     } 
                 } 
-                if (!isPlaying || isSkipping) continue;
+                if (!stillPlaying() || isSkipping) continue;
                 if (Date.now() - itemStart < 300) await new Promise(r => tick(r, 300)); // 반복 횟수가 모두 0이어도 화면이 굳지 않게 숨 돌리기
+                if (!stillPlaying()) return;
                 currentWordRep = 0; currentExRep = 0; if (!isSkipping) advanceIndex();
             } 
         }
@@ -1185,7 +1282,7 @@
         
         // ---- 재생 순서 ----
         var navHistory = []; // 랜덤 재생에서 지나온 순서 (‹ 버튼용)
-        function isPlayable(w) { return reviewMode || !completedWords[w.K]; }
+        function isPlayable(w) { return (reviewMode && savedStudyMode !== FOCUS_MODE) || !completedWords[w.K]; }
         function playableIndices() { const a = []; words.forEach((w, i) => { if (isPlayable(w)) a.push(i); }); return a; }
         function advanceIndex() {
             if (savedShuffle && words.length > 1) {
@@ -1246,6 +1343,8 @@
         }
         function renderPip() {
             if (!pipWin || pipWin.closed) return;
+            if (switchingStudyMode) { pipWin.document.body.innerHTML = '<div class="pc-bar-container focus-empty-pc">학습 목록을 불러오는 중…</div>'; return; }
+            if (!words.length && savedStudyMode === FOCUS_MODE) { pipWin.document.body.innerHTML = focusEmptyBar(false); return; }
             if (!words.length) { pipWin.document.body.innerHTML = '<div class="pc-bar-container" style="height:100vh; border-top:none; justify-content:center; color:#cbd5e1;">데이터 로딩 중...</div>'; return; }
             pipWin.document.body.innerHTML = barHtml(words[savedIndex], false);
             fitPip();
@@ -1265,7 +1364,7 @@
                 if (exPronOne(w)) h += `<div class="pip-line g3"><span class="pc-ex-pron">[${glossHtml(exPronOne(w))}]</span></div>`; // 세 줄일 때만 보이는 단어별 발음 줄
             }
             h += '</div><button class="pc-nav-btn" data-act="next">›</button></div>';
-            h += '<div class="pc-side-group">' + (isPlaying ? '<button class="pc-btn stop" data-act="stop">⏸</button>' : '<button class="pc-btn start" data-act="play">▶</button>') + '</div></div>';
+            h += `<div class="pc-side-group"><button class="pc-btn focus-btn" data-act="focus" aria-pressed="${savedStudyMode === FOCUS_MODE}" title="${savedStudyMode === FOCUS_MODE ? '이전 학습으로 돌아가기' : FOCUS_MODE}">핵심</button>` + (isPlaying ? '<button class="pc-btn stop" data-act="stop">⏸</button>' : '<button class="pc-btn start" data-act="play">▶</button>') + '</div></div>';
             return h;
         }
         // 예문 발음: 발음은 노랑, 괄호 안 뜻은 흰색으로 구분  예) 럿 부이(아주 기쁘다) → 럿 부이 / (아주 기쁘다)
@@ -1275,6 +1374,7 @@
             else if (a === 'play') { initAudioEngineSynchronously(); startSleepMode(); }
             else if (a === 'stop') stopSleepMode(); else if (a === 'done') toggleComplete(); else if (a === 'mute') toggleMuteQuick();
             else if (a === 'slim') togglePipSlim(); else if (a === 'exit') togglePcMode();
+            else if (a === 'focus') toggleFocusMode(); else if (a === 'focus-refresh') switchStudyMode(FOCUS_MODE);
         }
         document.addEventListener('click', e => { const b = e.target.closest('.pip-bar [data-act]'); if (b) barAct(b.dataset.act); });
         window.addEventListener('resize', () => { if (isPcMode && !(pipWin && !pipWin.closed)) fitBar(document); });
@@ -1405,7 +1505,7 @@
         }
         // COURSE:JS START
         // ===================== 학습 코스: 오늘의 학습 · 단계 · 미션 · 전투 퀴즈 =====================
-        const STUDY_MODES = ['오늘의 학습', '단어', '문장표현', '문법', '전체랜덤'];
+        const STUDY_MODES = ['오늘의 학습', '단어', '문장표현', '문법', '전체랜덤', FOCUS_MODE];
         const LEVEL_NAMES = ['', '왕기초', '생활 기초', '문장 만들기', '회사 생활', '현장 1', '현장 2', '업무 소통', '관리자', '고급 업무', '전문가'];
         const SRS_DAYS = [1, 1, 3, 7, 14, 30]; // 복습 상자 1~5 → 다음 복습까지 날짜
         const TAB_ORDER = ['단어', '문법', '문장표현'];
